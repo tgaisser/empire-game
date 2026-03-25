@@ -14,6 +14,7 @@ export const WORLD_SIZE_OPTIONS: WorldSizeOption[] = [
   { id: "large", label: "Large 24 x 18", width: 24, height: 18 },
   { id: "huge", label: "Huge 30 x 22", width: 30, height: 22 },
   { id: "massive", label: "Massive 36 x 26", width: 36, height: 26 },
+  { id: "colossal", label: "Colossal 42 x 30", width: 42, height: 30 },
 ];
 
 export const GAME_TYPE_OPTIONS: Array<{ id: GameType; label: string }> = [
