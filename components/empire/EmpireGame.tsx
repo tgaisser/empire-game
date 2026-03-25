@@ -21,7 +21,7 @@ import { StartGameModal } from "@/components/empire/panels/StartGameModal";
 import { TopCommandBar } from "@/components/empire/panels/TopCommandBar";
 import { UnitIntelModal } from "@/components/empire/panels/UnitIntelModal";
 import { createAiDiagnosticsReport } from "@/lib/empire/ai/diagnostics";
-import { getRemainingMove, key } from "@/lib/empire/game";
+import { getRemainingMove, getUnitStats, key } from "@/lib/empire/game";
 import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
 import type { DeveloperPlacementType, Faction, GameType, Side, UnitType } from "@/lib/empire/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -185,6 +185,68 @@ export default function EmpireGame() {
     ...devImprovementPlacementTargets.map((tile) => key(tile.x, tile.y)),
   ]);
 
+  function getClickedEnemyUnit(x: number, y: number, target?: "tile" | "city" | "surface-unit" | "air-unit") {
+    const visible = effectivePlayerVisible[y]?.[x];
+    if (!visible) return null;
+
+    const tileUnits = game.units.filter((unit) => unit.x === x && unit.y === y);
+    const surfaceUnit = tileUnits.find((unit) => unit.owner === "ai" && unitDefinitions[unit.type].domain !== "air") ?? null;
+    const airUnit = tileUnits.find((unit) => unit.owner === "ai" && unitDefinitions[unit.type].domain === "air") ?? null;
+
+    if (target === "air-unit") return airUnit;
+    if (target === "surface-unit") return surfaceUnit;
+    if (target === "city") return null;
+    return surfaceUnit ?? airUnit;
+  }
+
+  function shouldOpenEnemyIntelOnClick(x: number, y: number, target?: "tile" | "city" | "surface-unit" | "air-unit") {
+    const clickedEnemyUnit = getClickedEnemyUnit(x, y, target);
+    if (!clickedEnemyUnit) return null;
+
+    if (
+      pendingDroneTarget ||
+      pendingDevPlacement ||
+      pendingDevImprovementPlacement ||
+      pendingSeaBuild ||
+      transportLoadMode ||
+      pendingEngineerPlacement ||
+      pendingSpecialOpsDeployment
+    ) {
+      return null;
+    }
+
+    if (possibleMoves.some((move) => move.x === x && move.y === y)) {
+      return null;
+    }
+
+    if (
+      selectedUnit &&
+      selectedUnit.x === x &&
+      selectedUnit.y === y &&
+      getUnitStats(selectedUnit).attackRequiresSameTile &&
+      game.units.some(
+        (unit) =>
+          unit.x === x &&
+          unit.y === y &&
+          unit.owner !== selectedUnit.owner &&
+          getUnitStats(selectedUnit).attackDomains.includes(getUnitStats(unit).domain) &&
+          getUnitStats(unit).cannotBeAttacked !== true
+      )
+    ) {
+      return null;
+    }
+
+    if (selectedUnit?.type === "special-ops" && specialOpsAirStrikeTargets.some((tile) => tile.x === x && tile.y === y)) {
+      return null;
+    }
+
+    if (selectedUnit?.type === "carrier" && carrierJamTargets.some((tile) => tile.x === x && tile.y === y)) {
+      return null;
+    }
+
+    return clickedEnemyUnit;
+  }
+
   function handleAttemptEndTurn() {
     if (game.side !== "player" || game.winner) return;
     if (unmovedUnitCount > 0 && !skipEndTurnMoveWarning) {
@@ -336,21 +398,17 @@ export default function EmpireGame() {
       }
     }
 
+    const clickedEnemyUnit = shouldOpenEnemyIntelOnClick(x, y, target);
+    if (clickedEnemyUnit) {
+      setIntelUnitId(clickedEnemyUnit.id);
+      return;
+    }
+
     handleTileClick(x, y, target);
   }
 
   function handleMapTileRightClick(x: number, y: number, target?: "tile" | "city" | "surface-unit" | "air-unit") {
-    const visible = effectivePlayerVisible[y]?.[x];
-    if (!visible) return;
-    const tileUnits = game.units.filter((unit) => unit.x === x && unit.y === y);
-    const surfaceUnit = tileUnits.find((unit) => unit.owner === "ai" && unitDefinitions[unit.type].domain !== "air") ?? null;
-    const airUnit = tileUnits.find((unit) => unit.owner === "ai" && unitDefinitions[unit.type].domain === "air") ?? null;
-    const targetUnit =
-      target === "air-unit"
-        ? airUnit
-        : target === "surface-unit"
-          ? surfaceUnit
-          : surfaceUnit ?? airUnit;
+    const targetUnit = getClickedEnemyUnit(x, y, target);
     if (targetUnit) {
       setIntelUnitId(targetUnit.id);
     }
