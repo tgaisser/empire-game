@@ -195,7 +195,7 @@ function ImprovementTileOverlay({
   playerFaction: Faction;
   aiFaction: Faction;
 }) {
-  const visuals = getFactionVisuals(owner, playerFaction, aiFaction);
+  const visuals = getFactionVisuals(owner);
   const productionPulseTint =
     owner === "player"
       ? "bg-[#a3e635]/35"
@@ -250,7 +250,7 @@ function ImprovementTileOverlay({
         <ProductionPulseOverlay active={underConstruction} tintClass={productionPulseTint} />
         <span className="absolute inset-[10%] rounded-[20%] border" style={visuals.portShellStyle} />
         <span className="absolute inset-x-[8%] bottom-[10%] h-[24%] rounded-t-[24%] bg-slate-950/32" />
-        <svg viewBox="0 0 350 350" className={`absolute inset-[10%] h-[80%] w-[80%] ${ownerPrimaryColor(owner, playerFaction, aiFaction)}`}>
+        <svg viewBox="0 0 350 350" className={`absolute inset-[10%] h-[80%] w-[80%] ${ownerPrimaryColor(owner)}`}>
           <g transform="translate(0,350) scale(0.05,-0.05)" fill="currentColor" stroke="none">
             <path d="M1829 5750 c-402 -202 -143 -831 277 -671 42 15 59 7 126 -61 82 -84 80 -140 -4 -155 -51 -9 -228 -183 -228 -224 0 -18 -18 -49 -40 -69 -53 -48 -51 -93 6 -147 58 -54 117 -55 164 -3 19 21 42 35 49 30 23 -13 231 188 231 224 0 125 69 76 370 -264 59 -66 188 -204 288 -306 100 -102 184 -193 188 -202 6 -17 -951 -965 -1217 -1205 -309 -279 -571 -257 -779 66 -157 242 -181 659 -31 518 60 -56 56 -65 110 228 49 265 65 250 -173 165 -301 -108 -277 -91 -215 -155 l54 -56 -43 -61 c-183 -257 -172 -518 38 -912 112 -209 204 -462 250 -683 36 -176 38 -178 173 -195 185 -25 448 -114 687 -232 446 -221 693 -232 934 -39 l73 59 50 -64 50 -63 28 68 c53 128 139 401 129 411 -19 19 -474 -80 -474 -103 0 -13 18 -39 40 -59 61 -56 21 -77 -145 -77 -410 0 -754 372 -626 678 34 80 237 311 729 829 194 204 405 426 471 495 65 69 124 125 132 125 15 0 863 -890 1126 -1184 96 -106 187 -225 204 -264 128 -307 -215 -679 -626 -679 -166 0 -206 21 -145 77 22 20 40 46 40 59 0 23 -455 122 -474 103 -13 -13 132 -449 154 -462 9 -6 36 17 60 50 l43 61 77 -61 c235 -186 522 -177 910 31 240 128 387 176 802 260 35 7 48 37 77 172 53 245 137 477 248 682 214 398 225 659 41 917 l-43 61 54 56 53 56 -231 85 c-127 48 -235 83 -239 78 -8 -8 61 -423 79 -476 8 -22 20 -19 56 15 65 62 90 53 97 -32 37 -445 -331 -843 -667 -721 -108 39 -1469 1331 -1452 1379 3 8 86 99 186 201 100 102 270 285 379 406 110 121 206 223 215 227 25 10 76 -39 63 -61 -13 -21 213 -238 234 -225 7 5 29 -10 48 -31 48 -53 113 -50 167 6 54 58 55 97 3 144 -22 20 -40 51 -40 69 0 41 -181 221 -223 221 -17 0 -46 16 -64 36 -45 50 110 211 177 183 281 -115 583 202 463 487 -175 416 -801 202 -691 -237 34 -132 -138 -284 -194 -172 -36 71 -212 243 -249 243 -18 0 -49 18 -69 40 -100 111 -243 -47 -150 -165 22 -28 40 -59 40 -68 0 -31 206 -224 229 -214 14 5 37 -6 51 -23 30 -36 -754 -820 -820 -820 -64 0 -850 784 -821 819 14 17 34 25 45 18 22 -13 236 189 236 224 0 13 18 44 40 69 96 111 -52 269 -150 160 -20 -22 -51 -40 -69 -40 -37 0 -213 -172 -249 -243 -30 -62 -48 -59 -140 16 l-77 63 24 100 c74 309 -229 555 -510 414z m245 -99 c183 -53 194 -368 15 -443 -270 -113 -488 257 -244 417 79 52 122 56 229 26z m3098 -33 c188 -155 37 -474 -203 -429 -177 33 -254 251 -137 389 81 96 249 116 340 40z" />
           </g>
@@ -303,18 +303,18 @@ function unitOwnerColor(owner: Tile["owner"], playerFaction: Faction, aiFaction:
   return "text-white";
 }
 
-function ownerPrimaryColor(owner: Tile["owner"], _playerFaction: Faction, _aiFaction: Faction) {
+function ownerPrimaryColor(owner: Tile["owner"]) {
   const displayOption = getSideDisplayOption(owner);
   if (displayOption) return displayOption.primaryClass;
   return "text-white";
 }
 
-function ownerRingClass(unit: Unit, _playerFaction: Faction, _aiFaction: Faction) {
+function ownerRingClass(unit: Unit) {
   const displayOption = getSideDisplayOption(unit.owner);
   return displayOption ? `ring-2 ${displayOption.ringClass}` : "ring-2 ring-white border-slate-300/30";
 }
 
-function getFactionVisuals(owner: Tile["owner"], _playerFaction: Faction, _aiFaction: Faction) {
+function getFactionVisuals(owner: Tile["owner"]) {
   const option = getSideDisplayOption(owner);
   if (!option) {
     return {
@@ -376,14 +376,10 @@ function isLightColor(hex: string) {
 
 function CityTileOverlay({
   owner,
-  playerFaction,
-  aiFaction,
 }: {
   owner: Tile["owner"];
-  playerFaction: Faction;
-  aiFaction: Faction;
 }) {
-  const visuals = getFactionVisuals(owner, playerFaction, aiFaction);
+  const visuals = getFactionVisuals(owner);
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -433,7 +429,7 @@ export function MapTile({
   onClick,
   onRightClick,
 }: MapTileProps) {
-  const playerFactionStyle = getFactionVisuals("player", playerFaction, aiFaction);
+  const playerFactionStyle = getFactionVisuals("player");
   const displayTile = visible ? tile : intelTile;
   const visibleOccupants = visible
     ? getUnitsAt(units, tile.x, tile.y).filter((unit) => !isUnitConcealedFromSide(unit, "player"))
@@ -508,7 +504,7 @@ export function MapTile({
     >
       {isUnseen && <div className="absolute inset-0 bg-black/70" />}
       {displayTile && <TerrainPattern tile={displayTile} />}
-      {displayTile?.city ? <CityTileOverlay owner={displayTile.owner} playerFaction={playerFaction} aiFaction={aiFaction} /> : null}
+      {displayTile?.city ? <CityTileOverlay owner={displayTile.owner} /> : null}
       {isProducingUnit ? <ProductionPulseOverlay active={true} tintClass={productionPulseClass} /> : null}
       {displayTile && bridgeOrientation ? (
         <BridgeOverlay
@@ -542,10 +538,10 @@ export function MapTile({
             <span
               className={[
                 "absolute inset-[16%] rounded-md shadow-sm",
-                getFactionVisuals(displayTile.owner, playerFaction, aiFaction).contrastPlateClass,
+                getFactionVisuals(displayTile.owner).contrastPlateClass,
               ].join(" ")}
             />
-            <CityIcon className={`h-full w-full drop-shadow-sm ${ownerPrimaryColor(displayTile.owner, playerFaction, aiFaction)}`} />
+            <CityIcon className={`h-full w-full drop-shadow-sm ${ownerPrimaryColor(displayTile.owner)}`} />
           </span>
         )}
         {(displayTile?.improvement || displayTile?.improvementProject) &&
@@ -619,7 +615,7 @@ export function MapTile({
                 aiFaction,
                 surfaceOccupant.owner
               ),
-              ownerRingClass(surfaceOccupant, playerFaction, aiFaction),
+              ownerRingClass(surfaceOccupant),
             ].join(" ")}
           >
             {engineerOnProject ? (
@@ -658,7 +654,7 @@ export function MapTile({
                 aiFaction,
                 airOccupant.owner
               ),
-              ownerRingClass(airOccupant, playerFaction, aiFaction),
+              ownerRingClass(airOccupant),
             ].join(" ")}
           >
             <UnitTypeIcon

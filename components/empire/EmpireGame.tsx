@@ -305,6 +305,7 @@ export default function EmpireGame() {
   const unmovedUnitCount = unmovedUnits.length;
   const unmovedUnitIds = new Set(unmovedUnits.map((unit) => unit.id));
   const bridgeEngineerActions = engineerActions.filter((action) => action.improvementType === "bridge");
+  const transportLoadMode = pendingTransportLoad && selectedUnit?.type === "troop-transport";
   const placementTargets =
     pendingEngineerPlacement === "port"
       ? engineerPlacementTargets.port
@@ -446,7 +447,7 @@ export default function EmpireGame() {
       setPendingSeaBuild(null);
     }
 
-    if (pendingTransportLoad) {
+    if (transportLoadMode) {
       const loadTarget =
         target !== "city" && target !== "air-unit"
           ? troopTransportLoadTargets.find((unit) => unit.x === x && unit.y === y)
@@ -504,11 +505,6 @@ export default function EmpireGame() {
       setIntelUnitId(targetUnit.id);
     }
   }
-
-  useEffect(() => {
-    if (selectedUnit?.type === "troop-transport") return;
-    setPendingTransportLoad(false);
-  }, [selectedUnit?.id, selectedUnit?.type]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -660,7 +656,7 @@ export default function EmpireGame() {
     pendingEngineerPlacement ? `Engineer placement: ${pendingEngineerPlacement}` : null,
     pendingSeaBuild ? `Choose naval launch tile for ${pendingSeaBuild}` : null,
     pendingSpecialOpsDeployment ? "Choose special ops landing tile" : null,
-    pendingTransportLoad ? "Choose troop to embark" : null,
+    transportLoadMode ? "Choose troop to embark" : null,
     pendingDevPlacement ? `Developer placement: ${pendingDevPlacement.unitType}` : null,
     pendingDevImprovementPlacement ? `Developer placement: ${pendingDevImprovementPlacement.improvementType}` : null,
   ].filter((value): value is string => Boolean(value));
@@ -779,7 +775,7 @@ export default function EmpireGame() {
                 specialOpsAirStrikeTargetCount={specialOpsAirStrikeTargets.length}
                 specialOpsDeploymentTargetCount={specialOpsDeploymentTargets.length}
                 canSelectedBomberAttackHere={canSelectedBomberAttackHere}
-                transportLoadMode={pendingTransportLoad}
+                transportLoadMode={transportLoadMode}
                 onBuild={(unitType) => {
                   if (unitDefinitions[unitType].domain === "sea" && selectedSeaSpawnTiles.length > 1) {
                     setPendingSeaBuild(unitType);
