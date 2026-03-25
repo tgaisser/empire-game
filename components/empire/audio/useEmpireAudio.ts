@@ -3,7 +3,174 @@
 import { useEffect, useRef } from "react";
 import type { GameState, Tile, UnitType } from "@/lib/empire/types";
 
-type AudioCue = "combat" | "tankMove" | "portClick" | "airfieldClick" | "deployCampaign" | "endTurnConfirm";
+type AudioCue = "combat" | "tankMove" | "portClick" | "airfieldClick" | "deployCampaign" | "endTurnConfirm" | "unitSelect";
+type UnitSelectProfile = {
+  wave: OscillatorType;
+  accentWave?: OscillatorType;
+  accentRatio?: number;
+  noteFrequencies: number[];
+  stepSeconds: number;
+  masterGain: number;
+  attackSeconds?: number;
+  noteSeconds?: number;
+  filterType?: BiquadFilterType;
+  filterFrequency?: number;
+  filterQ?: number;
+  noiseGain?: number;
+};
+
+const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
+  infantry: {
+    wave: "triangle",
+    accentWave: "sine",
+    accentRatio: 2,
+    noteFrequencies: [220, 277.18],
+    stepSeconds: 0.06,
+    masterGain: 0.09,
+    filterType: "lowpass",
+    filterFrequency: 1400,
+  },
+  scout: {
+    wave: "sine",
+    accentWave: "triangle",
+    accentRatio: 1.5,
+    noteFrequencies: [392, 493.88, 659.25],
+    stepSeconds: 0.04,
+    masterGain: 0.07,
+    filterType: "highpass",
+    filterFrequency: 280,
+  },
+  tank: {
+    wave: "sawtooth",
+    accentWave: "square",
+    accentRatio: 0.5,
+    noteFrequencies: [92.5, 82.41],
+    stepSeconds: 0.09,
+    masterGain: 0.08,
+    filterType: "lowpass",
+    filterFrequency: 240,
+    filterQ: 1.4,
+  },
+  engineer: {
+    wave: "square",
+    accentWave: "sine",
+    accentRatio: 2,
+    noteFrequencies: [246.94, 329.63, 293.66],
+    stepSeconds: 0.05,
+    masterGain: 0.075,
+    filterType: "lowpass",
+    filterFrequency: 1800,
+  },
+  wraith: {
+    wave: "sine",
+    accentWave: "triangle",
+    accentRatio: 2,
+    noteFrequencies: [523.25, 659.25, 783.99],
+    stepSeconds: 0.036,
+    masterGain: 0.06,
+    filterType: "highpass",
+    filterFrequency: 800,
+    noiseGain: 0.012,
+  },
+  "special-ops": {
+    wave: "triangle",
+    accentWave: "square",
+    accentRatio: 1.5,
+    noteFrequencies: [311.13, 466.16, 415.3],
+    stepSeconds: 0.045,
+    masterGain: 0.07,
+    filterType: "bandpass",
+    filterFrequency: 900,
+    filterQ: 1.2,
+    noiseGain: 0.01,
+  },
+  apache: {
+    wave: "sawtooth",
+    accentWave: "triangle",
+    accentRatio: 2,
+    noteFrequencies: [196, 246.94, 329.63],
+    stepSeconds: 0.045,
+    masterGain: 0.075,
+    filterType: "highpass",
+    filterFrequency: 220,
+    noiseGain: 0.025,
+  },
+  destroyer: {
+    wave: "square",
+    accentWave: "triangle",
+    accentRatio: 2,
+    noteFrequencies: [130.81, 164.81, 130.81],
+    stepSeconds: 0.065,
+    masterGain: 0.07,
+    filterType: "lowpass",
+    filterFrequency: 520,
+  },
+  "troop-transport": {
+    wave: "triangle",
+    accentWave: "sine",
+    accentRatio: 1.5,
+    noteFrequencies: [174.61, 196, 220],
+    stepSeconds: 0.055,
+    masterGain: 0.07,
+    filterType: "lowpass",
+    filterFrequency: 900,
+  },
+  carrier: {
+    wave: "sawtooth",
+    accentWave: "triangle",
+    accentRatio: 2,
+    noteFrequencies: [98, 130.81, 174.61],
+    stepSeconds: 0.075,
+    masterGain: 0.085,
+    filterType: "lowpass",
+    filterFrequency: 360,
+    filterQ: 1.1,
+  },
+  submarine: {
+    wave: "sine",
+    accentWave: "triangle",
+    accentRatio: 0.5,
+    noteFrequencies: [87.31, 110, 87.31],
+    stepSeconds: 0.08,
+    masterGain: 0.075,
+    filterType: "lowpass",
+    filterFrequency: 220,
+    filterQ: 1.6,
+  },
+  fighter: {
+    wave: "sawtooth",
+    accentWave: "triangle",
+    accentRatio: 2,
+    noteFrequencies: [440, 659.25, 880],
+    stepSeconds: 0.03,
+    masterGain: 0.07,
+    filterType: "highpass",
+    filterFrequency: 700,
+    noiseGain: 0.015,
+  },
+  bomber: {
+    wave: "triangle",
+    accentWave: "sawtooth",
+    accentRatio: 0.5,
+    noteFrequencies: [164.81, 155.56, 130.81],
+    stepSeconds: 0.08,
+    masterGain: 0.085,
+    filterType: "lowpass",
+    filterFrequency: 300,
+    filterQ: 1.2,
+  },
+  "drone-swarm": {
+    wave: "square",
+    accentWave: "sine",
+    accentRatio: 1.25,
+    noteFrequencies: [523.25, 659.25, 783.99, 659.25],
+    stepSeconds: 0.032,
+    masterGain: 0.055,
+    filterType: "highpass",
+    filterFrequency: 1200,
+    noiseGain: 0.03,
+  },
+};
 
 function createNoiseBuffer(context: AudioContext, seconds: number) {
   const frameCount = Math.max(1, Math.floor(context.sampleRate * seconds));
@@ -26,6 +193,7 @@ export function useEmpireAudio() {
     airfieldClick: 0,
     deployCampaign: 0,
     endTurnConfirm: 0,
+    unitSelect: 0,
   });
 
   useEffect(() => {
@@ -274,6 +442,85 @@ export function useEmpireAudio() {
     }
   }
 
+  function playUnitSelect(unitType: UnitType) {
+    if (shouldThrottle("unitSelect", 90)) return;
+    const context = getContext();
+    if (!context) return;
+
+    const profile = UNIT_SELECT_PROFILES[unitType];
+    const now = context.currentTime;
+    const attackSeconds = profile.attackSeconds ?? 0.012;
+    const noteSeconds = profile.noteSeconds ?? Math.max(0.08, profile.stepSeconds + 0.06);
+    const totalDuration = profile.noteFrequencies.length * profile.stepSeconds + noteSeconds + 0.08;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(profile.masterGain, now + 0.012);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + totalDuration);
+    master.connect(context.destination);
+
+    const filter =
+      profile.filterType && profile.filterFrequency
+        ? context.createBiquadFilter()
+        : null;
+
+    if (filter) {
+      filter.type = profile.filterType!;
+      filter.frequency.setValueAtTime(profile.filterFrequency!, now);
+      filter.Q.setValueAtTime(profile.filterQ ?? 1, now);
+      filter.connect(master);
+    }
+
+    const output = filter ?? master;
+
+    if (profile.noiseGain) {
+      const noise = context.createBufferSource();
+      noise.buffer = createNoiseBuffer(context, totalDuration);
+      const noiseFilter = context.createBiquadFilter();
+      noiseFilter.type = "highpass";
+      noiseFilter.frequency.setValueAtTime(Math.max(450, profile.filterFrequency ?? 900), now);
+      const noiseGain = context.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, now);
+      noiseGain.gain.exponentialRampToValueAtTime(profile.noiseGain, now + 0.01);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + totalDuration);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(output);
+      noise.start(now);
+      noise.stop(now + totalDuration);
+    }
+
+    for (const [index, frequency] of profile.noteFrequencies.entries()) {
+      const start = now + index * profile.stepSeconds;
+      const stop = start + noteSeconds;
+
+      const tone = context.createOscillator();
+      tone.type = profile.wave;
+      tone.frequency.setValueAtTime(frequency, start);
+      const toneGain = context.createGain();
+      toneGain.gain.setValueAtTime(0.0001, start);
+      toneGain.gain.exponentialRampToValueAtTime(0.09, start + attackSeconds);
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, stop);
+      tone.connect(toneGain);
+      toneGain.connect(output);
+      tone.start(start);
+      tone.stop(stop);
+
+      if (profile.accentWave && profile.accentRatio) {
+        const accent = context.createOscillator();
+        accent.type = profile.accentWave;
+        accent.frequency.setValueAtTime(Math.max(48, frequency * profile.accentRatio), start);
+        const accentGain = context.createGain();
+        accentGain.gain.setValueAtTime(0.0001, start);
+        accentGain.gain.exponentialRampToValueAtTime(0.04, start + attackSeconds * 1.2);
+        accentGain.gain.exponentialRampToValueAtTime(0.0001, stop);
+        accent.connect(accentGain);
+        accentGain.connect(output);
+        accent.start(start);
+        accent.stop(stop);
+      }
+    }
+  }
+
   function playTileClick(tile: Tile | null | undefined) {
     if (!tile) return;
     if (tile.improvement?.type === "port") {
@@ -306,6 +553,7 @@ export function useEmpireAudio() {
   return {
     playDeployCampaign,
     playEndTurnConfirm,
+    playUnitSelect,
     playTileClick,
     playMovement,
     playFromLogDelta,

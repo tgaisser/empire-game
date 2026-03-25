@@ -27,7 +27,7 @@ import type { DeveloperPlacementType, Faction, GameType, Side, UnitType } from "
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function EmpireGame() {
-  const { playDeployCampaign, playEndTurnConfirm, playFromLogDelta, playMovement, playTileClick } = useEmpireAudio();
+  const { playDeployCampaign, playEndTurnConfirm, playFromLogDelta, playMovement, playTileClick, playUnitSelect } = useEmpireAudio();
   const {
     game,
     worldSizeId,
@@ -125,6 +125,7 @@ export default function EmpireGame() {
   const aiPlaybackTimeoutRef = useRef<number | null>(null);
   const previousLogCountRef = useRef(game.logs.length);
   const previousGameAudioRef = useRef(game);
+  const previousSelectedUnitIdRef = useRef<number | null>(game.selectedUnitId);
   const previousPlaybackKeyRef = useRef("");
   const previousTurnStateRef = useRef<{ side: Side; turn: number; winner: Side | null }>({
     side: game.side,
@@ -136,6 +137,9 @@ export default function EmpireGame() {
   const [battlefieldFxEvents, setBattlefieldFxEvents] = useState<BattlefieldFxEvent[]>([]);
   const showPhaseBanner = useEffectEvent((message: string) => {
     setPhaseBanner(message);
+  });
+  const playSelectedUnitCue = useEffectEvent((unitType: UnitType) => {
+    playUnitSelect(unitType);
   });
   const endgameOpen = !!game.winner && dismissedWinner !== game.winner;
   const intelUnit = game.units.find((unit) => unit.id === intelUnitId) ?? null;
@@ -416,6 +420,14 @@ export default function EmpireGame() {
     previousPlaybackKeyRef.current = playbackKey;
     playMovement(movementPlayback);
   }, [movementPlayback, playMovement]);
+
+  useEffect(() => {
+    const previousSelectedUnitId = previousSelectedUnitIdRef.current;
+    if (selectedUnit && selectedUnit.owner === "player" && selectedUnit.id !== previousSelectedUnitId) {
+      playSelectedUnitCue(selectedUnit.type);
+    }
+    previousSelectedUnitIdRef.current = selectedUnit?.id ?? null;
+  }, [selectedUnit]);
 
   useEffect(() => {
     const previousLogCount = previousLogCountRef.current;
