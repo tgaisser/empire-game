@@ -1254,7 +1254,7 @@ function setDroneTarget(state: GameState, side: Side, unitId: number, x: number,
   if (!inBounds(x, y, state.mapWidth, state.mapHeight)) return state;
   if (unit.x === x && unit.y === y) return state;
 
-  const targetedState = finalizeState(
+  return finalizeState(
     addLog(
       {
         ...state,
@@ -1270,8 +1270,6 @@ function setDroneTarget(state: GameState, side: Side, unitId: number, x: number,
         : `Enemy drone swarm assigned a strike corridor.`
     )
   );
-
-  return processDroneSwarmOrders(targetedState, side);
 }
 
 function getDefenderArmorBonus(state: GameState, defender: Unit) {
@@ -1332,6 +1330,7 @@ function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderForti
       attackerHp: attacker.hp,
       defenderDamage: defender.hp,
       attackerDamage: 0,
+      usedFollowUp: false,
     };
   }
   const defenderDamageReduction = options?.defenderFortified && !attackerStats.ignoresFortification ? 1 : 0;
@@ -1356,6 +1355,7 @@ function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderForti
     attackerHp: attacker.hp - attackerDamage,
     defenderDamage,
     attackerDamage,
+    usedFollowUp: false,
   };
 }
 
@@ -1589,6 +1589,29 @@ function chooseDroneMoveTowardTarget(unit: Unit, target: TargetPoint, state: Gam
   })[0] ?? null;
 }
 
+export function getDroneSwarmPlaybackPreview(state: GameState, side: Side, aiOmniscience = false) {
+  return state.units
+    .filter((unit) => unit.owner === side && unit.type === "drone-swarm" && getRemainingMove(unit) > 0)
+    .flatMap((unit) => {
+      const targetX = unit.droneTargetX ?? null;
+      const targetY = unit.droneTargetY ?? null;
+      if (targetX === null || targetY === null) return [];
+      if (unit.x === targetX && unit.y === targetY) return [];
+
+      const chosenMove = chooseDroneMoveTowardTarget(unit, { x: targetX, y: targetY }, state, aiOmniscience);
+      if (!chosenMove || chosenMove.path.length === 0) return [];
+
+      return [
+        {
+          unitId: unit.id,
+          unitType: unit.type,
+          owner: unit.owner,
+          path: [{ x: unit.x, y: unit.y }, ...chosenMove.path],
+        },
+      ];
+    });
+}
+
 function processDroneSwarmOrders(state: GameState, side: Side, aiOmniscience = false) {
   let nextState = state;
   const droneIds = state.units.filter((unit) => unit.owner === side && unit.type === "drone-swarm").map((unit) => unit.id);
@@ -1677,20 +1700,10 @@ function processAirbaseReturn(state: GameState, side: Side) {
 
       const tile = state.map[unit.y]?.[unit.x] ?? null;
       const onFriendlyBase = isFriendlyAirBase(tile, side, state, unit.type, unit.x, unit.y);
-      const nextTurnsAway = onFriendlyBase ? 0 : unit.turnsAwayFromBase + 1;
-
-      if (nextTurnsAway > definition.maxTurnsAwayFromBase) {
-        logs.push(
-          side === "player"
-            ? `${definition.name} was lost after failing to return to base.`
-            : `Enemy ${definition.name.toLowerCase()} failed to return to base.`
-        );
-        return null;
-      }
 
       return {
         ...unit,
-        turnsAwayFromBase: nextTurnsAway,
+        turnsAwayFromBase: onFriendlyBase ? 0 : unit.turnsAwayFromBase,
       };
     })
     .filter((unit): unit is Unit => Boolean(unit));

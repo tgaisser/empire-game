@@ -10,7 +10,30 @@ type BattlefieldFxOverlayProps = {
   units: Unit[];
   selectedUnitId: number | null;
   possibleMoves: ReachableMove[];
+  events?: BattlefieldFxEvent[];
 };
+
+export type BattlefieldFxEvent =
+  | {
+      id: string;
+      type: "explosion";
+      x: number;
+      y: number;
+      createdAt: number;
+      durationMs: number;
+      size: "small" | "large";
+    }
+  | {
+      id: string;
+      type: "firefight";
+      fromX: number;
+      fromY: number;
+      toX: number;
+      toY: number;
+      createdAt: number;
+      durationMs: number;
+      bursts?: number;
+    };
 
 type Spark = {
   x: number;
@@ -31,7 +54,7 @@ function createDeterministicNoise(seed: number) {
   return value - Math.floor(value);
 }
 
-export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, possibleMoves }: BattlefieldFxOverlayProps) {
+export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, possibleMoves, events = [] }: BattlefieldFxOverlayProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -47,8 +70,10 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
     const moveLayer = new Graphics();
     const selectedLayer = new Graphics();
     const sparkLayer = new Graphics();
+    const combatLayer = new Graphics();
+    const explosionLayer = new Graphics();
     let renderTick: (() => void) | null = null;
-    stageRoot.addChild(waterLayer, mountainLayer, moveLayer, selectedLayer, sparkLayer);
+    stageRoot.addChild(waterLayer, mountainLayer, moveLayer, selectedLayer, sparkLayer, combatLayer, explosionLayer);
 
     const moveKeys = new Set(possibleMoves.map((move) => `${move.x},${move.y}`));
     const selectedUnit = selectedUnitId !== null ? units.find((unit) => unit.id === selectedUnitId) ?? null : null;
@@ -93,6 +118,8 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
       moveLayer.clear();
       selectedLayer.clear();
       sparkLayer.clear();
+      combatLayer.clear();
+      explosionLayer.clear();
 
       for (let y = 0; y < map.length; y += 1) {
         for (let x = 0; x < map[y].length; x += 1) {
@@ -164,6 +191,80 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         sparkLayer.lineTo(centerX + halfLength, centerY + tiltOffset);
         sparkLayer.stroke({ color: spark.tint, alpha: spark.alpha * pulse, width: thickness, cap: "round" });
       }
+
+      const eventNow = Date.now();
+
+      for (const event of events) {
+        const age = eventNow - event.createdAt;
+        if (age < 0 || age > event.durationMs) continue;
+
+        if (event.type === "firefight") {
+          const progress = age / event.durationMs;
+          const burstCount = Math.max(1, event.bursts ?? 1);
+          const burstProgress = (progress * burstCount) % 1;
+          const pulse = Math.sin(burstProgress * Math.PI);
+          const fromX = (event.fromX + 0.5) * tileWidth;
+          const fromY = (event.fromY + 0.5) * tileHeight;
+          const toX = (event.toX + 0.5) * tileWidth;
+          const toY = (event.toY + 0.5) * tileHeight;
+          const dx = toX - fromX;
+          const dy = toY - fromY;
+          const tracerLength = 0.18 + pulse * 0.5;
+          const tracerStartX = fromX + dx * (0.2 + burstProgress * 0.3);
+          const tracerStartY = fromY + dy * (0.2 + burstProgress * 0.3);
+          const tracerEndX = tracerStartX + dx * tracerLength;
+          const tracerEndY = tracerStartY + dy * tracerLength;
+
+          combatLayer.moveTo(fromX, fromY);
+          combatLayer.lineTo(toX, toY);
+          combatLayer.stroke({ color: 0xfca5a5, alpha: 0.18 + pulse * 0.16, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03) });
+          combatLayer.moveTo(tracerStartX, tracerStartY);
+          combatLayer.lineTo(tracerEndX, tracerEndY);
+          combatLayer.stroke({ color: 0xfef08a, alpha: 0.42 + pulse * 0.4, width: Math.max(1.5, Math.min(tileWidth, tileHeight) * 0.07), cap: "round" });
+          combatLayer.circle(fromX, fromY, Math.min(tileWidth, tileHeight) * (0.05 + pulse * 0.04));
+          combatLayer.fill({ color: 0xf59e0b, alpha: 0.3 + pulse * 0.24 });
+          combatLayer.circle(toX, toY, Math.min(tileWidth, tileHeight) * (0.05 + pulse * 0.04));
+          combatLayer.fill({ color: 0xfb7185, alpha: 0.2 + pulse * 0.2 });
+          continue;
+        }
+
+        const progress = age / event.durationMs;
+        const centerX = (event.x + 0.5) * tileWidth;
+        const centerY = (event.y + 0.5) * tileHeight;
+        const sizeMultiplier = event.size === "large" ? 1.3 : 0.78;
+        const baseRadius = Math.min(tileWidth, tileHeight) * sizeMultiplier;
+        const flareRadius = baseRadius * (0.24 + progress * 0.72);
+        const outerRadius = baseRadius * (0.38 + progress * 1.05);
+        const fade = 1 - progress;
+        const sparkCount = event.size === "large" ? 10 : 6;
+
+        explosionLayer.circle(centerX, centerY, flareRadius);
+        explosionLayer.fill({ color: 0xfbbf24, alpha: 0.34 * fade });
+        explosionLayer.circle(centerX, centerY, flareRadius * 0.56);
+        explosionLayer.fill({ color: 0xf97316, alpha: 0.52 * fade });
+        explosionLayer.circle(centerX, centerY, outerRadius);
+        explosionLayer.stroke({ color: 0xfef08a, alpha: 0.45 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.04) });
+
+        for (let index = 0; index < sparkCount; index += 1) {
+          const angle = (Math.PI * 2 * index) / sparkCount + progress * 1.4;
+          const rayLength = baseRadius * (0.22 + fade * 0.55);
+          const innerRadius = flareRadius * 0.55;
+          explosionLayer.moveTo(
+            centerX + Math.cos(angle) * innerRadius,
+            centerY + Math.sin(angle) * innerRadius
+          );
+          explosionLayer.lineTo(
+            centerX + Math.cos(angle) * (innerRadius + rayLength),
+            centerY + Math.sin(angle) * (innerRadius + rayLength)
+          );
+          explosionLayer.stroke({
+            color: index % 2 === 0 ? 0xfef08a : 0xfdba74,
+            alpha: 0.26 * fade,
+            width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03),
+            cap: "round",
+          });
+        }
+      }
     };
 
     const start = async () => {
@@ -210,7 +311,7 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
       }
       app.destroy(true, { children: true });
     };
-  }, [map, visible, units, selectedUnitId, possibleMoves]);
+  }, [events, map, visible, units, selectedUnitId, possibleMoves]);
 
   return <div ref={hostRef} className="pointer-events-none absolute inset-0 z-[15] overflow-hidden rounded-xl opacity-95" />;
 }

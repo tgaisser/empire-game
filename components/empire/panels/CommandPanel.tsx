@@ -5,7 +5,7 @@ import { getFactionUnitBadgeClass } from "@/components/empire/shared/domainStyle
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { UNIT_TYPE_ORDER } from "@/lib/empire/catalog";
-import { getDisplayFactionOption, getFactionOption } from "@/lib/empire/factions";
+import { getFactionOption, getSideDisplayOption } from "@/lib/empire/factions";
 import { getImprovementBuildCost, getTroopTransportRemainingCapacity, getUnitStats } from "@/lib/empire/game";
 import type { Faction, Side, Tile, TileImprovementType, Unit, UnitDefinition, UnitType } from "@/lib/empire/types";
 import { Button } from "@/components/ui/button";
@@ -49,9 +49,13 @@ type CommandPanelProps = {
   troopTransportDeploymentTargetCount: number;
   specialOpsDeploymentTargetCount: number;
   specialOpsAirStrikeTargetCount: number;
+  canSelectedBomberAttackHere: boolean;
+  transportLoadMode: boolean;
   onBuild: (unitType: UnitType) => void;
   onBuildImprovement: (action: EngineerBuildAction) => void;
   onUpgradeUnit: (upgrade: "sonar" | "radar-relay") => void;
+  onBombsAway: () => void;
+  onBeginTransportLoad: () => void;
   onLoadSpecialOps: () => void;
   onUnloadSpecialOps: () => void;
   onDecommissionUnit: () => void;
@@ -91,9 +95,13 @@ export function CommandPanel({
   troopTransportDeploymentTargetCount,
   specialOpsDeploymentTargetCount,
   specialOpsAirStrikeTargetCount,
+  canSelectedBomberAttackHere,
+  transportLoadMode,
   onBuild,
   onBuildImprovement,
   onUpgradeUnit,
+  onBombsAway,
+  onBeginTransportLoad,
   onLoadSpecialOps,
   onUnloadSpecialOps,
   onDecommissionUnit,
@@ -124,8 +132,6 @@ export function CommandPanel({
             onJump={onMiniMapJump}
             selectedUnit={selectedUnit}
             selectedCity={selectedCity}
-            playerFaction={playerFaction}
-            aiFaction={aiFaction}
           />
           <div className="grid grid-cols-4 gap-2">
             <Button
@@ -214,7 +220,7 @@ export function CommandPanel({
                     Construction duty {selectedUnitTile.improvementProject.type} ({selectedUnitTile.improvementProject.turnsRemaining}/{selectedUnitTile.improvementProject.totalTurns})
                   </div>
                 ) : null}
-                {getUnitStats(selectedUnit).maxTurnsAwayFromBase ? (
+                {getUnitStats(selectedUnit).maxTurnsAwayFromBase && selectedUnit.turnsAwayFromBase > 0 ? (
                   <div className="col-span-2">
                     Sortie {selectedUnit.turnsAwayFromBase}/{getUnitStats(selectedUnit).maxTurnsAwayFromBase} turns away from base
                   </div>
@@ -277,12 +283,39 @@ export function CommandPanel({
                 </div>
               ) : null}
               {selectedUnit.type === "troop-transport" ? (
-                <div className="rounded-2xl border border-sky-800/40 bg-sky-950/20 p-3 text-xs text-sky-100">
-                  Click a highlighted adjacent coastal troop to embark it. Click a highlighted adjacent shore tile to unload the next carried unit.
-                  {troopTransportLoadTargetCount > 0 ? ` ${troopTransportLoadTargetCount} embark target(s) available.` : ""}
-                  {troopTransportDeploymentTargetCount > 0 ? ` ${troopTransportDeploymentTargetCount} landing tile(s) available.` : ""}
-                  {(selectedUnit.carriedTroops?.length ?? 0) > 0 ? " Escorting destroyers within 2 tiles improve this ship's defense." : ""}
-                </div>
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-2xl"
+                    onClick={onBeginTransportLoad}
+                    disabled={side !== "player" || !!winner || troopTransportLoadTargetCount === 0}
+                  >
+                    {transportLoadMode ? "Select Troop To Load" : "Load Nearby Troops"}
+                  </Button>
+                  <div className="rounded-2xl border border-sky-800/40 bg-sky-950/20 p-3 text-xs text-sky-100">
+                    Use the load command, then click a highlighted adjacent coastal troop to embark it. Click a highlighted adjacent shore tile to unload the next carried unit.
+                    {transportLoadMode ? " Loading mode is active." : ""}
+                    {troopTransportLoadTargetCount > 0 ? ` ${troopTransportLoadTargetCount} embark target(s) available.` : ""}
+                    {troopTransportDeploymentTargetCount > 0 ? ` ${troopTransportDeploymentTargetCount} landing tile(s) available.` : ""}
+                    {(selectedUnit.carriedTroops?.length ?? 0) > 0 ? " Escorting destroyers within 2 tiles improve this ship's defense." : ""}
+                  </div>
+                </>
+              ) : null}
+              {selectedUnit.type === "bomber" ? (
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-2xl"
+                    onClick={onBombsAway}
+                    disabled={side !== "player" || !!winner || !canSelectedBomberAttackHere}
+                  >
+                    Bombs Away
+                  </Button>
+                  <div className="rounded-2xl border border-rose-800/40 bg-rose-950/20 p-3 text-xs text-rose-100">
+                    When a bomber shares a square with an enemy ground or naval target, use Bombs Away to spend the turn on the strike.
+                    {canSelectedBomberAttackHere ? " Target is directly below this bomber." : " No valid target is directly below this bomber."}
+                  </div>
+                </>
               ) : null}
               {["apache", "submarine"].includes(selectedUnit.type) && !selectedUnit.carriedSpecialOps ? (
                 <Button variant="outline" className="w-full rounded-2xl" onClick={onLoadSpecialOps}>
@@ -554,8 +587,6 @@ function MiniMapPanel({
   onJump,
   selectedUnit,
   selectedCity,
-  playerFaction,
-  aiFaction,
 }: {
   map: Tile[][];
   playerVisible: boolean[][];
@@ -565,11 +596,9 @@ function MiniMapPanel({
   onJump: (target: { x: number; y: number }) => void;
   selectedUnit: Unit | null;
   selectedCity: Tile | null;
-  playerFaction: Faction;
-  aiFaction: Faction;
 }) {
-  const playerDisplay = getFactionOption(playerFaction);
-  const aiDisplay = getDisplayFactionOption(playerFaction, aiFaction, "ai") ?? getFactionOption(aiFaction);
+  const playerDisplay = getSideDisplayOption("player")!;
+  const aiDisplay = getSideDisplayOption("ai")!;
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
@@ -577,11 +606,11 @@ function MiniMapPanel({
         <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Minimap</div>
         <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.16em] text-slate-500">
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: factionSwatch(playerDisplay) }} />
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: displaySwatch(playerDisplay) }} />
             You
           </span>
           <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: factionSwatch(aiDisplay) }} />
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: displaySwatch(aiDisplay) }} />
             Enemy
           </span>
         </div>
@@ -608,8 +637,8 @@ function MiniMapPanel({
             >
               {occupant ? (
                 <span
-                  className="absolute inset-[22%] rounded-full border border-slate-950/60"
-                  style={{ backgroundColor: occupant.owner === "player" ? factionSwatch(playerDisplay) : factionSwatch(aiDisplay) }}
+                      className="absolute inset-[22%] rounded-full border border-slate-950/60"
+                  style={{ backgroundColor: occupant.owner === "player" ? displaySwatch(playerDisplay) : displaySwatch(aiDisplay) }}
                 />
               ) : null}
             </button>
@@ -633,16 +662,16 @@ function minimapTileColor(
   tile: Tile,
   intelTile: Tile | null,
   visible: boolean,
-  playerDisplay: ReturnType<typeof getFactionOption>,
-  aiDisplay: ReturnType<typeof getFactionOption>
+  playerDisplay: NonNullable<ReturnType<typeof getSideDisplayOption>>,
+  aiDisplay: NonNullable<ReturnType<typeof getSideDisplayOption>>
 ) {
   if (!visible && !intelTile) return "#020617";
 
   const sourceTile = visible ? tile : intelTile ?? tile;
   const fogDim = visible ? 0 : 0.68;
 
-  if (sourceTile.owner === "player") return mixColor(factionSwatch(playerDisplay), "#0f172a", fogDim ? fogDim : 0.38);
-  if (sourceTile.owner === "ai") return mixColor(factionSwatch(aiDisplay), "#0f172a", fogDim ? fogDim : 0.38);
+  if (sourceTile.owner === "player") return mixColor(displaySwatch(playerDisplay), "#0f172a", fogDim ? fogDim : 0.38);
+  if (sourceTile.owner === "ai") return mixColor(displaySwatch(aiDisplay), "#0f172a", fogDim ? fogDim : 0.38);
   if (sourceTile.city) return mixColor("#cbd5e1", "#0f172a", fogDim);
   if (sourceTile.improvement?.type === "port") return mixColor("#0ea5e9", "#0f172a", fogDim);
   if (sourceTile.improvement?.type === "airfield") return mixColor("#f59e0b", "#0f172a", fogDim);
@@ -651,8 +680,8 @@ function minimapTileColor(
   return mixColor("#5f6b43", "#0f172a", fogDim);
 }
 
-function factionSwatch(faction: ReturnType<typeof getFactionOption>) {
-  return `#${faction.primaryClass.match(/\[#([^\]]+)\]/)?.[1] ?? "e2e8f0"}`;
+function displaySwatch(display: NonNullable<ReturnType<typeof getSideDisplayOption>>) {
+  return display.hex;
 }
 
 function mixColor(hexA: string, hexB: string, amount: number) {

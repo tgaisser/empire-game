@@ -18,7 +18,7 @@ export const UNIT_TYPE_ORDER: UnitType[] = [
   "drone-swarm",
 ];
 
-export const IMPROVEMENT_TYPE_ORDER: TileImprovementType[] = ["bridge", "port", "airfield", "radar", "tunnel"];
+export const IMPROVEMENT_TYPE_ORDER: TileImprovementType[] = ["bridge", "port", "airfield", "radar", "tunnel", "outpost"];
 
 export function getUnitTypeLabel(unitType: UnitType) {
   return UNIT_STATS[unitType]?.name ?? unitType;
@@ -29,6 +29,7 @@ export function getImprovementTypeLabel(improvementType: TileImprovementType) {
   if (improvementType === "airfield") return "Airfield";
   if (improvementType === "bridge") return "Bridge";
   if (improvementType === "port") return "Port";
+  if (improvementType === "outpost") return "Outpost";
   return "Tunnel";
 }
 

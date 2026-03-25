@@ -22,6 +22,7 @@ import {
   canProduceUnitAtTile,
   getBlockingUnitAt,
   getCityCount,
+  getDroneSwarmPlaybackPreview,
   getEngineerBuildOptions,
   getExplorationIncome,
   getExploredPercent,
@@ -422,6 +423,15 @@ export function useEmpireGame() {
 
   const troopTransportLoadTargets = useMemo(() => getTroopTransportLoadTargets(game, selectedUnit), [game, selectedUnit]);
   const troopTransportDeploymentTargets = useMemo(() => getTroopTransportDeploymentTargets(game, selectedUnit), [game, selectedUnit]);
+  const canSelectedBomberAttackHere = useMemo(() => {
+    if (!selectedUnit || selectedUnit.type !== "bomber") return false;
+    return getUnitsAt(game.units, selectedUnit.x, selectedUnit.y).some(
+      (unit) =>
+        unit.owner !== selectedUnit.owner &&
+        getUnitStats(selectedUnit).attackDomains.includes(getUnitStats(unit).domain) &&
+        getUnitStats(unit).cannotBeAttacked !== true
+    );
+  }, [game.units, selectedUnit]);
 
   function resetGame(
     nextGameType: GameType = game.gameType,
@@ -662,6 +672,8 @@ export function useEmpireGame() {
     if (game.side !== "player" || game.winner) return;
     setPendingDroneTarget(null);
     setSelectedCity(null);
+    const dronePlaybackPreview = getDroneSwarmPlaybackPreview(game, "player");
+    setMovementPlayback(dronePlaybackPreview);
     applyGameUpdate((current) => applyCommand(current, { type: "end_turn", side: "player" }));
   }
 
@@ -779,6 +791,20 @@ export function useEmpireGame() {
     setPendingDroneTarget(null);
   }
 
+  function handleBombSelectedUnit() {
+    if (!selectedUnit || selectedUnit.type !== "bomber") return;
+    setSelectedCity(null);
+    applyGameUpdate((current) =>
+      applyCommand(current, {
+        type: "attack_tile",
+        side: "player",
+        unitId: selectedUnit.id,
+        x: selectedUnit.x,
+        y: selectedUnit.y,
+      })
+    );
+  }
+
   function handleUndoLastMove() {
     if (game.side !== "player" || game.winner || !lastPlayerMoveSnapshot) return;
     setPendingDroneTarget(null);
@@ -814,6 +840,7 @@ export function useEmpireGame() {
     engineerPlacementTargets,
     troopTransportLoadTargets,
     troopTransportDeploymentTargets,
+    canSelectedBomberAttackHere,
     possibleMoves,
     playerCities: getCityCount(game.map, "player"),
     aiCities: getCityCount(game.map, "ai"),
@@ -837,6 +864,7 @@ export function useEmpireGame() {
     handleAddDeveloperUnit,
     handleGrantCredits,
     handleLoadSpecialOps,
+    handleBombSelectedUnit,
     handleRenameCapturedCity,
     handleSetDroneTarget,
     handleRenameUnit,

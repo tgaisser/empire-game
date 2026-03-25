@@ -6,9 +6,9 @@ import type { TileClickTarget } from "@/components/empire/hooks/useEmpireGame";
 import type { MovementPlayback } from "@/components/empire/hooks/useEmpireGame";
 import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
 import { getUnitsAt, key } from "@/lib/empire/game";
-import { getDisplayFactionOption, getFactionOption } from "@/lib/empire/factions";
+import { getFactionOption, getSideDisplayOption } from "@/lib/empire/factions";
 import type { Faction, ReachableMove, Tile, Unit } from "@/lib/empire/types";
-import { BattlefieldFxOverlay } from "@/components/empire/map/BattlefieldFxOverlay";
+import { BattlefieldFxOverlay, type BattlefieldFxEvent } from "@/components/empire/map/BattlefieldFxOverlay";
 import { MapTile } from "@/components/empire/map/MapTile";
 import { getSideUnitBadgeClass } from "@/components/empire/shared/domainStyles";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
@@ -28,6 +28,7 @@ type GameMapProps = {
   highlightedUnitIds: Set<number>;
   bridgeBuildKeys?: Set<string>;
   movementPlayback?: MovementPlayback[];
+  battlefieldFxEvents?: BattlefieldFxEvent[];
   canInteract: boolean;
   onViewportChange?: (viewport: { left: number; top: number; width: number; height: number }) => void;
   jumpTarget?: { x: number; y: number; nonce: number } | null;
@@ -80,6 +81,7 @@ export function GameMap({
   highlightedUnitIds,
   bridgeBuildKeys,
   movementPlayback = [],
+  battlefieldFxEvents = [],
   canInteract,
   onViewportChange,
   jumpTarget,
@@ -320,6 +322,7 @@ export function GameMap({
           units={displayUnits}
           selectedUnitId={selectedUnit?.id ?? null}
           possibleMoves={possibleMoves}
+          events={battlefieldFxEvents}
         />
         <div
           className="grid gap-1"
@@ -378,7 +381,7 @@ export function GameMap({
         <span className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1">Large centered badge: lone visible unit</span>
         <span className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1">Split corner badges: air + surface stack</span>
         <span className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1">Pulsing tiles: active production or construction</span>
-        <span className="rounded-full border border-cyan-900/60 bg-cyan-950/20 px-3 py-1 text-cyan-100">Pixi overlay: move lanes, selection pulse, water shimmer</span>
+        <span className="rounded-full border border-cyan-900/60 bg-cyan-950/20 px-3 py-1 text-cyan-100">Pixi overlay: move lanes, selection pulse, water shimmer, combat FX</span>
         </div>
       </div>
     </div>
@@ -418,7 +421,8 @@ function MovementPlaybackOverlay({
         const point = move.path[stepIndex];
         if (!point) return null;
         const baseFaction = move.owner === "player" ? playerFaction : aiFaction;
-        const displayFaction = getDisplayFactionOption(playerFaction, aiFaction, move.owner) ?? getFactionOption(baseFaction);
+        const displayFaction = getFactionOption(baseFaction);
+        const ownershipDisplay = getSideDisplayOption(move.owner);
 
         const left = `calc(${((point.x + 0.5) / mapWidth) * 100}% - 17px)`;
         const top = `calc(${((point.y + 0.5) / mapHeight) * 100}% - 17px)`;
@@ -435,7 +439,7 @@ function MovementPlaybackOverlay({
                 aiFaction,
                 move.owner
               ),
-              `ring-2 ${displayFaction.ringClass}`,
+              ownershipDisplay ? `ring-2 ${ownershipDisplay.ringClass}` : "ring-2 ring-white",
             ].join(" ")}
             style={{ left, top }}
           >

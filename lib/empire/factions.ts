@@ -21,6 +21,20 @@ export type FactionOption = {
   borderClass: string;
 };
 
+export type SideDisplayOption = {
+  id: Side;
+  label: string;
+  chipClass: string;
+  textClass: string;
+  ringClass: string;
+  primaryClass: string;
+  secondaryClass: string;
+  tertiaryClass: string;
+  badgeBackgroundClass: string;
+  borderClass: string;
+  hex: string;
+};
+
 export const FACTION_OPTIONS: Array<FactionOption> = [
   {
     id: "usa",
@@ -108,8 +122,42 @@ export const FACTION_OPTIONS: Array<FactionOption> = [
   },
 ];
 
+const SIDE_DISPLAY_OPTIONS: Record<Side, SideDisplayOption> = {
+  player: {
+    id: "player",
+    label: "Player",
+    chipClass: "bg-[#a3e635]/20 border-[#d9f99d]/40",
+    textClass: "text-[#a3e635]",
+    ringClass: "ring-[#a3e635] border-lime-950/20",
+    primaryClass: "text-[#a3e635]",
+    secondaryClass: "text-[#d9f99d]",
+    tertiaryClass: "text-[#111827]",
+    badgeBackgroundClass: "bg-[#a3e635]",
+    borderClass: "border-[#d9f99d]",
+    hex: "#a3e635",
+  },
+  ai: {
+    id: "ai",
+    label: "Computer",
+    chipClass: "bg-[#ef4444]/20 border-[#fecaca]/38",
+    textClass: "text-[#ef4444]",
+    ringClass: "ring-[#ef4444] border-red-950/20",
+    primaryClass: "text-[#ef4444]",
+    secondaryClass: "text-[#fecaca]",
+    tertiaryClass: "text-white",
+    badgeBackgroundClass: "bg-[#ef4444]",
+    borderClass: "border-[#fecaca]",
+    hex: "#ef4444",
+  },
+};
+
 export function getFactionOption(faction: Faction) {
   return FACTION_OPTIONS.find((option) => option.id === faction) ?? FACTION_OPTIONS[0];
+}
+
+export function getSideDisplayOption(sideOrOwner: Side | null) {
+  if (!sideOrOwner) return null;
+  return SIDE_DISPLAY_OPTIONS[sideOrOwner];
 }
 
 function replaceClassPrefix(value: string, prefix: "text" | "bg" | "border" | "ring") {

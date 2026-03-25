@@ -41,6 +41,7 @@ const improvementNotes: Record<TileImprovementType, string> = {
   airfield: "Aircraft production site and air base. Aircraft may land in cities too, but only airfields build them.",
   radar: "Airfield upgrade that reveals enemy aircraft within 5 tiles, even through fog of war.",
   tunnel: "Mountain route that reduces movement through the tunnel tile and allows tanks through mountain barriers.",
+  outpost: "Forward operating position used to extend map control, vision, and staging near contested areas.",
 };
 
 const gameTypeNotes: Record<GameType, string> = {

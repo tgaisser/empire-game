@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useEmpireAudio } from "@/components/empire/audio/useEmpireAudio";
 import { useEmpireGame } from "@/components/empire/hooks/useEmpireGame";
 import { GameMap } from "@/components/empire/map/GameMap";
+import type { BattlefieldFxEvent } from "@/components/empire/map/BattlefieldFxOverlay";
 import { BattleLogModal } from "@/components/empire/panels/BattleLogModal";
 import { BridgeConfirmModal } from "@/components/empire/panels/BridgeConfirmModal";
 import { CommandPanel } from "@/components/empire/panels/CommandPanel";
@@ -21,8 +22,163 @@ import { UnitIntelModal } from "@/components/empire/panels/UnitIntelModal";
 import { createAiDiagnosticsReport } from "@/lib/empire/ai/diagnostics";
 import { getRemainingMove, key } from "@/lib/empire/game";
 import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
-import type { DeveloperPlacementType, Faction, GameType, Side, UnitType } from "@/lib/empire/types";
+import type { DeveloperPlacementType, Faction, GameState, GameType, Side, Tile, UnitType } from "@/lib/empire/types";
 import { Card, CardContent } from "@/components/ui/card";
+
+function findTileByLocationLabel(map: Tile[][], label: string) {
+  const coordinateMatch = label.match(/^\((\d+),\s*(\d+)\)$/);
+  if (coordinateMatch) {
+    const x = Number(coordinateMatch[1]) - 1;
+    const y = Number(coordinateMatch[2]) - 1;
+    return map[y]?.[x] ?? null;
+  }
+
+  for (const row of map) {
+    for (const tile of row) {
+      if (tile.cityName === label) return tile;
+    }
+  }
+
+  return null;
+}
+
+function extractCombatLocation(message: string) {
+  const patterns: Array<{
+    regex: RegExp;
+    firefight: boolean;
+    attackerOwner: Side | null;
+    size: "small" | "large";
+    bursts?: number;
+  }> = [
+    { regex: /^Battle at (.+?):/, firefight: true, attackerOwner: "player", size: "small" },
+    { regex: /^Bombing run at (.+?):/, firefight: false, attackerOwner: "player", size: "small" },
+    { regex: /^Strike at (.+?):/, firefight: false, attackerOwner: "player", size: "small" },
+    { regex: /^Special Ops called in an air strike on (.+?) for/, firefight: false, attackerOwner: "player", size: "small" },
+    { regex: /^Carrier jamming attack hit drone swarm near (.+?) for/, firefight: false, attackerOwner: "player", size: "small" },
+    { regex: /^Drone swarm detonated over (.+?)(?: for|,|\.)/, firefight: false, attackerOwner: "player", size: "small" },
+    { regex: /^You hit the outpost at (.+?) for/, firefight: false, attackerOwner: "player", size: "small" },
+    { regex: /^You destroyed the outpost at (.+?)(?: after|\.)/, firefight: false, attackerOwner: "player", size: "large" },
+    { regex: /^Enemy attacked near (.+?)\./, firefight: true, attackerOwner: "ai", size: "small" },
+    { regex: /^Enemy strike near (.+?)\./, firefight: false, attackerOwner: "ai", size: "small" },
+    { regex: /^Enemy special operations directed an air strike near (.+?)\./, firefight: false, attackerOwner: "ai", size: "small" },
+    { regex: /^Enemy drone swarm detonated near (.+?)\./, firefight: false, attackerOwner: "ai", size: "small" },
+    { regex: /^Enemy destroyed an outpost near (.+?)\./, firefight: false, attackerOwner: "ai", size: "large" },
+  ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern.regex);
+    if (!match) continue;
+    return {
+      label: match[1],
+      firefight: pattern.firefight,
+      attackerOwner: pattern.attackerOwner,
+      size: pattern.size,
+      bursts: message.includes("Special Ops struck twice.") ? 2 : pattern.bursts ?? 1,
+    };
+  }
+
+  return null;
+}
+
+function inferAttackerOrigin(previousGame: GameState, currentGame: GameState, attackerOwner: Side | null, target: Pick<Tile, "x" | "y">) {
+  if (attackerOwner === "player" && previousGame.selectedUnitId !== null) {
+    const selectedAttacker = previousGame.units.find((unit) => unit.id === previousGame.selectedUnitId);
+    if (selectedAttacker) return { x: selectedAttacker.x, y: selectedAttacker.y };
+  }
+
+  const currentUnitsById = new Map(currentGame.units.map((unit) => [unit.id, unit] as const));
+  let bestCandidate: { x: number; y: number; distance: number } | null = null;
+
+  for (const previousUnit of previousGame.units) {
+    if (attackerOwner && previousUnit.owner !== attackerOwner) continue;
+
+    const currentUnit = currentUnitsById.get(previousUnit.id);
+    if (!currentUnit) continue;
+
+    const changed =
+      currentUnit.x !== previousUnit.x ||
+      currentUnit.y !== previousUnit.y ||
+      currentUnit.moveSpent > previousUnit.moveSpent ||
+      currentUnit.hp < previousUnit.hp;
+    if (!changed) continue;
+
+    const distanceFromPrevious = Math.abs(previousUnit.x - target.x) + Math.abs(previousUnit.y - target.y);
+    const distanceFromCurrent = Math.abs(currentUnit.x - target.x) + Math.abs(currentUnit.y - target.y);
+    const score = Math.min(distanceFromPrevious, distanceFromCurrent);
+
+    if (!bestCandidate || score < bestCandidate.distance) {
+      bestCandidate = { x: previousUnit.x, y: previousUnit.y, distance: score };
+    }
+  }
+
+  if (!bestCandidate || bestCandidate.distance > 3) return null;
+  return { x: bestCandidate.x, y: bestCandidate.y };
+}
+
+function createBattlefieldFxEvents(previousGame: GameState, currentGame: GameState) {
+  const createdAt = Date.now();
+  const newMessages = currentGame.logs.slice(previousGame.logs.length);
+  const parsedImpacts = newMessages
+    .map((message, index) => {
+      const match = extractCombatLocation(message);
+      if (!match) return null;
+      const tile = findTileByLocationLabel(currentGame.map, match.label);
+      if (!tile) return null;
+      return { ...match, tile, index };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+  const currentUnitsById = new Set(currentGame.units.map((unit) => unit.id));
+  const events: BattlefieldFxEvent[] = parsedImpacts.flatMap((impact) => {
+    const impactEvents: BattlefieldFxEvent[] = [
+      {
+        id: `impact-${createdAt}-${impact.index}`,
+        type: "explosion",
+        x: impact.tile.x,
+        y: impact.tile.y,
+        createdAt,
+        durationMs: impact.size === "large" ? 920 : 760,
+        size: impact.size,
+      },
+    ];
+
+    if (impact.firefight) {
+      const attackerOrigin = inferAttackerOrigin(previousGame, currentGame, impact.attackerOwner, impact.tile);
+      if (attackerOrigin && (attackerOrigin.x !== impact.tile.x || attackerOrigin.y !== impact.tile.y)) {
+        impactEvents.push({
+          id: `firefight-${createdAt}-${impact.index}`,
+          type: "firefight",
+          fromX: attackerOrigin.x,
+          fromY: attackerOrigin.y,
+          toX: impact.tile.x,
+          toY: impact.tile.y,
+          createdAt,
+          durationMs: 720,
+          bursts: impact.bursts,
+        });
+      }
+    }
+
+    return impactEvents;
+  });
+
+  for (const previousUnit of previousGame.units) {
+    if (currentUnitsById.has(previousUnit.id)) continue;
+    if (!parsedImpacts.some((impact) => Math.abs(impact.tile.x - previousUnit.x) + Math.abs(impact.tile.y - previousUnit.y) <= 1)) continue;
+
+    events.push({
+      id: `destroyed-${createdAt}-${previousUnit.id}`,
+      type: "explosion",
+      x: previousUnit.x,
+      y: previousUnit.y,
+      createdAt,
+      durationMs: 980,
+      size: "large",
+    });
+  }
+
+  return events;
+}
 
 export default function EmpireGame() {
   const { playDeployCampaign, playEndTurnConfirm, playFromLogDelta, playMovement, playTileClick } = useEmpireAudio();
@@ -48,6 +204,7 @@ export default function EmpireGame() {
     engineerPlacementTargets,
     troopTransportLoadTargets,
     troopTransportDeploymentTargets,
+    canSelectedBomberAttackHere,
     possibleMoves,
     playerCities,
     aiCities,
@@ -70,6 +227,7 @@ export default function EmpireGame() {
     handleAddDeveloperUnit,
     handleGrantCredits,
     handleLoadSpecialOps,
+    handleBombSelectedUnit,
     handleRenameCapturedCity,
     handleSetDroneTarget,
     handleRenameUnit,
@@ -104,6 +262,7 @@ export default function EmpireGame() {
   const [pendingEngineerPlacement, setPendingEngineerPlacement] = useState<"port" | "airfield" | "radar" | "tunnel" | "outpost" | null>(null);
   const [pendingSeaBuild, setPendingSeaBuild] = useState<UnitType | null>(null);
   const [pendingSpecialOpsDeployment, setPendingSpecialOpsDeployment] = useState(false);
+  const [pendingTransportLoad, setPendingTransportLoad] = useState(false);
   const [decommissionConfirmOpen, setDecommissionConfirmOpen] = useState(false);
   const [selectedDevSide, setSelectedDevSide] = useState<Side>("player");
   const [selectedDevUnitType, setSelectedDevUnitType] = useState<UnitType>("infantry");
@@ -128,6 +287,7 @@ export default function EmpireGame() {
   });
   const [phaseBanner, setPhaseBanner] = useState<string | null>(null);
   const [tacticalViewport, setTacticalViewport] = useState({ left: 0, top: 0, width: 1, height: 1 });
+  const [battlefieldFxEvents, setBattlefieldFxEvents] = useState<BattlefieldFxEvent[]>([]);
   const showPhaseBanner = useEffectEvent((message: string) => {
     setPhaseBanner(message);
   });
@@ -180,6 +340,7 @@ export default function EmpireGame() {
       setEndTurnConfirmOpen(true);
       return;
     }
+    setPendingTransportLoad(false);
     playEndTurnConfirm();
     handleEndTurn();
   }
@@ -216,6 +377,7 @@ export default function EmpireGame() {
     setSkipEndTurnMoveWarning(false);
     setDismissedWinner(null);
     setAiDiagnosticsReport(null);
+    setPendingTransportLoad(false);
     setStartGameOpen(false);
     setStartGameSource("menu");
   }
@@ -284,6 +446,18 @@ export default function EmpireGame() {
       setPendingSeaBuild(null);
     }
 
+    if (pendingTransportLoad) {
+      const loadTarget =
+        target !== "city" && target !== "air-unit"
+          ? troopTransportLoadTargets.find((unit) => unit.x === x && unit.y === y)
+          : null;
+      if (loadTarget) {
+        handleTileClick(x, y, target);
+      }
+      setPendingTransportLoad(false);
+      return;
+    }
+
     if (pendingEngineerPlacement && target !== "city" && target !== "surface-unit" && target !== "air-unit") {
       const placementTile = placementTargets.find((tile) => tile.x === x && tile.y === y);
       if (placementTile) {
@@ -330,6 +504,11 @@ export default function EmpireGame() {
       setIntelUnitId(targetUnit.id);
     }
   }
+
+  useEffect(() => {
+    if (selectedUnit?.type === "troop-transport") return;
+    setPendingTransportLoad(false);
+  }, [selectedUnit?.id, selectedUnit?.type]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -442,6 +621,19 @@ export default function EmpireGame() {
   useEffect(() => {
     const previousGame = previousGameAudioRef.current;
     if (previousGame !== game) {
+      const nextEvents = createBattlefieldFxEvents(previousGame, game);
+      if (nextEvents.length > 0) {
+        setBattlefieldFxEvents((current) => {
+          const now = Date.now();
+          return [...current.filter((event) => now - event.createdAt < event.durationMs), ...nextEvents];
+        });
+      }
+    }
+  }, [game]);
+
+  useEffect(() => {
+    const previousGame = previousGameAudioRef.current;
+    if (previousGame !== game) {
       playFromLogDelta(previousGame, game);
       previousGameAudioRef.current = game;
     }
@@ -468,6 +660,7 @@ export default function EmpireGame() {
     pendingEngineerPlacement ? `Engineer placement: ${pendingEngineerPlacement}` : null,
     pendingSeaBuild ? `Choose naval launch tile for ${pendingSeaBuild}` : null,
     pendingSpecialOpsDeployment ? "Choose special ops landing tile" : null,
+    pendingTransportLoad ? "Choose troop to embark" : null,
     pendingDevPlacement ? `Developer placement: ${pendingDevPlacement.unitType}` : null,
     pendingDevImprovementPlacement ? `Developer placement: ${pendingDevImprovementPlacement.improvementType}` : null,
   ].filter((value): value is string => Boolean(value));
@@ -522,6 +715,7 @@ export default function EmpireGame() {
                     highlightedUnitIds={unmovedUnitIds}
                     bridgeBuildKeys={engineerBuildKeys}
                     movementPlayback={movementPlayback}
+                    battlefieldFxEvents={battlefieldFxEvents}
                     canInteract={game.side === "player"}
                     onViewportChange={setTacticalViewport}
                     jumpTarget={miniMapJumpTarget}
@@ -584,6 +778,8 @@ export default function EmpireGame() {
                 troopTransportDeploymentTargetCount={troopTransportDeploymentTargets.length}
                 specialOpsAirStrikeTargetCount={specialOpsAirStrikeTargets.length}
                 specialOpsDeploymentTargetCount={specialOpsDeploymentTargets.length}
+                canSelectedBomberAttackHere={canSelectedBomberAttackHere}
+                transportLoadMode={pendingTransportLoad}
                 onBuild={(unitType) => {
                   if (unitDefinitions[unitType].domain === "sea" && selectedSeaSpawnTiles.length > 1) {
                     setPendingSeaBuild(unitType);
@@ -603,6 +799,8 @@ export default function EmpireGame() {
                   setPendingEngineerPlacement(action.improvementType);
                 }}
                 onUpgradeUnit={handleUpgradeSelectedUnit}
+                onBombsAway={handleBombSelectedUnit}
+                onBeginTransportLoad={() => setPendingTransportLoad(true)}
                 onLoadSpecialOps={handleLoadSpecialOps}
                 onUnloadSpecialOps={() => {
                   if (selectedUnit?.type === "submarine") {
@@ -631,6 +829,7 @@ export default function EmpireGame() {
         onCancel={() => setEndTurnConfirmOpen(false)}
         onConfirm={() => {
           setEndTurnConfirmOpen(false);
+          setPendingTransportLoad(false);
           playEndTurnConfirm();
           handleEndTurn();
         }}
