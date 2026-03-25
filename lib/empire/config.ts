@@ -274,7 +274,7 @@ export const UNIT_STATS: Record<UnitType, UnitDefinition> = {
     atk: 8,
     armor: 0,
     piercing: 2,
-    vision: 1,
+    vision: 0,
     cost: 14,
     buildTime: 2,
     domain: "air",

@@ -747,6 +747,7 @@ function refreshSideIntel(state: GameState, side: Side) {
 
   for (const unit of state.units) {
     if (unit.owner !== side) continue;
+    if (unit.type === "drone-swarm") continue;
 
     const unitStats = getUnitStats(unit);
     revealAround(visible, unit.x, unit.y, unitStats.vision);
