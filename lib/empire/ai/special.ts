@@ -55,7 +55,16 @@ function chooseEngineerImprovement(unit: Unit, state: GameState, plan: AiTurnPla
     return { improvementType: "airfield" as const, x: target.x, y: target.y };
   }
 
-  if ((plan.context.aiCountsByDomain.sea > 0 || state.gameType === "naval" || state.gameType === "archipelago" || state.gameType === "ocean") && options.portTargets.length > 0) {
+  if (
+    (
+      plan.context.aiCountsByDomain.sea > 0 ||
+      state.gameType === "naval" ||
+      state.gameType === "archipelago" ||
+      state.gameType === "ocean" ||
+      state.gameType === "michigan"
+    ) &&
+    options.portTargets.length > 0
+  ) {
     const shouldExpandPorts = aiPorts < Math.max(1, Math.floor(plan.context.aiCityCount / 2));
     if (shouldExpandPorts) {
       const target = [...options.portTargets].sort((a, b) => scoreSite(a) - scoreSite(b))[0];

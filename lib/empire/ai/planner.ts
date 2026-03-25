@@ -255,7 +255,11 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
   const aiApaches = context.aiCountsByType.apache;
   const siteThreatScore =
     context.threatSummary.threatenedSites.find((threatenedSite) => threatenedSite.x === site.x && threatenedSite.y === site.y)?.threatScore ?? 0;
-  const isNavalMap = context.state.gameType === "naval" || context.state.gameType === "archipelago" || context.state.gameType === "ocean";
+  const isNavalMap =
+    context.state.gameType === "naval" ||
+    context.state.gameType === "archipelago" ||
+    context.state.gameType === "ocean" ||
+    context.state.gameType === "michigan";
   const reasons: string[] = [];
   let score = 0;
 
@@ -412,7 +416,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     score -= aiCarriers * 18;
   } else if (unitType === "submarine") {
     score += 34;
-    if (context.state.gameType === "archipelago" || context.state.gameType === "ocean") {
+    if (context.state.gameType === "archipelago" || context.state.gameType === "ocean" || context.state.gameType === "michigan") {
       score += 18;
       reasons.push("map rewards long-range sea strikes");
     }

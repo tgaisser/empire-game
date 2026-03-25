@@ -9,6 +9,9 @@ type CityPlacement = {
   cityName: string | null;
 };
 
+const MICHIGAN_MAP_WIDTH = 34;
+const MICHIGAN_MAP_HEIGHT = 24;
+
 function rng(seed: number) {
   let value = seed;
   return () => {
@@ -43,6 +46,49 @@ function createEmptyMap(width: number, height: number, terrain: Tile["terrain"])
       improvementProject: null,
     }))
   );
+}
+
+function fillEllipse(map: Tile[][], cx: number, cy: number, rx: number, ry: number, terrain: Tile["terrain"]) {
+  const height = map.length;
+  const width = map[0]?.length ?? 0;
+  for (let y = Math.max(0, Math.floor(cy - ry - 1)); y <= Math.min(height - 1, Math.ceil(cy + ry + 1)); y += 1) {
+    for (let x = Math.max(0, Math.floor(cx - rx - 1)); x <= Math.min(width - 1, Math.ceil(cx + rx + 1)); x += 1) {
+      const dx = (x - cx) / Math.max(rx, 0.01);
+      const dy = (y - cy) / Math.max(ry, 0.01);
+      if (dx * dx + dy * dy <= 1) {
+        map[y][x].terrain = terrain;
+      }
+    }
+  }
+}
+
+function carveEllipse(map: Tile[][], cx: number, cy: number, rx: number, ry: number) {
+  fillEllipse(map, cx, cy, rx, ry, "water");
+}
+
+function createMichiganTerrain(seed: number) {
+  const rand = rng(seed);
+  const map = createEmptyMap(MICHIGAN_MAP_WIDTH, MICHIGAN_MAP_HEIGHT, "water");
+
+  fillEllipse(map, 10, 4.6, 8.7, 2.3, "land");
+  fillEllipse(map, 4.5, 3.7, 2.5, 1.4, "land");
+  fillEllipse(map, 17.6, 5.1, 3, 1.8, "land");
+  fillEllipse(map, 23.5, 8.4, 2.4, 1.7, "land");
+  fillEllipse(map, 22.2, 14.5, 6.4, 7.4, "land");
+  fillEllipse(map, 25.5, 18.1, 4.4, 4.5, "land");
+  fillEllipse(map, 29.2, 12.5, 3.6, 3.4, "land");
+
+  carveEllipse(map, 18.2, 8.3, 2.2, 1.2);
+  carveEllipse(map, 18, 11.9, 1.8, 2.7);
+  carveEllipse(map, 20.3, 15.2, 1.5, 2.8);
+  carveEllipse(map, 29.9, 13.5, 1.5, 2.1);
+  carveEllipse(map, 24.4, 7.8, 1.1, 0.8);
+
+  fillEllipse(map, 9.8, 4.7, 3.8, 0.9, "mountain");
+  fillEllipse(map, 22.1, 11.3, 2.4, 2.2, "mountain");
+  fillEllipse(map, 24.7, 17.6, 2.2, 1.7, "mountain");
+
+  return { map, rand };
 }
 
 function shuffle<T>(items: T[], rand: () => number) {
@@ -223,6 +269,10 @@ function createOpenOceanTerrain(seed: number, width: number, height: number) {
 }
 
 function createBaseTerrain(seed: number, width: number, height: number, gameType: GameType) {
+  if (gameType === "michigan") {
+    return createMichiganTerrain(seed);
+  }
+
   if (gameType === "archipelago") {
     return createArchipelagoTerrain(seed, width, height);
   }
@@ -349,6 +399,20 @@ function createCityPlacements(
   playerFaction: Faction,
   aiFaction: Faction
 ) {
+  if (gameType === "michigan") {
+    const placements: CityPlacement[] = [
+      { x: 17, y: 18, owner: "player", cityName: "" },
+      { x: 28, y: 18, owner: "ai", cityName: "" },
+      { x: 6, y: 4, owner: null, cityName: "" },
+      { x: 13, y: 5, owner: null, cityName: "" },
+      { x: 22, y: 9, owner: null, cityName: "" },
+      { x: 20, y: 13, owner: null, cityName: "" },
+      { x: 24, y: 14, owner: null, cityName: "" },
+      { x: 29, y: 13, owner: null, cityName: "" },
+    ];
+    return assignCityNames(placements, rand, playerFaction, aiFaction);
+  }
+
   if (gameType === "archipelago") {
     const placements: CityPlacement[] = [
       { x: Math.max(3, Math.floor(width * 0.2)), y: Math.max(3, Math.floor(height * 0.24)), owner: "player", cityName: "" },
@@ -439,7 +503,7 @@ function carveCityFootprint(map: Tile[][], x: number, y: number, gameType: GameT
 
   map[y][x].terrain = "land";
 
-  if (gameType === "ocean") {
+  if (gameType === "ocean" || gameType === "michigan") {
     return;
   }
 
@@ -459,8 +523,8 @@ export function createMap(
   playerFaction: Faction = "usa",
   aiFaction: Faction = "asia"
 ): Tile[][] {
-  const mapWidth = Math.max(width, MIN_MAP_W);
-  const mapHeight = Math.max(height, MIN_MAP_H);
+  const mapWidth = gameType === "michigan" ? MICHIGAN_MAP_WIDTH : Math.max(width, MIN_MAP_W);
+  const mapHeight = gameType === "michigan" ? MICHIGAN_MAP_HEIGHT : Math.max(height, MIN_MAP_H);
   const { map, rand } = createBaseTerrain(seed, mapWidth, mapHeight, gameType);
   const placements = createCityPlacements(mapWidth, mapHeight, rand, gameType, playerFaction, aiFaction);
 

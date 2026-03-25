@@ -50,6 +50,7 @@ const gameTypeNotes: Record<GameType, string> = {
   archipelago: "Many islands and scattered objectives. Sea control matters immediately.",
   ocean: "Two continental powers divided by a wide ocean with only a few stepping-stone islands.",
   alpine: "Mountain-heavy campaign focused on passes, tunnels, and hard ground combat.",
+  michigan: "A fixed Michigan battle map with the Upper Peninsula included, open lake coastlines, and chokepoints around the straits.",
 };
 
 function getImprovementBadgeClass(improvementType: TileImprovementType) {

@@ -23,6 +23,7 @@ export const GAME_TYPE_OPTIONS: Array<{ id: GameType; label: string }> = [
   { id: "archipelago", label: "Archipelago" },
   { id: "ocean", label: "Open Ocean" },
   { id: "alpine", label: "Alpine War" },
+  { id: "michigan", label: "Michigan Theater" },
 ];
 
 export const TERRAIN: Record<TerrainType, { name: string; moveCost: number }> = {
