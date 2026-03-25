@@ -70,10 +70,11 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
     const moveLayer = new Graphics();
     const selectedLayer = new Graphics();
     const sparkLayer = new Graphics();
+    const atmosphereLayer = new Graphics();
     const combatLayer = new Graphics();
     const explosionLayer = new Graphics();
     let renderTick: (() => void) | null = null;
-    stageRoot.addChild(waterLayer, mountainLayer, moveLayer, selectedLayer, sparkLayer, combatLayer, explosionLayer);
+    stageRoot.addChild(waterLayer, mountainLayer, moveLayer, selectedLayer, sparkLayer, atmosphereLayer, combatLayer, explosionLayer);
 
     const moveKeys = new Set(possibleMoves.map((move) => `${move.x},${move.y}`));
     const selectedUnit = selectedUnitId !== null ? units.find((unit) => unit.id === selectedUnitId) ?? null : null;
@@ -118,6 +119,7 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
       moveLayer.clear();
       selectedLayer.clear();
       sparkLayer.clear();
+      atmosphereLayer.clear();
       combatLayer.clear();
       explosionLayer.clear();
 
@@ -162,20 +164,53 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
           }
 
           if (moveKeys.has(`${x},${y}`)) {
+            const pulse = 0.45 + (Math.sin(elapsedTime * 0.005 + (x + y) * 0.9) + 1) * 0.2;
+            moveLayer.roundRect(px + tileWidth * 0.12, py + tileHeight * 0.12, tileWidth * 0.76, tileHeight * 0.76, 10);
+            moveLayer.fill({ color: 0x38bdf8, alpha: 0.035 + pulse * 0.03 });
             moveLayer.roundRect(px + tileWidth * 0.08, py + tileHeight * 0.08, tileWidth * 0.84, tileHeight * 0.84, 10);
-            moveLayer.stroke({ color: 0x89f0ff, alpha: 0.12, width: 1.5 });
+            moveLayer.stroke({ color: 0x89f0ff, alpha: 0.12 + pulse * 0.08, width: 1.5 });
+            moveLayer.roundRect(px + tileWidth * 0.22, py + tileHeight * 0.22, tileWidth * 0.56, tileHeight * 0.56, 8);
+            moveLayer.stroke({ color: 0xd9f99d, alpha: 0.06 + pulse * 0.05, width: 1 });
           }
         }
+      }
+
+      const scanProgress = (elapsedTime * 0.00008) % 1;
+      const scanBandY = height * scanProgress;
+      atmosphereLayer.rect(0, Math.max(0, scanBandY - height * 0.08), width, height * 0.16);
+      atmosphereLayer.fill({ color: 0x67e8f9, alpha: 0.018 });
+      atmosphereLayer.rect(0, Math.max(0, scanBandY - 1), width, 2);
+      atmosphereLayer.fill({ color: 0xfef08a, alpha: 0.08 });
+
+      for (let index = 0; index < 3; index += 1) {
+        const diagonalProgress = ((elapsedTime * 0.00005) + index * 0.33) % 1;
+        const offset = (diagonalProgress * (width + height)) - height;
+        atmosphereLayer.moveTo(Math.max(0, offset), Math.max(0, -offset));
+        atmosphereLayer.lineTo(Math.min(width, offset + height), Math.min(height, height - Math.max(0, offset + height - width)));
+        atmosphereLayer.stroke({ color: index === 1 ? 0xa3e635 : 0x67e8f9, alpha: 0.035, width: 1 });
       }
 
       if (selectedUnit) {
         const selectedX = selectedUnit.x * tileWidth + tileWidth * 0.5;
         const selectedY = selectedUnit.y * tileHeight + tileHeight * 0.5;
         const pulse = 0.78 + Math.sin(elapsedTime * 0.0032) * 0.08;
+        const sweepAngle = (elapsedTime * 0.003) % (Math.PI * 2);
         selectedLayer.circle(selectedX, selectedY, Math.min(tileWidth, tileHeight) * pulse * 0.34);
         selectedLayer.stroke({ color: 0xfde68a, alpha: 0.26, width: 2 });
         selectedLayer.circle(selectedX, selectedY, Math.min(tileWidth, tileHeight) * pulse * 0.46);
         selectedLayer.stroke({ color: 0xfbbf24, alpha: 0.13, width: 1.5 });
+        selectedLayer.moveTo(selectedX, selectedY);
+        selectedLayer.arc(
+          selectedX,
+          selectedY,
+          Math.min(tileWidth, tileHeight) * 0.72,
+          sweepAngle - 0.38,
+          sweepAngle + 0.26
+        );
+        selectedLayer.closePath();
+        selectedLayer.fill({ color: 0x67e8f9, alpha: 0.08 });
+        selectedLayer.rect(selectedX - 1, selectedY - tileHeight * 0.5, 2, tileHeight);
+        selectedLayer.fill({ color: 0xfef3c7, alpha: 0.12 });
       }
 
       for (const spark of waterSparks) {
@@ -214,6 +249,10 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
           const tracerStartY = fromY + dy * (0.2 + burstProgress * 0.3);
           const tracerEndX = tracerStartX + dx * tracerLength;
           const tracerEndY = tracerStartY + dy * tracerLength;
+          const returnStartX = toX - dx * (0.18 + burstProgress * 0.28);
+          const returnStartY = toY - dy * (0.18 + burstProgress * 0.28);
+          const returnEndX = returnStartX - dx * (0.12 + pulse * 0.18);
+          const returnEndY = returnStartY - dy * (0.12 + pulse * 0.18);
 
           combatLayer.moveTo(fromX, fromY);
           combatLayer.lineTo(toX, toY);
@@ -221,10 +260,15 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
           combatLayer.moveTo(tracerStartX, tracerStartY);
           combatLayer.lineTo(tracerEndX, tracerEndY);
           combatLayer.stroke({ color: 0xfef08a, alpha: 0.42 + pulse * 0.4, width: Math.max(1.5, Math.min(tileWidth, tileHeight) * 0.07), cap: "round" });
+          combatLayer.moveTo(returnStartX, returnStartY);
+          combatLayer.lineTo(returnEndX, returnEndY);
+          combatLayer.stroke({ color: 0xfda4af, alpha: 0.26 + pulse * 0.28, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.055), cap: "round" });
           combatLayer.circle(fromX, fromY, Math.min(tileWidth, tileHeight) * (0.05 + pulse * 0.04));
           combatLayer.fill({ color: 0xf59e0b, alpha: 0.3 + pulse * 0.24 });
           combatLayer.circle(toX, toY, Math.min(tileWidth, tileHeight) * (0.05 + pulse * 0.04));
           combatLayer.fill({ color: 0xfb7185, alpha: 0.2 + pulse * 0.2 });
+          combatLayer.circle((fromX + toX) / 2, (fromY + toY) / 2, Math.min(tileWidth, tileHeight) * (0.03 + pulse * 0.03));
+          combatLayer.fill({ color: 0xffffff, alpha: 0.1 + pulse * 0.14 });
           continue;
         }
 
@@ -237,13 +281,21 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         const outerRadius = baseRadius * (0.38 + progress * 1.05);
         const fade = 1 - progress;
         const sparkCount = event.size === "large" ? 10 : 6;
+        const smokeRadius = baseRadius * (0.52 + progress * 1.4);
+        const shockwaveRadius = baseRadius * (0.3 + progress * 1.65);
 
         explosionLayer.circle(centerX, centerY, flareRadius);
         explosionLayer.fill({ color: 0xfbbf24, alpha: 0.34 * fade });
         explosionLayer.circle(centerX, centerY, flareRadius * 0.56);
         explosionLayer.fill({ color: 0xf97316, alpha: 0.52 * fade });
+        explosionLayer.circle(centerX, centerY, flareRadius * 0.24);
+        explosionLayer.fill({ color: 0xffffff, alpha: 0.2 * fade });
         explosionLayer.circle(centerX, centerY, outerRadius);
         explosionLayer.stroke({ color: 0xfef08a, alpha: 0.45 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.04) });
+        explosionLayer.circle(centerX, centerY, shockwaveRadius);
+        explosionLayer.stroke({ color: 0xf8fafc, alpha: 0.18 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03) });
+        explosionLayer.circle(centerX, centerY, smokeRadius);
+        explosionLayer.stroke({ color: 0x1f2937, alpha: 0.2 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.08) });
 
         for (let index = 0; index < sparkCount; index += 1) {
           const angle = (Math.PI * 2 * index) / sparkCount + progress * 1.4;
@@ -263,6 +315,12 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
             width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03),
             cap: "round",
           });
+          explosionLayer.circle(
+            centerX + Math.cos(angle) * (innerRadius + rayLength * 0.9),
+            centerY + Math.sin(angle) * (innerRadius + rayLength * 0.9),
+            Math.max(1, Math.min(tileWidth, tileHeight) * 0.03)
+          );
+          explosionLayer.fill({ color: 0x111827, alpha: 0.12 * fade });
         }
       }
     };

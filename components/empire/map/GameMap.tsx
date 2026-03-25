@@ -420,33 +420,79 @@ function MovementPlaybackOverlay({
         const stepIndex = Math.min(playbackStep, move.path.length - 1);
         const point = move.path[stepIndex];
         if (!point) return null;
+        const trailPoints = move.path.slice(0, stepIndex + 1);
         const baseFaction = move.owner === "player" ? playerFaction : aiFaction;
         const displayFaction = getFactionOption(baseFaction);
         const ownershipDisplay = getSideDisplayOption(move.owner);
 
         const left = `calc(${((point.x + 0.5) / mapWidth) * 100}% - 17px)`;
         const top = `calc(${((point.y + 0.5) / mapHeight) * 100}% - 17px)`;
+        const trailColor = ownershipDisplay?.hex ?? "#f8fafc";
 
         return (
-          <div
-            key={`${move.owner}-${move.unitId}-${move.path.map((pathPoint) => `${pathPoint.x}-${pathPoint.y}`).join("_")}`}
-            className={[
-              "absolute flex h-[34px] w-[34px] items-center justify-center rounded-full border shadow-lg transition-all duration-75",
-              getSideUnitBadgeClass(
-                move.unitType,
-                getPlaybackDomain(move.unitType),
-                playerFaction,
-                aiFaction,
-                move.owner
-              ),
-              ownershipDisplay ? `ring-2 ${ownershipDisplay.ringClass}` : "ring-2 ring-white",
-            ].join(" ")}
-            style={{ left, top }}
-          >
-            <UnitTypeIcon
-              unitType={move.unitType}
-              className={displayFaction.tertiaryClass}
+          <div key={`${move.owner}-${move.unitId}-${move.path.map((pathPoint) => `${pathPoint.x}-${pathPoint.y}`).join("_")}`}>
+            {trailPoints.slice(1).map((trailPoint, index) => {
+              const previousPoint = trailPoints[index];
+              if (!previousPoint) return null;
+
+              const startX = ((previousPoint.x + 0.5) / mapWidth) * 100;
+              const startY = ((previousPoint.y + 0.5) / mapHeight) * 100;
+              const endX = ((trailPoint.x + 0.5) / mapWidth) * 100;
+              const endY = ((trailPoint.y + 0.5) / mapHeight) * 100;
+              const dx = endX - startX;
+              const dy = endY - startY;
+              const length = Math.sqrt(dx * dx + dy * dy);
+              const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+              const opacity = Math.max(0.18, (index + 1) / Math.max(1, trailPoints.length));
+
+              return (
+                <span
+                  key={`${move.unitId}-trail-${index}`}
+                  className="playback-trail absolute origin-left rounded-full"
+                  style={{
+                    left: `${startX}%`,
+                    top: `${startY}%`,
+                    width: `${length}%`,
+                    transform: `translateY(-50%) rotate(${angle}deg)`,
+                    background: `linear-gradient(90deg, ${trailColor}00 0%, ${trailColor}aa 40%, ${trailColor} 100%)`,
+                    opacity,
+                  }}
+                />
+              );
+            })}
+            <div
+              className="playback-unit-glow absolute h-[52px] w-[52px] rounded-full"
+              style={{
+                left: `calc(${((point.x + 0.5) / mapWidth) * 100}% - 26px)`,
+                top: `calc(${((point.y + 0.5) / mapHeight) * 100}% - 26px)`,
+                background: `radial-gradient(circle, ${trailColor}55 0%, ${trailColor}14 58%, transparent 72%)`,
+              }}
             />
+            <div
+              className={[
+                "playback-unit absolute flex h-[34px] w-[34px] items-center justify-center rounded-full border shadow-lg transition-all duration-75",
+                getSideUnitBadgeClass(
+                  move.unitType,
+                  getPlaybackDomain(move.unitType),
+                  playerFaction,
+                  aiFaction,
+                  move.owner
+                ),
+                ownershipDisplay ? `ring-2 ${ownershipDisplay.ringClass}` : "ring-2 ring-white",
+              ].join(" ")}
+              style={{ left, top }}
+            >
+              <span
+                className="playback-thruster absolute inset-[-16%] rounded-full"
+                style={{
+                  background: `conic-gradient(from 0deg, transparent 0deg, ${trailColor}55 80deg, transparent 160deg, ${trailColor}33 220deg, transparent 360deg)`,
+                }}
+              />
+              <UnitTypeIcon
+                unitType={move.unitType}
+                className={displayFaction.tertiaryClass}
+              />
+            </div>
           </div>
         );
       })}

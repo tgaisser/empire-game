@@ -679,7 +679,7 @@ export default function EmpireGame() {
         {commandPrompts.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {commandPrompts.map((prompt) => (
-              <div key={prompt} className="rounded-full border border-amber-500/35 bg-amber-950/30 px-3 py-1 text-xs text-amber-100">
+              <div key={prompt} className="command-prompt-chip rounded-full border border-amber-500/35 bg-amber-950/30 px-3 py-1 text-xs text-amber-100">
                 {prompt}
               </div>
             ))}

@@ -208,6 +208,69 @@
   }
 }
 
+@keyframes playback-unit-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(0.98);
+    filter: drop-shadow(0 0 0.2rem rgba(255, 255, 255, 0.18));
+  }
+  50% {
+    transform: translateY(-2px) scale(1.03);
+    filter: drop-shadow(0 0 0.55rem rgba(255, 255, 255, 0.28));
+  }
+}
+
+@keyframes playback-thruster-spin {
+  0% {
+    opacity: 0.28;
+    transform: rotate(0deg) scale(0.9);
+  }
+  50% {
+    opacity: 0.7;
+    transform: rotate(180deg) scale(1.08);
+  }
+  100% {
+    opacity: 0.28;
+    transform: rotate(360deg) scale(0.9);
+  }
+}
+
+@keyframes playback-trail-glow {
+  0%,
+  100% {
+    opacity: 0.28;
+    filter: blur(1px);
+  }
+  50% {
+    opacity: 0.72;
+    filter: blur(2px);
+  }
+}
+
+@keyframes playback-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.26;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 0.62;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes command-prompt-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+  }
+  50% {
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.2);
+  }
+}
+
 @layer utilities {
   .production-pulse {
     animation: production-pulse 1.8s ease-in-out infinite;
@@ -226,5 +289,32 @@
   .engineer-build-spark {
     animation: engineer-build-spark 2.4s linear infinite;
     will-change: transform, opacity;
+  }
+
+  .playback-unit {
+    animation: playback-unit-float 1.35s ease-in-out infinite;
+    will-change: transform, filter;
+  }
+
+  .playback-thruster {
+    animation: playback-thruster-spin 1.1s linear infinite;
+    will-change: transform, opacity;
+  }
+
+  .playback-trail {
+    height: 4px;
+    animation: playback-trail-glow 0.95s ease-in-out infinite;
+    will-change: opacity, filter;
+    filter: blur(1px);
+  }
+
+  .playback-unit-glow {
+    animation: playback-glow-breathe 1.2s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  .command-prompt-chip {
+    animation: command-prompt-pulse 1.8s ease-in-out infinite;
+    will-change: transform, box-shadow;
   }
 }
