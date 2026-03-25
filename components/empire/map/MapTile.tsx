@@ -446,6 +446,7 @@ export function MapTile({
   const isMove = !!moveData;
   const isUnseen = !displayTile;
   const stale = !!displayTile && !visible;
+  const hasPendingOrderHighlight = highlightPendingOrder && highlightOrderSignal > 0;
   const tileLabel = isUnseen ? "Unexplored" : getTileLabel(displayTile);
   const improvementType = displayTile?.improvement?.type ?? displayTile?.improvementProject?.type ?? null;
   const showImprovementTileOverlay =
@@ -492,8 +493,8 @@ export function MapTile({
         isSelected ? "border-white scale-[1.03]" : isSelectedCity ? "border-[#a3e635] scale-[1.03]" : "border-slate-900/70",
         isMove ? "ring-2" : "",
         bridgeBuildTarget ? "ring-2 ring-[#a3e635]/90 shadow-[0_0_16px_rgba(163,230,53,0.35)]" : "",
-        highlightPendingOrder && highlightOrderSignal > 0
-          ? "ring-4 ring-[#a3e635]/95 shadow-[0_0_18px_rgba(163,230,53,0.5)] animate-pulse"
+        hasPendingOrderHighlight
+          ? "ring-[5px] ring-[#d9f99d] shadow-[0_0_0_2px_rgba(132,204,22,0.4),0_0_28px_rgba(190,242,100,0.65)] animate-[pulse_0.9s_ease-in-out_infinite]"
           : "",
         stale ? "brightness-50 saturate-50" : "",
         canInteract && visible ? "hover:brightness-110" : "cursor-default",
@@ -616,6 +617,7 @@ export function MapTile({
                 surfaceOccupant.owner
               ),
               ownerRingClass(surfaceOccupant),
+              hasPendingOrderHighlight ? "scale-[1.1] ring-[3px] ring-[#ecfccb] shadow-[0_0_22px_rgba(190,242,100,0.8)] animate-[pulse_0.85s_ease-in-out_infinite]" : "",
             ].join(" ")}
           >
             {engineerOnProject ? (
@@ -655,6 +657,7 @@ export function MapTile({
                 airOccupant.owner
               ),
               ownerRingClass(airOccupant),
+              hasPendingOrderHighlight ? "scale-[1.1] ring-[3px] ring-[#ecfccb] shadow-[0_0_22px_rgba(190,242,100,0.8)] animate-[pulse_0.85s_ease-in-out_infinite]" : "",
             ].join(" ")}
           >
             <UnitTypeIcon
