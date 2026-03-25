@@ -1,6 +1,6 @@
 export type Side = "player" | "ai";
 export type Owner = Side | null;
-export type Faction = "usa" | "asia" | "china" | "africa" | "iran" | "israel";
+export type Faction = "usa" | "asia" | "china" | "africa" | "iran" | "israel" | "canada" | "mexico";
 
 export type TerrainType = "water" | "land" | "mountain";
 export type UnitDomain = "land" | "sea" | "air";

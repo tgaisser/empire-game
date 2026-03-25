@@ -1,8 +1,10 @@
 import asianCapitals from "@/lib/empire/data/asian-capitals.json";
 import africaCapitals from "@/lib/empire/data/africa-capitals.json";
+import canadaCities from "@/lib/empire/data/canada-cities.json";
 import chinaCapitals from "@/lib/empire/data/china-capitals.json";
 import iranCities from "@/lib/empire/data/iran-cities.json";
 import israelCities from "@/lib/empire/data/israel-cities.json";
+import mexicoCities from "@/lib/empire/data/mexico-cities.json";
 import usaStateCapitals from "@/lib/empire/data/usa-state-capitals.json";
 import type { Faction, Side } from "@/lib/empire/types";
 
@@ -120,6 +122,34 @@ export const FACTION_OPTIONS: Array<FactionOption> = [
     badgeBackgroundClass: "bg-[#005EB8]",
     borderClass: "border-white",
   },
+  {
+    id: "canada",
+    label: "Canada",
+    cityListLabel: "Canadian Cities",
+    accentClass: "from-[#d80621]/38 via-white/12 to-[#d80621]/10",
+    chipClass: "bg-[#d80621]/20 border-white/44",
+    textClass: "text-[#d80621]",
+    ringClass: "ring-white border-slate-200/20",
+    primaryClass: "text-[#d80621]",
+    secondaryClass: "text-white",
+    tertiaryClass: "text-[#d80621]",
+    badgeBackgroundClass: "bg-[#d80621]",
+    borderClass: "border-white",
+  },
+  {
+    id: "mexico",
+    label: "Mexico",
+    cityListLabel: "Mexican Cities",
+    accentClass: "from-[#006847]/36 via-white/12 to-[#ce1126]/10",
+    chipClass: "bg-[#006847]/20 border-[#ce1126]/40",
+    textClass: "text-[#006847]",
+    ringClass: "ring-[#ce1126] border-red-950/20",
+    primaryClass: "text-[#006847]",
+    secondaryClass: "text-white",
+    tertiaryClass: "text-[#ce1126]",
+    badgeBackgroundClass: "bg-[#006847]",
+    borderClass: "border-[#ce1126]",
+  },
 ];
 
 const SIDE_DISPLAY_OPTIONS: Record<Side, SideDisplayOption> = {
@@ -234,8 +264,10 @@ export function getFactionCityNames(faction: Faction) {
   if (faction === "asia") return asianCapitals;
   if (faction === "china") return chinaCapitals;
   if (faction === "africa") return africaCapitals;
+  if (faction === "canada") return canadaCities;
   if (faction === "iran") return iranCities;
   if (faction === "israel") return israelCities;
+  if (faction === "mexico") return mexicoCities;
   return usaStateCapitals;
 }
 
