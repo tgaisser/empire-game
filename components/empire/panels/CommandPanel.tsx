@@ -391,14 +391,6 @@ export function CommandPanel({
                 </div>
               ) : null}
             </div>
-            <Button
-              variant="outline"
-              className="w-full rounded-2xl border-red-900/70 bg-red-950/20 text-red-100 hover:bg-red-950/35"
-              disabled={side !== "player" || !!winner}
-              onClick={onDecommissionUnit}
-            >
-              Decommission Unit
-            </Button>
             {selectedUnit.type === "engineer" && (
               <>
                 <Separator className="bg-slate-800" />
@@ -479,6 +471,14 @@ export function CommandPanel({
                 </div>
               </>
             )}
+            <Button
+              variant="outline"
+              className="w-full rounded-2xl border-red-900/70 bg-red-950/20 text-red-100 hover:bg-red-950/35"
+              disabled={side !== "player" || !!winner}
+              onClick={onDecommissionUnit}
+            >
+              Decommission Unit
+            </Button>
           </div>
         )}
 

@@ -224,7 +224,7 @@ export const FACTION_OPTIONS: Array<FactionOption> = [
     textClass: "text-white",
     ringClass: "ring-[#bc002d] border-slate-200/20",
     primaryClass: "text-white",
-    secondaryClass: "text-[#bc002d]",
+    secondaryClass: "text-white",
     tertiaryClass: "text-[#bc002d]",
     badgeBackgroundClass: "bg-white",
     borderClass: "border-[#bc002d]",
