@@ -215,24 +215,16 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
       if (selectedUnit) {
         const selectedX = selectedUnit.x * tileWidth + tileWidth * 0.5;
         const selectedY = selectedUnit.y * tileHeight + tileHeight * 0.5;
-        const pulse = 0.78 + Math.sin(elapsedTime * 0.0032) * 0.08;
-        const sweepAngle = (elapsedTime * 0.003) % (Math.PI * 2);
-        selectedLayer.circle(selectedX, selectedY, Math.min(tileWidth, tileHeight) * pulse * 0.34);
-        selectedLayer.stroke({ color: 0xfde68a, alpha: 0.26, width: 2 });
-        selectedLayer.circle(selectedX, selectedY, Math.min(tileWidth, tileHeight) * pulse * 0.46);
-        selectedLayer.stroke({ color: 0xfbbf24, alpha: 0.13, width: 1.5 });
-        selectedLayer.moveTo(selectedX, selectedY);
-        selectedLayer.arc(
-          selectedX,
-          selectedY,
-          Math.min(tileWidth, tileHeight) * 0.72,
-          sweepAngle - 0.38,
-          sweepAngle + 0.26
-        );
-        selectedLayer.closePath();
-        selectedLayer.fill({ color: 0x67e8f9, alpha: 0.08 });
-        selectedLayer.rect(selectedX - 1, selectedY - tileHeight * 0.5, 2, tileHeight);
-        selectedLayer.fill({ color: 0xfef3c7, alpha: 0.12 });
+        const pulse = 0.88 + Math.sin(elapsedTime * 0.0044) * 0.08;
+        const tileRadius = Math.min(tileWidth, tileHeight);
+        selectedLayer.circle(selectedX, selectedY, tileRadius * 0.32);
+        selectedLayer.fill({ color: 0xfef08a, alpha: 0.08 + pulse * 0.04 });
+        selectedLayer.circle(selectedX, selectedY, tileRadius * pulse * 0.48);
+        selectedLayer.stroke({ color: 0xfde68a, alpha: 0.34, width: 2.2 });
+        selectedLayer.circle(selectedX, selectedY, tileRadius * pulse * 0.62);
+        selectedLayer.stroke({ color: 0xfbbf24, alpha: 0.18, width: 1.4 });
+        selectedLayer.circle(selectedX, selectedY, tileRadius * (0.74 + pulse * 0.06));
+        selectedLayer.stroke({ color: 0xfca5a5, alpha: 0.1, width: 1 });
       }
 
       for (const spark of waterSparks) {
@@ -299,25 +291,27 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         const centerY = (event.y + 0.5) * tileHeight;
         const sizeMultiplier = event.size === "large" ? 1.3 : 0.78;
         const baseRadius = Math.min(tileWidth, tileHeight) * sizeMultiplier;
-        const flareRadius = baseRadius * (0.24 + progress * 0.72);
-        const outerRadius = baseRadius * (0.38 + progress * 1.05);
+        const flareRadius = baseRadius * (0.28 + progress * 0.82);
+        const outerRadius = baseRadius * (0.42 + progress * 1.12);
         const fade = 1 - progress;
         const sparkCount = event.size === "large" ? 10 : 6;
-        const smokeRadius = baseRadius * (0.52 + progress * 1.4);
-        const shockwaveRadius = baseRadius * (0.3 + progress * 1.65);
+        const smokeRadius = baseRadius * (0.58 + progress * 1.5);
+        const shockwaveRadius = baseRadius * (0.34 + progress * 1.72);
 
         explosionLayer.circle(centerX, centerY, flareRadius);
-        explosionLayer.fill({ color: 0xfbbf24, alpha: 0.34 * fade });
-        explosionLayer.circle(centerX, centerY, flareRadius * 0.56);
-        explosionLayer.fill({ color: 0xf97316, alpha: 0.52 * fade });
-        explosionLayer.circle(centerX, centerY, flareRadius * 0.24);
-        explosionLayer.fill({ color: 0xffffff, alpha: 0.2 * fade });
+        explosionLayer.fill({ color: 0xef4444, alpha: 0.22 * fade });
+        explosionLayer.circle(centerX, centerY, flareRadius * 0.84);
+        explosionLayer.fill({ color: 0xf97316, alpha: 0.4 * fade });
+        explosionLayer.circle(centerX, centerY, flareRadius * 0.52);
+        explosionLayer.fill({ color: 0xfb923c, alpha: 0.58 * fade });
+        explosionLayer.circle(centerX, centerY, flareRadius * 0.22);
+        explosionLayer.fill({ color: 0xfffbeb, alpha: 0.28 * fade });
         explosionLayer.circle(centerX, centerY, outerRadius);
-        explosionLayer.stroke({ color: 0xfef08a, alpha: 0.45 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.04) });
+        explosionLayer.stroke({ color: 0xfdba74, alpha: 0.4 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.045) });
         explosionLayer.circle(centerX, centerY, shockwaveRadius);
-        explosionLayer.stroke({ color: 0xf8fafc, alpha: 0.18 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03) });
+        explosionLayer.stroke({ color: 0xfca5a5, alpha: 0.2 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.035) });
         explosionLayer.circle(centerX, centerY, smokeRadius);
-        explosionLayer.stroke({ color: 0x1f2937, alpha: 0.2 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.08) });
+        explosionLayer.stroke({ color: 0x111827, alpha: 0.26 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.09) });
 
         for (let index = 0; index < sparkCount; index += 1) {
           const angle = (Math.PI * 2 * index) / sparkCount + progress * 1.4;
@@ -332,9 +326,9 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
             centerY + Math.sin(angle) * (innerRadius + rayLength)
           );
           explosionLayer.stroke({
-            color: index % 2 === 0 ? 0xfef08a : 0xfdba74,
-            alpha: 0.26 * fade,
-            width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03),
+            color: index % 2 === 0 ? 0xfdba74 : 0xfb7185,
+            alpha: 0.32 * fade,
+            width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.034),
             cap: "round",
           });
           explosionLayer.circle(

@@ -131,7 +131,7 @@ export function createBattlefieldFxEvents(previousGame: GameState, currentGame: 
         x: impact.tile.x,
         y: impact.tile.y,
         createdAt,
-        durationMs: impact.size === "large" ? 920 : 760,
+        durationMs: impact.size === "large" ? 1100 : 840,
         size: impact.size,
       },
     ];
@@ -165,8 +165,8 @@ export function createBattlefieldFxEvents(previousGame: GameState, currentGame: 
       type: "explosion",
       x: previousUnit.x,
       y: previousUnit.y,
-      createdAt,
-      durationMs: 980,
+      createdAt: createdAt + 220,
+      durationMs: 1320,
       size: "large",
     });
   }
