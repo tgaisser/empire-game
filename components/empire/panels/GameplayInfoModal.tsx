@@ -25,7 +25,7 @@ const unitNotes: Record<UnitType, string> = {
   infantry: "Baseline ground force. Captures cities, holds lines, and benefits well from fortification and city defense.",
   scout: "Fast recon unit with wider sight. Good for exploration and screening, but poor in direct combat.",
   tank: "Heavy land breakthrough unit. Strong against surface forces, but cannot cross raw mountains without tunnels.",
-  engineer: "Builds bridges, ports, airfields, radar upgrades, and tunnels. Engineers are pinned to active worksites until construction finishes.",
+  engineer: "Builds bridges, ports, airfields, radar upgrades, and tunnels. Engineers also work as sappers and can demolish bridges or tunnels beside them. They are pinned to active worksites until construction finishes.",
   wraith: "Spy unit. Weak in open combat, excellent for stealth and deep reconnaissance while stationary.",
   "special-ops": "Elite infiltrators. Hard to spot while holding still, dangerous in direct raids, and able to call in devastating air strikes on nearby visible targets.",
   destroyer: "Sea combatant with strong anti-air missiles and naval guns. Hits ships, aircraft, and shore targets but cannot capture cities.",
@@ -34,7 +34,7 @@ const unitNotes: Record<UnitType, string> = {
   submarine: "Stealth sea predator built to kill capital ships. A torpedo strike can cripple or outright sink a carrier.",
   apache: "Chopper gunship built to shred armor and strike fortified ground positions. It can also carry a special-ops team into deep territory.",
   fighter: "Air superiority aircraft. Built for hunting other aircraft and defending your skies.",
-  bomber: "Long-range air-to-ground strike aircraft. Must fly directly over the target to bomb, carries six bombs before rearming at a friendly airfield, and only lands at airfields.",
+  bomber: "Long-range air-to-ground strike aircraft. Must fly directly over the target to bomb, can also demolish bridges and tunnels directly below, carries six bombs before rearming at a friendly airfield, and only lands at airfields.",
   "drone-swarm": "Cheap expendable strike craft. Flies over the target and detonates on attack.",
 };
 
@@ -111,8 +111,7 @@ export function GameplayInfoModal({ open, playerFaction, onClose }: GameplayInfo
             ))}
           </div>
           <div className="space-y-8 text-sm text-slate-300">
-            <section className="grid gap-4 lg:grid-cols-2">
-              <div ref={howToRef} className="h-0 w-0 overflow-hidden" />
+            <section ref={howToRef} className="grid items-start gap-4 lg:grid-cols-2">
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                 <div className="text-base font-semibold text-slate-100">How To Play</div>
                 <div className="mt-3 space-y-2">
@@ -122,6 +121,7 @@ export function GameplayInfoModal({ open, playerFaction, onClose }: GameplayInfo
                   <p>Aircraft must return to a city or airfield after limited turns away from base.</p>
                   <p>Fog of war hides unseen territory. Radar upgrades are your best tool for tracking enemy aircraft.</p>
                   <p>Troop transports embark adjacent ground units from friendly ports or coastal cities, then unload them one-by-one onto adjacent shore tiles.</p>
+                  <p>Engineers and bombers can demolish bridges or tunnels when you need to break an enemy route.</p>
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
