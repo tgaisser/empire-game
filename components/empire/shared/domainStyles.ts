@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { getDisplayFactionOption, getFactionOption } from "@/lib/empire/factions";
 import type { Faction, Side, UnitDomain, UnitType } from "@/lib/empire/types";
 
@@ -49,4 +50,64 @@ export function getSideUnitBadgeClass(
   }
 
   return getDomainBadgeClass(domain);
+}
+
+function resolveColorToken(className: string | undefined, fallback: string) {
+  if (!className) return fallback;
+  const hexMatch = className.match(/\[#([0-9a-fA-F]{3,8})\]/)?.[1];
+  if (hexMatch) return `#${hexMatch}`;
+  if (className.includes("text-white")) return "#ffffff";
+  if (className.includes("text-black")) return "#000000";
+  return fallback;
+}
+
+function getDomainBadgeStyle(domain: UnitDomain): CSSProperties {
+  if (domain === "air") return { backgroundColor: "#5f768f" };
+  if (domain === "sea") return { backgroundColor: "#0f2748" };
+  return { backgroundColor: "#556b2f" };
+}
+
+function createSplitBadgeStyle(primaryClass: string, secondaryClass: string) {
+  const topColor = resolveColorToken(primaryClass, "#475569");
+  const bottomColor = resolveColorToken(secondaryClass, topColor);
+
+  return {
+    backgroundImage: `linear-gradient(180deg, ${topColor} 0%, ${topColor} 50%, ${bottomColor} 50%, ${bottomColor} 100%)`,
+  } satisfies CSSProperties;
+}
+
+export function getFactionUnitBadgeStyle(
+  _unitType: UnitType,
+  domain: UnitDomain,
+  faction: Faction | null
+) {
+  if (faction) {
+    const option = getFactionOption(faction);
+    return createSplitBadgeStyle(option.primaryClass, option.secondaryClass);
+  }
+
+  return getDomainBadgeStyle(domain);
+}
+
+export function getSideUnitBadgeStyle(
+  _unitType: UnitType,
+  domain: UnitDomain,
+  playerFaction: Faction,
+  aiFaction: Faction,
+  sideOrOwner: Side | null
+) {
+  const displayOption = getDisplayFactionOption(playerFaction, aiFaction, sideOrOwner);
+  if (displayOption) {
+    return createSplitBadgeStyle(displayOption.primaryClass, displayOption.secondaryClass);
+  }
+
+  return getDomainBadgeStyle(domain);
+}
+
+export function getFactionUnitIconClass(faction: Faction | null) {
+  return faction ? getFactionOption(faction).tertiaryClass : "text-white";
+}
+
+export function getSideUnitIconClass(playerFaction: Faction, aiFaction: Faction, sideOrOwner: Side | null) {
+  return getDisplayFactionOption(playerFaction, aiFaction, sideOrOwner)?.tertiaryClass ?? "text-white";
 }

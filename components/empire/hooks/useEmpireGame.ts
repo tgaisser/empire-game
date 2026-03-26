@@ -763,6 +763,22 @@ export function useEmpireGame() {
   }
 
   function handleAddDeveloperImprovement(side: Side, improvementType: DeveloperPlacementType, x: number, y: number) {
+    const validTarget = getDeveloperImprovementTargets(side, improvementType).some((tile) => tile.x === x && tile.y === y);
+    if (!validTarget) return;
+
+    const shouldSelectProductionSite =
+      side === "player" && (improvementType === "city" || improvementType === "port" || improvementType === "airfield");
+
+    if (shouldSelectProductionSite) {
+      setPendingDroneTarget(null);
+      setSelectedCity({ x, y });
+      applyGameUpdate((current) => {
+        const nextState = addDeveloperImprovement(current, side, improvementType, x, y);
+        return { ...nextState, selectedUnitId: null };
+      });
+      return;
+    }
+
     applyGameUpdate((current) => addDeveloperImprovement(current, side, improvementType, x, y));
   }
 

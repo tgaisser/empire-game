@@ -49,6 +49,8 @@ type Spark = {
   tilt: number;
 };
 
+const AIRFIELD_RADAR_RANGE_TILES = 5;
+
 function createDeterministicNoise(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
   return value - Math.floor(value);
@@ -68,13 +70,14 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
     const waterLayer = new Graphics();
     const mountainLayer = new Graphics();
     const moveLayer = new Graphics();
+    const radarLayer = new Graphics();
     const selectedLayer = new Graphics();
     const sparkLayer = new Graphics();
     const atmosphereLayer = new Graphics();
     const combatLayer = new Graphics();
     const explosionLayer = new Graphics();
     let renderTick: (() => void) | null = null;
-    stageRoot.addChild(waterLayer, mountainLayer, moveLayer, selectedLayer, sparkLayer, atmosphereLayer, combatLayer, explosionLayer);
+    stageRoot.addChild(waterLayer, mountainLayer, moveLayer, radarLayer, selectedLayer, sparkLayer, atmosphereLayer, combatLayer, explosionLayer);
 
     const moveKeys = new Set(possibleMoves.map((move) => `${move.x},${move.y}`));
     const selectedUnit = selectedUnitId !== null ? units.find((unit) => unit.id === selectedUnitId) ?? null : null;
@@ -117,6 +120,7 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
       waterLayer.clear();
       mountainLayer.clear();
       moveLayer.clear();
+      radarLayer.clear();
       selectedLayer.clear();
       sparkLayer.clear();
       atmosphereLayer.clear();
@@ -171,6 +175,31 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
             moveLayer.stroke({ color: 0x89f0ff, alpha: 0.12 + pulse * 0.08, width: 1.5 });
             moveLayer.roundRect(px + tileWidth * 0.22, py + tileHeight * 0.22, tileWidth * 0.56, tileHeight * 0.56, 8);
             moveLayer.stroke({ color: 0xd9f99d, alpha: 0.06 + pulse * 0.05, width: 1 });
+          }
+
+          if (tile.improvement?.type === "airfield" && tile.improvement.hasRadar) {
+            const centerX = px + tileWidth * 0.5;
+            const centerY = py + tileHeight * 0.5;
+            const radius = Math.min(tileWidth, tileHeight) * AIRFIELD_RADAR_RANGE_TILES;
+            const pulse = 0.94 + Math.sin(elapsedTime * 0.0016 + (x + y) * 0.24) * 0.05;
+            const sweepAngle = (elapsedTime * 0.0011 + (x + y) * 0.08) % (Math.PI * 2);
+            const radarColor = tile.improvement.owner === "player" ? 0xa3e635 : 0xef4444;
+            const lineWidth = Math.max(1, Math.min(tileWidth, tileHeight) * 0.028);
+
+            radarLayer.moveTo(centerX, centerY);
+            radarLayer.arc(centerX, centerY, radius * pulse, sweepAngle - 0.24, sweepAngle + 0.18);
+            radarLayer.closePath();
+            radarLayer.fill({ color: radarColor, alpha: 0.045 });
+            radarLayer.circle(centerX, centerY, radius * pulse);
+            radarLayer.stroke({ color: radarColor, alpha: 0.12, width: lineWidth });
+            radarLayer.circle(centerX, centerY, radius * 0.62 * pulse);
+            radarLayer.stroke({ color: radarColor, alpha: 0.07, width: Math.max(1, lineWidth * 0.7) });
+            radarLayer.moveTo(centerX, centerY);
+            radarLayer.lineTo(
+              centerX + Math.cos(sweepAngle + 0.18) * radius * pulse,
+              centerY + Math.sin(sweepAngle + 0.18) * radius * pulse
+            );
+            radarLayer.stroke({ color: radarColor, alpha: 0.16, width: Math.max(1, lineWidth * 0.85), cap: "round" });
           }
         }
       }

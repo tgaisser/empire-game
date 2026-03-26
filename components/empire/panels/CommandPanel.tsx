@@ -1,7 +1,7 @@
 'use client';
 
 import { Castle, Compass, Shield, Wrench } from "lucide-react";
-import { getFactionUnitBadgeClass } from "@/components/empire/shared/domainStyles";
+import { getFactionUnitBadgeClass, getFactionUnitBadgeStyle, getFactionUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { UNIT_TYPE_ORDER } from "@/lib/empire/catalog";
@@ -521,15 +521,16 @@ export function CommandPanel({
                         </span>
                       )}
                     </span>
-                  <span
+                    <span
                       className={[
                         "flex h-8 w-8 items-center justify-center rounded-full border border-slate-900/20 shadow-sm",
                         getFactionUnitBadgeClass(unitType, unitDefinition.domain, playerFaction),
                       ].join(" ")}
+                      style={getFactionUnitBadgeStyle(unitType, unitDefinition.domain, playerFaction)}
                     >
                       <UnitTypeIcon
                         unitType={unitType}
-                        className={getFactionOption(playerFaction).tertiaryClass}
+                        className={getFactionUnitIconClass(playerFaction)}
                       />
                     </span>
                   </Button>

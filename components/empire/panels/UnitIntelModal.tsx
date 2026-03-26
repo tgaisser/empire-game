@@ -1,8 +1,8 @@
 'use client';
 
-import { getDisplayFactionOption } from "@/lib/empire/factions";
 import { getUnitStats } from "@/lib/empire/game";
 import type { Faction, Unit } from "@/lib/empire/types";
+import { getSideUnitBadgeStyle, getSideUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { Button } from "@/components/ui/button";
 
@@ -18,7 +18,6 @@ export function UnitIntelModal({ open, unit, playerFaction, aiFaction, onClose }
   if (!open || !unit) return null;
 
   const stats = getUnitStats(unit);
-  const faction = getDisplayFactionOption(playerFaction, aiFaction, unit.owner);
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/72 p-4 backdrop-blur-sm">
@@ -26,8 +25,11 @@ export function UnitIntelModal({ open, unit, playerFaction, aiFaction, onClose }
         <div className="border-b border-slate-800 px-6 py-5">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Unit Intel</div>
           <div className="mt-3 flex items-center gap-4">
-            <div className={`flex h-16 w-16 items-center justify-center rounded-full border shadow-lg ${faction?.badgeBackgroundClass ?? "bg-slate-800"} ${faction?.ringClass ?? "ring-white"}`}>
-              <UnitTypeIcon unitType={unit.type} className={faction?.tertiaryClass ?? "text-white"} />
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-900/20 shadow-lg"
+              style={getSideUnitBadgeStyle(unit.type, stats.domain, playerFaction, aiFaction, unit.owner)}
+            >
+              <UnitTypeIcon unitType={unit.type} className={getSideUnitIconClass(playerFaction, aiFaction, unit.owner)} />
             </div>
             <div>
               <div className="text-2xl font-black text-white">{stats.name}</div>

@@ -3,7 +3,11 @@
 import type { CSSProperties, MouseEvent } from "react";
 import type { TileClickTarget } from "@/components/empire/hooks/useEmpireGame";
 import { getDisplayFactionOption, getSideDisplayOption } from "@/lib/empire/factions";
-import { getSideUnitBadgeClass } from "@/components/empire/shared/domainStyles";
+import {
+  getSideUnitBadgeClass,
+  getSideUnitBadgeStyle,
+  getSideUnitIconClass,
+} from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import {
@@ -588,10 +592,32 @@ export function MapTile({
                   (productionSiteOwner ?? "player") as Unit["owner"]
                 ),
               ].join(" ")}
+              style={getSideUnitBadgeStyle(
+                producedUnitType,
+                getUnitStats({
+                  id: -1,
+                  owner: (productionSiteOwner ?? "player") as Unit["owner"],
+                  type: producedUnitType,
+                  x: tile.x,
+                  y: tile.y,
+                  hp: 1,
+                  moveSpent: 0,
+                  fortified: false,
+                  concealed: false,
+                  turnsAwayFromBase: 0,
+                }).domain,
+                playerFaction,
+                aiFaction,
+                (productionSiteOwner ?? "player") as Unit["owner"]
+              )}
             >
               <UnitTypeIcon
                 unitType={producedUnitType}
-                className={unitOwnerColor((productionSiteOwner ?? "player") as Tile["owner"], playerFaction, aiFaction)}
+                className={getSideUnitIconClass(
+                  playerFaction,
+                  aiFaction,
+                  (productionSiteOwner ?? "player") as Unit["owner"]
+                )}
               />
             </span>
             <TurnBadge value={productionTurnsRemaining ?? "?"} className="px-1.5 py-0" />
@@ -619,6 +645,13 @@ export function MapTile({
               ownerRingClass(surfaceOccupant),
               hasPendingOrderHighlight ? "scale-[1.1] ring-[3px] ring-[#ecfccb] shadow-[0_0_22px_rgba(190,242,100,0.8)] animate-[pulse_0.85s_ease-in-out_infinite]" : "",
             ].join(" ")}
+            style={getSideUnitBadgeStyle(
+              surfaceOccupant.type,
+              getUnitStats(surfaceOccupant).domain,
+              playerFaction,
+              aiFaction,
+              surfaceOccupant.owner
+            )}
           >
             {engineerOnProject ? (
               <>
@@ -628,7 +661,7 @@ export function MapTile({
             ) : null}
             <UnitTypeIcon
               unitType={surfaceOccupant.type}
-              className={unitOwnerColor(surfaceOccupant.owner, playerFaction, aiFaction)}
+              className={getSideUnitIconClass(playerFaction, aiFaction, surfaceOccupant.owner)}
             />
             {getRemainingMove(surfaceOccupant) > 0 ? (
               <span className="absolute -top-1 -left-1 rounded-full bg-slate-950/92 px-1 text-[9px] font-bold text-cyan-100 ring-1 ring-cyan-200/35">
@@ -659,10 +692,17 @@ export function MapTile({
               ownerRingClass(airOccupant),
               hasPendingOrderHighlight ? "scale-[1.1] ring-[3px] ring-[#ecfccb] shadow-[0_0_22px_rgba(190,242,100,0.8)] animate-[pulse_0.85s_ease-in-out_infinite]" : "",
             ].join(" ")}
+            style={getSideUnitBadgeStyle(
+              airOccupant.type,
+              getUnitStats(airOccupant).domain,
+              playerFaction,
+              aiFaction,
+              airOccupant.owner
+            )}
           >
             <UnitTypeIcon
               unitType={airOccupant.type}
-              className={unitOwnerColor(airOccupant.owner, playerFaction, aiFaction)}
+              className={getSideUnitIconClass(playerFaction, aiFaction, airOccupant.owner)}
             />
             {getRemainingMove(airOccupant) > 0 ? (
               <span className="absolute -top-1 -left-1 rounded-full bg-slate-950/92 px-1 text-[9px] font-bold text-cyan-100 ring-1 ring-cyan-200/35">

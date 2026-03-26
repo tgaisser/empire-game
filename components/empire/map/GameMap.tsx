@@ -6,11 +6,11 @@ import type { TileClickTarget } from "@/components/empire/hooks/useEmpireGame";
 import type { MovementPlayback } from "@/components/empire/hooks/useEmpireGame";
 import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
 import { getUnitsAt, key } from "@/lib/empire/game";
-import { getFactionOption, getSideDisplayOption } from "@/lib/empire/factions";
+import { getSideDisplayOption } from "@/lib/empire/factions";
 import type { Faction, ReachableMove, Tile, Unit } from "@/lib/empire/types";
 import { BattlefieldFxOverlay, type BattlefieldFxEvent } from "@/components/empire/map/BattlefieldFxOverlay";
 import { MapTile } from "@/components/empire/map/MapTile";
-import { getSideUnitBadgeClass } from "@/components/empire/shared/domainStyles";
+import { getSideUnitBadgeClass, getSideUnitBadgeStyle, getSideUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { Button } from "@/components/ui/button";
 
@@ -452,8 +452,6 @@ function MovementPlaybackOverlay({
         if (!point) return null;
         const trailSegments = getPlaybackTrailSegments(move.path, stepIndex, mapWidth, mapHeight);
         const playbackPosition = getPlaybackPercent(point, mapWidth, mapHeight);
-        const baseFaction = move.owner === "player" ? playerFaction : aiFaction;
-        const displayFaction = getFactionOption(baseFaction);
         const ownershipDisplay = getSideDisplayOption(move.owner);
         const trailColor = ownershipDisplay?.hex ?? "#f8fafc";
 
@@ -496,6 +494,13 @@ function MovementPlaybackOverlay({
               style={{
                 left: `calc(${playbackPosition.left}% - 17px)`,
                 top: `calc(${playbackPosition.top}% - 17px)`,
+                ...getSideUnitBadgeStyle(
+                  move.unitType,
+                  getPlaybackDomain(move.unitType),
+                  playerFaction,
+                  aiFaction,
+                  move.owner
+                ),
               }}
             >
               <span
@@ -506,7 +511,7 @@ function MovementPlaybackOverlay({
               />
               <UnitTypeIcon
                 unitType={move.unitType}
-                className={displayFaction.tertiaryClass}
+                className={getSideUnitIconClass(playerFaction, aiFaction, move.owner)}
               />
             </div>
           </div>

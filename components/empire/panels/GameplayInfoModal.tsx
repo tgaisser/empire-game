@@ -2,11 +2,14 @@
 
 import { useRef } from "react";
 import { BookOpen, X } from "lucide-react";
-import { getFactionUnitBadgeClass } from "@/components/empire/shared/domainStyles";
+import {
+  getFactionUnitBadgeClass,
+  getFactionUnitBadgeStyle,
+  getFactionUnitIconClass,
+} from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { getImprovementTypeLabel, IMPROVEMENT_TYPE_ORDER, UNIT_TYPE_ORDER } from "@/lib/empire/catalog";
-import { getFactionOption } from "@/lib/empire/factions";
 import { GAME_TYPE_OPTIONS, TERRAIN, UNIT_STATS } from "@/lib/empire/config";
 import type { Faction, GameType, TileImprovementType, UnitType } from "@/lib/empire/types";
 import { Button } from "@/components/ui/button";
@@ -148,8 +151,9 @@ export function GameplayInfoModal({ open, playerFaction, onClose }: GameplayInfo
                             "flex h-12 w-12 items-center justify-center rounded-full border border-slate-900/20 shadow-sm",
                             getFactionUnitBadgeClass(unitType, unit.domain, playerFaction),
                           ].join(" ")}
+                          style={getFactionUnitBadgeStyle(unitType, unit.domain, playerFaction)}
                         >
-                          <UnitTypeIcon unitType={unitType} className={getFactionOption(playerFaction).tertiaryClass} />
+                          <UnitTypeIcon unitType={unitType} className={getFactionUnitIconClass(playerFaction)} />
                         </span>
                         <div>
                           <div className="text-base font-semibold text-slate-100">{unit.name}</div>
