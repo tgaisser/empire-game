@@ -192,6 +192,7 @@ export type Command =
   | { type: "set_drone_target"; side: Side; unitId: number; x: number; y: number }
   | { type: "move_unit"; side: Side; unitId: number; x: number; y: number }
   | { type: "attack_tile"; side: Side; unitId: number; x: number; y: number }
+  | { type: "demolish_improvement"; side: Side; unitId: number; x: number; y: number }
   | { type: "jam_drone"; side: Side; unitId: number; x: number; y: number }
   | { type: "special_ops_airstrike"; side: Side; unitId: number; x: number; y: number }
   | { type: "upgrade_unit"; side: Side; unitId: number; upgrade: "sonar" | "radar-relay" }

@@ -48,6 +48,7 @@ export default function EmpireGame() {
     selectedSeaSpawnTiles,
     engineerActions,
     engineerPlacementTargets,
+    demolishableImprovementTargets,
     troopTransportLoadTargets,
     troopTransportDeploymentTargets,
     canSelectedBomberAttackHere,
@@ -74,6 +75,7 @@ export default function EmpireGame() {
     handleGrantCredits,
     handleLoadSpecialOps,
     handleBombSelectedUnit,
+    handleDemolishWithSelectedUnit,
     handleRenameCapturedCity,
     handleSetDroneTarget,
     handleRenameUnit,
@@ -684,6 +686,7 @@ export default function EmpireGame() {
                 winner={game.winner}
                 unitDefinitions={unitDefinitions}
                 engineerActions={engineerActions}
+                demolishableImprovementTargets={demolishableImprovementTargets}
                 carrierRelayAttackTargetCount={carrierRelayAttackTargets.length}
                 carrierJamTargetCount={carrierJamTargets.length}
                 troopTransportLoadTargetCount={troopTransportLoadTargets.length}
@@ -712,6 +715,7 @@ export default function EmpireGame() {
                 }}
                 onUpgradeUnit={handleUpgradeSelectedUnit}
                 onBombsAway={handleBombSelectedUnit}
+                onDemolishImprovement={handleDemolishWithSelectedUnit}
                 onBeginTransportLoad={() => setPendingTransportLoad(true)}
                 onLoadSpecialOps={handleLoadSpecialOps}
                 onUnloadSpecialOps={() => {

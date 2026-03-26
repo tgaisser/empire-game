@@ -511,6 +511,30 @@ export function getEngineerBuildOptions(state: GameState, unit: Unit | null) {
   };
 }
 
+export function getDemolishableImprovementTargets(state: GameState, unit: Unit | null) {
+  if (!unit || getRemainingMove(unit) <= 0) return [] as Tile[];
+
+  if (unit.type === "engineer") {
+    return DIRECTIONS
+      .map(([dx, dy]) => {
+        const x = unit.x + dx;
+        const y = unit.y + dy;
+        return inBounds(x, y, state.mapWidth, state.mapHeight) ? state.map[y][x] : null;
+      })
+      .filter((tile): tile is Tile => Boolean(tile))
+      .filter((tile) => tile.improvement?.type === "bridge" || tile.improvement?.type === "tunnel");
+  }
+
+  if (unit.type === "bomber") {
+    const tile = state.map[unit.y]?.[unit.x];
+    if (!tile) return [] as Tile[];
+    if ((unit.bombsRemaining ?? getUnitStats(unit).bombCapacity ?? 0) <= 0) return [] as Tile[];
+    return tile.improvement?.type === "bridge" || tile.improvement?.type === "tunnel" ? [tile] : [];
+  }
+
+  return [] as Tile[];
+}
+
 export function getRemainingMove(unit: Unit) {
   return Math.max(0, getUnitStats(unit).move - unit.moveSpent);
 }
@@ -2397,6 +2421,68 @@ function attackTile(state: GameState, side: Side, unitId: number, x: number, y: 
   return resolveTileAttack(state, side, unit, x, y);
 }
 
+function demolishImprovement(state: GameState, side: Side, unitId: number, x: number, y: number): GameState {
+  const unit = state.units.find((currentUnit) => currentUnit.id === unitId);
+  if (!unit || unit.owner !== side || getRemainingMove(unit) <= 0) return state;
+
+  const tile = state.map[y]?.[x];
+  if (!tile?.improvement || (tile.improvement.type !== "bridge" && tile.improvement.type !== "tunnel")) return state;
+  if (!getDemolishableImprovementTargets(state, unit).some((target) => target.x === x && target.y === y)) return state;
+
+  const unitStats = getUnitStats(unit);
+  const nextMap = state.map.map((row) => row.map((cell) => ({ ...cell })));
+  nextMap[y][x] = { ...nextMap[y][x], improvement: null, improvementProject: null };
+
+  const collapsedUnits =
+    tile.improvement.type === "bridge"
+      ? state.units.filter(
+          (currentUnit) =>
+            currentUnit.id !== unit.id &&
+            currentUnit.x === x &&
+            currentUnit.y === y &&
+            getUnitStats(currentUnit).domain === "land"
+        )
+      : [];
+
+  const nextUnits = state.units
+    .map((currentUnit) => {
+      if (currentUnit.id === unit.id) {
+        return {
+          ...currentUnit,
+          moveSpent: unitStats.move,
+          fortified: false,
+          concealed: false,
+          bombsRemaining:
+            unit.type === "bomber" && unitStats.bombCapacity
+              ? Math.max(0, (currentUnit.bombsRemaining ?? unitStats.bombCapacity) - 1)
+              : currentUnit.bombsRemaining,
+        };
+      }
+
+      if (collapsedUnits.some((collapsedUnit) => collapsedUnit.id === currentUnit.id)) {
+        return null;
+      }
+
+      return currentUnit;
+    })
+    .filter((currentUnit): currentUnit is Unit => currentUnit !== null);
+
+  const demolitionName = tile.improvement.type === "bridge" ? "bridge" : "tunnel";
+  return finalizeState(
+    addLog(
+      {
+        ...state,
+        map: nextMap,
+        units: nextUnits,
+        selectedUnitId: side === "player" ? unit.id : state.selectedUnitId,
+      },
+      side === "player"
+        ? `${unitStats.name} demolished the ${demolitionName} at ${getLocationLabel(tile)}.${collapsedUnits.length > 0 ? ` ${collapsedUnits.length} unit${collapsedUnits.length === 1 ? "" : "s"} were lost in the collapse.` : ""}`
+        : `Enemy ${unitStats.name.toLowerCase()} demolished the ${demolitionName} near ${getLocationLabel(tile)}.${collapsedUnits.length > 0 ? " Units were lost in the collapse." : ""}`
+    )
+  );
+}
+
 function specialOpsAirstrike(state: GameState, side: Side, unitId: number, x: number, y: number): GameState {
   const unit = state.units.find((currentUnit) => currentUnit.id === unitId);
   if (!unit || unit.owner !== side || unit.type !== "special-ops") return state;
@@ -2789,6 +2875,8 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return moveUnit(state, command.side, command.unitId, command.x, command.y);
     case "attack_tile":
       return attackTile(state, command.side, command.unitId, command.x, command.y);
+    case "demolish_improvement":
+      return demolishImprovement(state, command.side, command.unitId, command.x, command.y);
     case "jam_drone":
       return jamDrone(state, command.side, command.unitId, command.x, command.y);
     case "special_ops_airstrike":

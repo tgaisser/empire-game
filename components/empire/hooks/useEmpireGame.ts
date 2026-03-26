@@ -22,6 +22,7 @@ import {
   canProduceUnitAtTile,
   getBlockingUnitAt,
   getCityCount,
+  getDemolishableImprovementTargets,
   getDroneSwarmPlaybackPreview,
   getEngineerBuildOptions,
   getExplorationIncome,
@@ -420,6 +421,10 @@ export function useEmpireGame() {
       bridge: options.bridgeTargets,
     };
   }, [game, selectedUnit]);
+  const demolishableImprovementTargets = useMemo(
+    () => getDemolishableImprovementTargets(game, selectedUnit),
+    [game, selectedUnit]
+  );
 
   const troopTransportLoadTargets = useMemo(() => getTroopTransportLoadTargets(game, selectedUnit), [game, selectedUnit]);
   const troopTransportDeploymentTargets = useMemo(() => getTroopTransportDeploymentTargets(game, selectedUnit), [game, selectedUnit]);
@@ -823,6 +828,22 @@ export function useEmpireGame() {
     );
   }
 
+  function handleDemolishWithSelectedUnit(x?: number, y?: number) {
+    if (!selectedUnit) return;
+    const target = x !== undefined && y !== undefined ? { x, y } : demolishableImprovementTargets[0];
+    if (!target) return;
+    setSelectedCity(null);
+    applyGameUpdate((current) =>
+      applyCommand(current, {
+        type: "demolish_improvement",
+        side: "player",
+        unitId: selectedUnit.id,
+        x: target.x,
+        y: target.y,
+      })
+    );
+  }
+
   function handleUndoLastMove() {
     if (game.side !== "player" || game.winner || !lastPlayerMoveSnapshot) return;
     setPendingDroneTarget(null);
@@ -856,6 +877,7 @@ export function useEmpireGame() {
     selectedSeaSpawnTiles,
     engineerActions,
     engineerPlacementTargets,
+    demolishableImprovementTargets,
     troopTransportLoadTargets,
     troopTransportDeploymentTargets,
     canSelectedBomberAttackHere,
@@ -883,6 +905,7 @@ export function useEmpireGame() {
     handleGrantCredits,
     handleLoadSpecialOps,
     handleBombSelectedUnit,
+    handleDemolishWithSelectedUnit,
     handleRenameCapturedCity,
     handleSetDroneTarget,
     handleRenameUnit,

@@ -1,6 +1,7 @@
 'use client';
 
-import { Castle, Compass, Shield, Wrench } from "lucide-react";
+import type { ReactNode } from "react";
+import { Bomb, Castle, Compass, Shield, Truck, Wrench } from "lucide-react";
 import { getFactionUnitBadgeClass, getFactionUnitBadgeStyle, getFactionUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
@@ -43,6 +44,7 @@ type CommandPanelProps = {
   winner: Side | null;
   unitDefinitions: Record<UnitType, UnitDefinition>;
   engineerActions: EngineerBuildAction[];
+  demolishableImprovementTargets: Tile[];
   carrierJamTargetCount: number;
   carrierRelayAttackTargetCount: number;
   troopTransportLoadTargetCount: number;
@@ -55,6 +57,7 @@ type CommandPanelProps = {
   onBuildImprovement: (action: EngineerBuildAction) => void;
   onUpgradeUnit: (upgrade: "sonar" | "radar-relay") => void;
   onBombsAway: () => void;
+  onDemolishImprovement: (x?: number, y?: number) => void;
   onBeginTransportLoad: () => void;
   onLoadSpecialOps: () => void;
   onUnloadSpecialOps: () => void;
@@ -89,6 +92,7 @@ export function CommandPanel({
   winner,
   unitDefinitions,
   engineerActions,
+  demolishableImprovementTargets,
   carrierJamTargetCount,
   carrierRelayAttackTargetCount,
   troopTransportLoadTargetCount,
@@ -101,6 +105,7 @@ export function CommandPanel({
   onBuildImprovement,
   onUpgradeUnit,
   onBombsAway,
+  onDemolishImprovement,
   onBeginTransportLoad,
   onLoadSpecialOps,
   onUnloadSpecialOps,
@@ -112,6 +117,8 @@ export function CommandPanel({
 }: CommandPanelProps) {
   const mode = selectedCity ? "city" : selectedUnit ? "unit" : "overview";
   const selectedSiteOwner = selectedCity?.improvement?.owner ?? selectedCity?.improvementProject?.owner ?? selectedCity?.owner ?? null;
+  const engineerDemolitionTargets = selectedUnit?.type === "engineer" ? demolishableImprovementTargets : [];
+  const bomberDemolitionTarget = selectedUnit?.type === "bomber" ? demolishableImprovementTargets[0] ?? null : null;
 
   return (
     <Card className="border-slate-800 bg-slate-900/90 rounded-3xl shadow-2xl">
@@ -262,14 +269,20 @@ export function CommandPanel({
             </div>
             <div className="grid gap-2">
               {selectedUnit.type === "destroyer" && !selectedUnit.sonarUpgraded ? (
-                <Button variant="outline" className="w-full rounded-2xl" onClick={() => onUpgradeUnit("sonar")}>
-                  Install Sonar Upgrade
-                </Button>
+                <ActionTileButton
+                  title="Install Sonar"
+                  detail="Upgrade destroyer detection"
+                  onClick={() => onUpgradeUnit("sonar")}
+                  icon={<UnitActionBadge unitType="destroyer" faction={playerFaction} />}
+                />
               ) : null}
               {selectedUnit.type === "carrier" && !selectedUnit.radarRelayUpgraded ? (
-                <Button variant="outline" className="w-full rounded-2xl" onClick={() => onUpgradeUnit("radar-relay")}>
-                  Install Radar Relay
-                </Button>
+                <ActionTileButton
+                  title="Install Radar Relay"
+                  detail="Extend fleet air defense"
+                  onClick={() => onUpgradeUnit("radar-relay")}
+                  icon={<UnitActionBadge unitType="carrier" faction={playerFaction} />}
+                />
               ) : null}
               {selectedUnit.type === "carrier" && selectedUnit.radarRelayUpgraded ? (
                 <div className="rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-3 text-xs text-cyan-100">
@@ -285,14 +298,18 @@ export function CommandPanel({
               ) : null}
               {selectedUnit.type === "troop-transport" ? (
                 <>
-                  <Button
-                    variant="outline"
-                    className="w-full rounded-2xl"
+                  <ActionTileButton
+                    title={transportLoadMode ? "Select Troop" : "Load Troops"}
+                    detail="Embark adjacent ground units"
                     onClick={onBeginTransportLoad}
                     disabled={side !== "player" || !!winner || troopTransportLoadTargetCount === 0}
-                  >
-                    {transportLoadMode ? "Select Troop To Load" : "Load Nearby Troops"}
-                  </Button>
+                    icon={
+                      <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-sky-200">
+                        <UnitTypeIcon unitType="troop-transport" className="text-sky-200" />
+                        <Truck className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-slate-950 p-0.5 text-sky-100" />
+                      </span>
+                    }
+                  />
                   <div className="rounded-2xl border border-sky-800/40 bg-sky-950/20 p-3 text-xs text-sky-100">
                     Use the load command, then click a highlighted adjacent coastal troop to embark it. Click a highlighted adjacent shore tile to unload the next carried unit.
                     {transportLoadMode ? " Loading mode is active." : ""}
@@ -304,14 +321,27 @@ export function CommandPanel({
               ) : null}
               {selectedUnit.type === "bomber" ? (
                 <>
-                  <Button
-                    variant="outline"
-                    className="w-full rounded-2xl"
+                  <ActionTileButton
+                    title="Bombs Away"
+                    detail="Strike the tile below"
                     onClick={onBombsAway}
                     disabled={side !== "player" || !!winner || !canSelectedBomberAttackHere}
-                  >
-                    Bombs Away
-                  </Button>
+                    icon={
+                      <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-700/50 bg-rose-950/40 text-rose-200">
+                        <UnitTypeIcon unitType="bomber" className="text-rose-200" />
+                        <Bomb className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-slate-950 p-0.5 text-rose-100" />
+                      </span>
+                    }
+                  />
+                  {bomberDemolitionTarget ? (
+                    <ActionTileButton
+                      title={`Demolish ${bomberDemolitionTarget.improvement?.type === "bridge" ? "Bridge" : "Tunnel"}`}
+                      detail="Use a bomb to destroy the structure below"
+                      onClick={() => onDemolishImprovement(bomberDemolitionTarget.x, bomberDemolitionTarget.y)}
+                      disabled={side !== "player" || !!winner}
+                      icon={<ImprovementActionBadge improvementType={bomberDemolitionTarget.improvement!.type} />}
+                    />
+                  ) : null}
                   <div className="rounded-2xl border border-rose-800/40 bg-rose-950/20 p-3 text-xs text-rose-100">
                     When a bomber shares a square with an enemy ground or naval target, use Bombs Away to spend the turn on the strike.
                     {` ${(selectedUnit.bombsRemaining ?? getUnitStats(selectedUnit).bombCapacity ?? 0)} bombs remaining.`}
@@ -320,20 +350,29 @@ export function CommandPanel({
                 </>
               ) : null}
               {["apache", "submarine"].includes(selectedUnit.type) && !selectedUnit.carriedSpecialOps ? (
-                <Button variant="outline" className="w-full rounded-2xl" onClick={onLoadSpecialOps}>
-                  {selectedUnit.type === "submarine" ? "Embark Special Ops Team" : "Load Special Ops Team"}
-                </Button>
+                <ActionTileButton
+                  title={selectedUnit.type === "submarine" ? "Embark Special Ops" : "Load Special Ops"}
+                  detail="Prepare an insertion team"
+                  onClick={onLoadSpecialOps}
+                  icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
+                />
               ) : null}
               {selectedUnit.type === "apache" && selectedUnit.carriedSpecialOps ? (
-                <Button variant="outline" className="w-full rounded-2xl" onClick={onUnloadSpecialOps}>
-                  Deploy Special Ops Team
-                </Button>
+                <ActionTileButton
+                  title="Deploy Special Ops"
+                  detail="Drop the team from the chopper"
+                  onClick={onUnloadSpecialOps}
+                  icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
+                />
               ) : null}
               {selectedUnit.type === "submarine" && selectedUnit.carriedSpecialOps ? (
                 <>
-                  <Button variant="outline" className="w-full rounded-2xl" onClick={onUnloadSpecialOps}>
-                    Insert Special Ops To Shore
-                  </Button>
+                  <ActionTileButton
+                    title="Insert Special Ops"
+                    detail="Launch a concealed shore landing"
+                    onClick={onUnloadSpecialOps}
+                    icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
+                  />
                   <div className="rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-3 text-xs text-cyan-100">
                     Submarine insertion requires the boat to be one tile offshore. Click a highlighted adjacent beach tile to send the team ashore concealed.
                     {specialOpsDeploymentTargetCount > 0 ? ` ${specialOpsDeploymentTargetCount} landing tile(s) available.` : " No legal beach tile is available from this position."}
@@ -368,7 +407,7 @@ export function CommandPanel({
                     <Wrench className="h-4 w-4" /> Field works
                   </div>
                   {engineerActions.filter((action) => action.improvementType !== "bridge").length > 0 ? (
-                    <div className="grid gap-2">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       {engineerActions
                         .filter((action) => action.improvementType !== "bridge")
                         .map((action) => {
@@ -376,10 +415,10 @@ export function CommandPanel({
                           const canAfford = playerCredits >= buildCost;
 
                           return (
-                            <Button
+                            <ActionTileButton
                               key={`${action.improvementType}-${action.x}-${action.y}`}
-                              variant="outline"
-                              className="justify-between rounded-2xl"
+                              title={action.label.replace("Choose ", "").replace(" site", "")}
+                              detail={`${buildCost > 0 ? `Cost ${buildCost}` : "No cost"}${!canAfford ? " • Not enough credits" : ""}`}
                               disabled={
                                 side !== "player" ||
                                 !!winner ||
@@ -387,19 +426,8 @@ export function CommandPanel({
                                 !canAfford
                               }
                               onClick={() => onBuildImprovement(action)}
-                            >
-                              <span className="text-left">
-                                <span className="block font-semibold">{action.label}</span>
-                                <span className="block text-xs text-slate-400">
-                                  Then click a highlighted tile next to the engineer.
-                                  {buildCost > 0 ? ` Cost ${buildCost}.` : ""}
-                                  {!canAfford ? " Not enough credits." : ""}
-                                </span>
-                              </span>
-                              <span className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 bg-slate-800/70">
-                                <ImprovementIcon improvementType={action.improvementType} />
-                              </span>
-                            </Button>
+                              icon={<ImprovementActionBadge improvementType={action.improvementType} />}
+                            />
                           );
                         })}
                     </div>
@@ -409,8 +437,38 @@ export function CommandPanel({
                     </div>
                   )}
                   {engineerActions.some((action) => action.improvementType === "bridge") ? (
-                    <div className="rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-3 text-xs text-cyan-100">
-                      Valid build sites are marked on the map. Click a highlighted river tile for a bridge, or choose a highlighted land or mountain tile for other engineer works.
+                    <>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {engineerActions
+                          .filter((action) => action.improvementType === "bridge")
+                          .map((action) => (
+                            <ActionTileButton
+                              key={`bridge-${action.x}-${action.y}`}
+                              title="Build Bridge"
+                              detail={`At (${action.x + 1}, ${action.y + 1})`}
+                              onClick={() => onBuildImprovement(action)}
+                              disabled={side !== "player" || !!winner || getUnitStats(selectedUnit).move - selectedUnit.moveSpent <= 0}
+                              icon={<ImprovementActionBadge improvementType="bridge" />}
+                            />
+                          ))}
+                      </div>
+                      <div className="rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-3 text-xs text-cyan-100">
+                        Valid build sites are marked on the map. Click a highlighted river tile for a bridge, or choose a highlighted land or mountain tile for other engineer works.
+                      </div>
+                    </>
+                  ) : null}
+                  {engineerDemolitionTargets.length > 0 ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {engineerDemolitionTargets.map((target) => (
+                        <ActionTileButton
+                          key={`demolish-${target.x}-${target.y}`}
+                          title={`Demolish ${target.improvement?.type === "bridge" ? "Bridge" : "Tunnel"}`}
+                          detail={`At (${target.x + 1}, ${target.y + 1})`}
+                          onClick={() => onDemolishImprovement(target.x, target.y)}
+                          disabled={side !== "player" || !!winner}
+                          icon={<ImprovementActionBadge improvementType={target.improvement!.type} />}
+                        />
+                      ))}
                     </div>
                   ) : null}
                   {selectedUnitTile?.improvementProject?.engineerUnitId === selectedUnit.id ? (
@@ -579,6 +637,67 @@ export function CommandPanel({
       </CardContent>
     </Card>
   );
+}
+
+function ActionTileButton({
+  title,
+  detail,
+  icon,
+  disabled = false,
+  onClick,
+}: {
+  title: string;
+  detail: string;
+  icon: ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant="outline"
+      className="h-auto min-h-20 justify-start rounded-2xl px-4 py-3 text-left"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="flex items-center gap-3">
+        <span className="shrink-0">{icon}</span>
+        <span>
+          <span className="block font-semibold text-white">{title}</span>
+          <span className="block text-xs text-slate-400">{detail}</span>
+        </span>
+      </span>
+    </Button>
+  );
+}
+
+function ImprovementActionBadge({ improvementType }: { improvementType: Exclude<TileImprovementType, "radar"> | "radar" }) {
+  return (
+    <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-white">
+      <ImprovementIcon improvementType={improvementType} />
+    </span>
+  );
+}
+
+function UnitActionBadge({ unitType, faction }: { unitType: UnitType; faction: Faction }) {
+  const domain = getActionUnitDomain(unitType);
+
+  return (
+    <span
+      className={[
+        "flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-900/20 shadow-sm",
+        getFactionUnitBadgeClass(unitType, domain, faction),
+      ].join(" ")}
+      style={getFactionUnitBadgeStyle(unitType, domain, faction)}
+    >
+      <UnitTypeIcon unitType={unitType} className={getFactionUnitIconClass(faction)} />
+    </span>
+  );
+}
+
+function getActionUnitDomain(unitType: UnitType) {
+  if (["apache", "fighter", "bomber", "drone-swarm"].includes(unitType)) return "air" as const;
+  if (["destroyer", "troop-transport", "carrier", "submarine"].includes(unitType)) return "sea" as const;
+  return "land" as const;
 }
 
 function MiniMapPanel({
