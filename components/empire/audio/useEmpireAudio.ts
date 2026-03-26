@@ -43,12 +43,12 @@ const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
   tank: {
     wave: "sawtooth",
     accentWave: "square",
-    accentRatio: 0.5,
-    noteFrequencies: [92.5, 82.41],
+    accentRatio: 1,
+    noteFrequencies: [185, 164.81],
     stepSeconds: 0.09,
-    masterGain: 0.08,
+    masterGain: 0.11,
     filterType: "lowpass",
-    filterFrequency: 240,
+    filterFrequency: 520,
     filterQ: 1.4,
   },
   engineer: {
@@ -99,42 +99,42 @@ const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
     wave: "square",
     accentWave: "triangle",
     accentRatio: 2,
-    noteFrequencies: [130.81, 164.81, 130.81],
+    noteFrequencies: [196, 246.94, 196],
     stepSeconds: 0.065,
-    masterGain: 0.07,
+    masterGain: 0.095,
     filterType: "lowpass",
-    filterFrequency: 520,
+    filterFrequency: 920,
   },
   "troop-transport": {
     wave: "triangle",
     accentWave: "sine",
     accentRatio: 1.5,
-    noteFrequencies: [174.61, 196, 220],
+    noteFrequencies: [220, 246.94, 277.18],
     stepSeconds: 0.055,
-    masterGain: 0.07,
+    masterGain: 0.09,
     filterType: "lowpass",
-    filterFrequency: 900,
+    filterFrequency: 1200,
   },
   carrier: {
     wave: "sawtooth",
     accentWave: "triangle",
     accentRatio: 2,
-    noteFrequencies: [98, 130.81, 174.61],
+    noteFrequencies: [146.83, 196, 246.94],
     stepSeconds: 0.075,
-    masterGain: 0.085,
+    masterGain: 0.11,
     filterType: "lowpass",
-    filterFrequency: 360,
+    filterFrequency: 760,
     filterQ: 1.1,
   },
   submarine: {
     wave: "sine",
     accentWave: "triangle",
-    accentRatio: 0.5,
-    noteFrequencies: [87.31, 110, 87.31],
+    accentRatio: 1,
+    noteFrequencies: [174.61, 220, 174.61],
     stepSeconds: 0.08,
-    masterGain: 0.075,
+    masterGain: 0.1,
     filterType: "lowpass",
-    filterFrequency: 220,
+    filterFrequency: 540,
     filterQ: 1.6,
   },
   fighter: {
@@ -151,12 +151,12 @@ const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
   bomber: {
     wave: "triangle",
     accentWave: "sawtooth",
-    accentRatio: 0.5,
-    noteFrequencies: [164.81, 155.56, 130.81],
+    accentRatio: 1,
+    noteFrequencies: [220, 207.65, 174.61],
     stepSeconds: 0.08,
-    masterGain: 0.085,
+    masterGain: 0.11,
     filterType: "lowpass",
-    filterFrequency: 300,
+    filterFrequency: 680,
     filterQ: 1.2,
   },
   "drone-swarm": {
@@ -443,7 +443,7 @@ export function useEmpireAudio() {
   }
 
   function playUnitSelect(unitType: UnitType) {
-    if (shouldThrottle("unitSelect", 90)) return;
+    if (shouldThrottle("unitSelect", 45)) return;
     const context = getContext();
     if (!context) return;
 
