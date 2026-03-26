@@ -152,6 +152,7 @@ function createUnit(id: number, owner: Side, type: UnitType, x: number, y: numbe
     turnsAwayFromBase: 0,
     sonarUpgraded: false,
     radarRelayUpgraded: false,
+    bombsRemaining: definition.bombCapacity ?? null,
     droneTargetX: null,
     droneTargetY: null,
     carriedSpecialOps: null,
@@ -1427,6 +1428,7 @@ function jamDrone(state: GameState, side: Side, unitId: number, x: number, y: nu
 function resolveTileAttack(state: GameState, side: Side, attacker: Unit, x: number, y: number) {
   const tile = state.map[y][x];
   const attackerStats = getUnitStats(attacker);
+  if (attackerStats.bombCapacity && (attacker.bombsRemaining ?? attackerStats.bombCapacity) <= 0) return state;
   const attackableOccupants = getAttackableOccupantsOnTile(state, x, y, side, attacker);
   const defender = attackableOccupants[0];
   if (!defender) return state;
@@ -1450,6 +1452,9 @@ function resolveTileAttack(state: GameState, side: Side, attacker: Unit, x: numb
           moveSpent: moveSpentAfterAttack,
           fortified: false,
           concealed: false,
+          bombsRemaining: attackerStats.bombCapacity
+            ? Math.max(0, (currentUnit.bombsRemaining ?? attackerStats.bombCapacity) - 1)
+            : currentUnit.bombsRemaining,
         };
       }
       return currentUnit;
@@ -1705,6 +1710,7 @@ function processAirbaseReturn(state: GameState, side: Side) {
       return {
         ...unit,
         turnsAwayFromBase: onFriendlyBase ? 0 : unit.turnsAwayFromBase,
+        bombsRemaining: onFriendlyBase && definition.bombCapacity ? definition.bombCapacity : unit.bombsRemaining,
       };
     })
     .filter((unit): unit is Unit => Boolean(unit));
@@ -2188,7 +2194,9 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
   const attackOriginY = chosenMove.approachY;
   const tile = state.map[y][x];
   const attackableOccupant =
-    getAttackableVisibleUnitAtForSide(state, x, y, side, unit) ?? getAttackableUnitAt(state, x, y, side, unit);
+    unitStats.attackRequiresSameTile
+      ? null
+      : getAttackableVisibleUnitAtForSide(state, x, y, side, unit) ?? getAttackableUnitAt(state, x, y, side, unit);
   const hiddenOccupant =
     state.units.find(
       (currentUnit) =>

@@ -314,7 +314,8 @@ export function CommandPanel({
                   </Button>
                   <div className="rounded-2xl border border-rose-800/40 bg-rose-950/20 p-3 text-xs text-rose-100">
                     When a bomber shares a square with an enemy ground or naval target, use Bombs Away to spend the turn on the strike.
-                    {canSelectedBomberAttackHere ? " Target is directly below this bomber." : " No valid target is directly below this bomber."}
+                    {` ${(selectedUnit.bombsRemaining ?? getUnitStats(selectedUnit).bombCapacity ?? 0)} bombs remaining.`}
+                    {canSelectedBomberAttackHere ? " Target is directly below this bomber." : " No valid target is directly below this bomber, or the bomber is out of bombs."}
                   </div>
                 </>
               ) : null}

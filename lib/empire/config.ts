@@ -267,6 +267,7 @@ export const UNIT_STATS: Record<UnitType, UnitDefinition> = {
     attackRequiresSameTile: true,
     attackConsumesRemainingMove: false,
     canOnlyLandOnAirfield: true,
+    bombCapacity: 6,
   },
   "drone-swarm": {
     name: "Drone Swarm",

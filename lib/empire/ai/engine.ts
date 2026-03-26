@@ -15,6 +15,12 @@ function getLocationLabel(x: number, y: number) {
   return `(${x + 1}, ${y + 1})`;
 }
 
+function executeAiSameTileStrike(state: GameState, unitId: number) {
+  const unit = state.units.find((candidate) => candidate.id === unitId);
+  if (!unit || !getUnitDefinition(unit.type).attackRequiresSameTile) return state;
+  return applyCommand(state, { type: "attack_tile", side: "ai", unitId: unit.id, x: unit.x, y: unit.y });
+}
+
 function executeAiProductionPhase(state: GameState) {
   const plan = planAiTurn(state);
   let nextState = state;
@@ -113,6 +119,12 @@ export function runAiTurnWithPlayback(current: GameState, options?: { aiOmniscie
       continue;
     }
 
+    const beforeMoveStrikeState = executeAiSameTileStrike(state, liveUnit.id);
+    if (beforeMoveStrikeState !== state) {
+      state = beforeMoveStrikeState;
+      continue;
+    }
+
     const mission = unitMissionMap.get(liveUnit.id) ?? null;
     const missionTarget = mission ? { x: mission.targetX, y: mission.targetY } : null;
     const fallbackTarget = findNearestTarget(liveUnit, state, "player", options?.aiOmniscience);
@@ -129,6 +141,11 @@ export function runAiTurnWithPlayback(current: GameState, options?: { aiOmniscie
     state = applyCommand(state, { type: "move_unit", side: "ai", unitId: liveUnit.id, x: step.x, y: step.y });
     const movedUnit = state.units.find((unit) => unit.id === liveUnit.id);
     if (!movedUnit) continue;
+
+    const afterMoveStrikeState = executeAiSameTileStrike(state, movedUnit.id);
+    if (afterMoveStrikeState !== state) {
+      state = afterMoveStrikeState;
+    }
 
     const fullPath = [{ x: fromX, y: fromY }, ...step.path];
     const visiblePath = fullPath.filter(

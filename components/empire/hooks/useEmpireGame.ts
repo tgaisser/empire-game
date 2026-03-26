@@ -425,6 +425,7 @@ export function useEmpireGame() {
   const troopTransportDeploymentTargets = useMemo(() => getTroopTransportDeploymentTargets(game, selectedUnit), [game, selectedUnit]);
   const canSelectedBomberAttackHere = useMemo(() => {
     if (!selectedUnit || selectedUnit.type !== "bomber") return false;
+    if ((selectedUnit.bombsRemaining ?? getUnitStats(selectedUnit).bombCapacity ?? 0) <= 0) return false;
     return getUnitsAt(game.units, selectedUnit.x, selectedUnit.y).some(
       (unit) =>
         unit.owner !== selectedUnit.owner &&
@@ -809,6 +810,7 @@ export function useEmpireGame() {
 
   function handleBombSelectedUnit() {
     if (!selectedUnit || selectedUnit.type !== "bomber") return;
+    if ((selectedUnit.bombsRemaining ?? getUnitStats(selectedUnit).bombCapacity ?? 0) <= 0) return;
     setSelectedCity(null);
     applyGameUpdate((current) =>
       applyCommand(current, {

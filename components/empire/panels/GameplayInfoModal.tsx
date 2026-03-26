@@ -34,7 +34,7 @@ const unitNotes: Record<UnitType, string> = {
   submarine: "Stealth sea predator built to kill capital ships. A torpedo strike can cripple or outright sink a carrier.",
   apache: "Chopper gunship built to shred armor and strike fortified ground positions. It can also carry a special-ops team into deep territory.",
   fighter: "Air superiority aircraft. Built for hunting other aircraft and defending your skies.",
-  bomber: "Long-range air-to-ground strike aircraft. Must fly directly over the target to bomb, then can continue moving if it still has movement left. Bombers only land at airfields.",
+  bomber: "Long-range air-to-ground strike aircraft. Must fly directly over the target to bomb, carries six bombs before rearming at a friendly airfield, and only lands at airfields.",
   "drone-swarm": "Cheap expendable strike craft. Flies over the target and detonates on attack.",
 };
 

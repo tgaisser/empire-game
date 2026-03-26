@@ -70,6 +70,7 @@ export type UnitDefinition = {
   canLandOnCarrier?: boolean;
   airDetectionRange?: number;
   radarRelayRange?: number;
+  bombCapacity?: number;
   canAttackSubmarines?: boolean;
   canBeDetectedBySonarOnly?: boolean;
   canCallAirStrike?: boolean;
@@ -124,6 +125,7 @@ export type Unit = {
   turnsAwayFromBase: number;
   sonarUpgraded?: boolean;
   radarRelayUpgraded?: boolean;
+  bombsRemaining?: number | null;
   droneTargetX?: number | null;
   droneTargetY?: number | null;
   carriedSpecialOps?: {
