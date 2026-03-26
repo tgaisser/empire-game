@@ -224,7 +224,6 @@ export function StartGameModal({
                   <select
                     value={selectedWorldSizeId}
                     onChange={(event) => onChangeWorldSize(event.target.value)}
-                    disabled={worldSizeLocked}
                     className="h-14 w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 px-4 pr-12 text-base font-semibold text-white outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {worldSizeOptions.map((option) => (
