@@ -1,10 +1,16 @@
 'use client';
 
 import { motion } from "framer-motion";
-import { BookOpen, ChevronDown, Flag, Mountain, Ship, Swords } from "lucide-react";
+import { Cinzel_Decorative } from "next/font/google";
+import { BookOpen, ChevronDown, Mountain, Ship, Swords } from "lucide-react";
 import { FACTION_OPTIONS, getDisplayFactionOption, getFactionOption } from "@/lib/empire/factions";
 import { Button } from "@/components/ui/button";
 import type { Faction, GameType, WorldSizeOption } from "@/lib/empire/types";
+
+const empireTitleFont = Cinzel_Decorative({
+  subsets: ["latin"],
+  weight: "700",
+});
 
 type StartGameModalProps = {
   open: boolean;
@@ -122,8 +128,12 @@ export function StartGameModal({
         <div className="relative p-6 md:p-8">
           <div className="flex items-start gap-4">
             <div>
-              <div className="text-xs uppercase tracking-[0.35em] text-amber-200/80">Empire Command</div>
-              <h2 className="mt-3 text-4xl font-black tracking-tight text-white md:text-5xl">Start New Game</h2>
+              <div className={`${empireTitleFont.className} text-4xl tracking-[0.16em] text-amber-100 drop-shadow-[0_4px_18px_rgba(251,191,36,0.28)] md:text-6xl`}>
+                Empire Command
+              </div>
+              <h2 className="mt-3 text-xl font-semibold uppercase tracking-[0.3em] text-slate-200 md:text-2xl">
+                Start New Game
+              </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200/90">
                 Choose the kind of campaign you want to launch. Each mode now generates a different strategic geography,
                 from balanced fronts to water isolation and alpine choke points.
@@ -154,7 +164,7 @@ export function StartGameModal({
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                     </div>
-                    <div className={`mt-2 text-xs ${playerFaction.textClass}`}>{playerFaction.cityListLabel}</div>
+                    <FactionSwatches faction={playerFaction} className="mt-3" />
                   </div>
                   <div className={`rounded-2xl border ${aiFaction.chipClass} ${aiDisplayFaction.borderClass}/45 bg-slate-950/70 p-4`}>
                     <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Play Against</div>
@@ -172,21 +182,38 @@ export function StartGameModal({
                       </select>
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                     </div>
-                    <div className={`mt-2 text-xs ${aiDisplayFaction.textClass}`}>{aiFaction.cityListLabel}</div>
+                    <FactionSwatches faction={aiDisplayFaction} className="mt-3" />
                   </div>
-                </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <FactionPreviewCard title="Command Palette" faction={playerFaction} />
-                  <FactionPreviewCard title="Opposition Palette" faction={aiDisplayFaction} />
                 </div>
                 {factionsConflict ? (
                   <div className="mt-3 rounded-2xl border border-red-400/30 bg-red-950/30 p-3 text-xs text-red-100">
                     Mirror matches are disabled for now. Choose a different opposing faction.
                   </div>
                 ) : null}
-              </div>
 
-              <div className="rounded-[1.5rem] border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl">
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <Button variant="outline" className="h-12 flex-1 rounded-2xl" onClick={onOpenDocs}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Documents
+                  </Button>
+                  <Button
+                    className="h-12 flex-1 rounded-2xl bg-amber-400 text-slate-950 hover:bg-amber-300"
+                    onClick={onStart}
+                    disabled={factionsConflict}
+                  >
+                    Deploy Campaign
+                  </Button>
+                </div>
+                {canCancel && onCancel && (
+                  <Button variant="outline" className="mt-3 h-12 w-full rounded-2xl" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-slate-700/70 bg-slate-900/75 p-5 shadow-xl">
+              <div className="rounded-[1.5rem] border border-slate-700/70 bg-slate-950/60 p-5">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-600/80 bg-slate-950/80 text-amber-200">
                     <PreviewIcon className="h-6 w-6" />
@@ -215,10 +242,11 @@ export function StartGameModal({
                 </div>
               </div>
 
-              <div className="rounded-[1.5rem] border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl">
+              <div className="mt-4 rounded-[1.5rem] border border-slate-700/70 bg-slate-950/60 p-5">
                 <label className="block text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">
                   World Size
                 </label>
+                <div className="mt-1 text-sm text-slate-300">{selectedWorldSize.label}</div>
                 <div className="relative mt-3">
                   <select
                     value={selectedWorldSizeId}
@@ -235,41 +263,6 @@ export function StartGameModal({
                 </div>
               </div>
             </div>
-
-            <div className="rounded-[1.75rem] border border-slate-700/70 bg-slate-900/75 p-5 shadow-xl">
-              <div className="flex items-center gap-3 text-slate-100">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-300/12 text-amber-200">
-                  <Flag className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="text-sm uppercase tracking-[0.22em] text-slate-400">Campaign Brief</div>
-                  <div className="mt-1 text-xl font-bold text-white">{preview.title}</div>
-                </div>
-              </div>
-              <div className="mt-5 rounded-2xl border border-slate-700/70 bg-slate-950/70 p-4 text-sm leading-6 text-slate-300">
-                {`Launch a fresh war on a ${selectedWorldSize.label.toLowerCase()} map with the selected terrain doctrine.`}
-                {` ${playerFaction.label} cities will draw from ${playerFaction.cityListLabel}, enemy cities will draw from ${aiFaction.cityListLabel}, and neutral cities begin unnamed until captured.`}
-              </div>
-
-              <div className="mt-6 flex flex-col gap-3">
-                <Button variant="outline" className="h-12 rounded-2xl" onClick={onOpenDocs}>
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Documents
-                </Button>
-                <Button
-                  className="h-12 rounded-2xl bg-amber-400 text-slate-950 hover:bg-amber-300"
-                  onClick={onStart}
-                  disabled={factionsConflict}
-                >
-                  Deploy Campaign
-                </Button>
-                {canCancel && onCancel && (
-                  <Button variant="outline" className="h-12 rounded-2xl" onClick={onCancel}>
-                    Cancel
-                  </Button>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </motion.div>
@@ -277,33 +270,38 @@ export function StartGameModal({
   );
 }
 
-function FactionPreviewCard({
-  title,
+function FactionSwatches({
   faction,
+  className,
 }: {
-  title: string;
   faction: ReturnType<typeof getFactionOption>;
+  className?: string;
 }) {
-  const swatches = [faction.primaryClass, faction.secondaryClass, faction.tertiaryClass].map((value) =>
-    value.match(/\[#([^\]]+)\]/)?.[1]
+  const swatches = Array.from(
+    new Set(
+      [faction.primaryClass, faction.secondaryClass, faction.tertiaryClass]
+        .map(resolveSwatchColor)
+        .filter((value): value is string => Boolean(value))
+    )
   );
 
   return (
-    <div className="rounded-2xl border border-slate-700/70 bg-slate-950/70 p-3">
-      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{title}</div>
-      <div className="mt-2 text-sm font-semibold text-white">{faction.label}</div>
-      <div className="mt-3 flex gap-2">
-        {swatches.map((swatch, index) => (
-          <span
-            key={`${title}-${index}`}
-            className="h-6 w-6 rounded-full border border-white/15"
-            style={{ backgroundColor: swatch ? `#${swatch}` : "#ffffff" }}
-          />
-        ))}
-      </div>
-      <div className="mt-3 text-xs leading-5 text-slate-400">
-        Cities draw from {faction.cityListLabel}. Badge and map visuals now follow this same palette in play.
-      </div>
+    <div className={`flex gap-2 ${className ?? ""}`}>
+      {swatches.map((swatch, index) => (
+        <span
+          key={`${faction.id}-${index}`}
+          className="h-5 w-5 rounded-full border border-white/15 shadow-[0_0_0_1px_rgba(15,23,42,0.6)]"
+          style={{ backgroundColor: swatch ?? "#ffffff" }}
+        />
+      ))}
     </div>
   );
+}
+
+function resolveSwatchColor(value: string) {
+  const hexMatch = value.match(/\[#([^\]]+)\]/)?.[1];
+  if (hexMatch) return `#${hexMatch}`;
+  if (value.includes("text-white")) return "#ffffff";
+  if (value.includes("text-black")) return "#000000";
+  return null;
 }
