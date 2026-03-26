@@ -154,13 +154,14 @@ export function CommandPanel({
             {side === "player" && !winner && (
               <>
                 <div>
-                  {unmovedUnitCount > 0 ? (
-                    <button className="font-medium text-amber-200 underline decoration-dotted underline-offset-4" onClick={onShowUnmovedUnits}>
-                      {unmovedUnitCount} units still have orders available.
-                    </button>
-                  ) : (
-                    "All units have either moved or are committed."
-                  )}
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-2xl border-amber-400/30 bg-amber-950/25 px-4 text-amber-100 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-slate-900/40 disabled:text-slate-500"
+                    onClick={onShowUnmovedUnits}
+                    disabled={unmovedUnitCount === 0}
+                  >
+                    Show {unmovedUnitCount} units without orders
+                  </Button>
                 </div>
               </>
             )}

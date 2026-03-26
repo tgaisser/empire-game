@@ -274,7 +274,7 @@ export default function EmpireGame() {
   function openStartGameModal(source: "menu" | "endgame" = "menu") {
     setStartGameSource(source);
     setStartGameOpen(true);
-    setSelectedGameType(game.gameType);
+    setSelectedGameType(game.gameType === "michigan" ? "normal" : game.gameType);
     setSelectedPlayerFaction(game.playerFaction);
     setSelectedAiFaction(game.aiFaction);
     setSelectedWorldSizeId(worldSizeId);

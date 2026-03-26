@@ -167,7 +167,7 @@ export function DeveloperDrawer({
           </div>
           <div className="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
             <div className="font-semibold">Developer improvement placement</div>
-            <div className="text-slate-300">Place bridge, tunnel, city, port, airfield, or radar directly on any highlighted legal tile without using an engineer.</div>
+            <div className="text-slate-300">Place bridge, tunnel, city, port, airfield, radar, or outpost directly on any highlighted legal tile without using an engineer.</div>
             <div className="relative">
               <select
                 value={selectedDevImprovementType}
@@ -180,6 +180,7 @@ export function DeveloperDrawer({
                 <option value="port">Port</option>
                 <option value="airfield">Airfield</option>
                 <option value="radar">Radar Upgrade</option>
+                <option value="outpost">Outpost</option>
               </select>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">

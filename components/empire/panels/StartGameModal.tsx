@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from "framer-motion";
-import { BookOpen, ChevronDown, Flag, Map as MapIcon, Mountain, Ship, Swords } from "lucide-react";
+import { BookOpen, ChevronDown, Flag, Mountain, Ship, Swords } from "lucide-react";
 import { FACTION_OPTIONS, getDisplayFactionOption, getFactionOption } from "@/lib/empire/factions";
 import { Button } from "@/components/ui/button";
 import type { Faction, GameType, WorldSizeOption } from "@/lib/empire/types";
@@ -23,7 +23,7 @@ type StartGameModalProps = {
   onStart: () => void;
 };
 
-const GAME_TYPE_COPY: Record<GameType, { title: string; summary: string; accent: string; Icon: typeof Swords }> = {
+const GAME_TYPE_COPY: Record<Exclude<GameType, "michigan">, { title: string; summary: string; accent: string; Icon: typeof Swords }> = {
   normal: {
     title: "Normal Campaign",
     summary: "Balanced continents, mixed fronts, and the standard empire crawl.",
@@ -54,12 +54,6 @@ const GAME_TYPE_COPY: Record<GameType, { title: string; summary: string; accent:
     accent: "from-stone-300/30 via-slate-300/10 to-emerald-300/10",
     Icon: Mountain,
   },
-  michigan: {
-    title: "Michigan Theater",
-    summary: "A fixed battle map shaped around Michigan, including the Upper Peninsula, straits, and lower peninsula coastline.",
-    accent: "from-sky-300/30 via-cyan-300/14 to-emerald-300/12",
-    Icon: MapIcon,
-  },
 };
 
 export function StartGameModal({
@@ -80,15 +74,14 @@ export function StartGameModal({
 }: StartGameModalProps) {
   if (!open) return null;
 
-  const preview = GAME_TYPE_COPY[selectedGameType];
+  const normalizedGameType = selectedGameType === "michigan" ? "normal" : selectedGameType;
+  const preview = GAME_TYPE_COPY[normalizedGameType];
   const PreviewIcon = preview.Icon;
   const selectedWorldSize = worldSizeOptions.find((option) => option.id === selectedWorldSizeId) ?? worldSizeOptions[0];
   const playerFaction = getFactionOption(selectedPlayerFaction);
   const aiFaction = getFactionOption(selectedAiFaction);
   const aiDisplayFaction = getDisplayFactionOption(selectedPlayerFaction, selectedAiFaction, "ai") ?? aiFaction;
   const factionsConflict = selectedPlayerFaction === selectedAiFaction;
-  const worldSizeLocked = selectedGameType === "michigan";
-
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/82 p-4 backdrop-blur-md">
       <motion.div
@@ -209,7 +202,7 @@ export function StartGameModal({
                 </div>
                 <div className="relative mt-3">
                   <select
-                    value={selectedGameType}
+                    value={normalizedGameType}
                     onChange={(event) => onChangeGameType(event.target.value as GameType)}
                     className="h-14 w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 px-4 pr-12 text-base font-semibold text-white outline-none transition focus:border-amber-300"
                   >
@@ -218,7 +211,6 @@ export function StartGameModal({
                     <option value="archipelago">Archipelago</option>
                     <option value="ocean">Open Ocean</option>
                     <option value="alpine">Alpine War</option>
-                    <option value="michigan">Michigan Theater</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 </div>
@@ -243,11 +235,6 @@ export function StartGameModal({
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 </div>
-                {worldSizeLocked ? (
-                  <div className="mt-2 text-xs text-slate-400">
-                    Michigan Theater uses a fixed 34 x 24 battlefield.
-                  </div>
-                ) : null}
               </div>
             </div>
 
@@ -262,9 +249,7 @@ export function StartGameModal({
                 </div>
               </div>
               <div className="mt-5 rounded-2xl border border-slate-700/70 bg-slate-950/70 p-4 text-sm leading-6 text-slate-300">
-                {worldSizeLocked
-                  ? "Launch a fixed Michigan battlefield that includes the Upper Peninsula, the straits, and the lower peninsula."
-                  : `Launch a fresh war on a ${selectedWorldSize.label.toLowerCase()} map with the selected terrain doctrine.`}
+                {`Launch a fresh war on a ${selectedWorldSize.label.toLowerCase()} map with the selected terrain doctrine.`}
                 {` ${playerFaction.label} cities will draw from ${playerFaction.cityListLabel}, enemy cities will draw from ${aiFaction.cityListLabel}, and neutral cities begin unnamed until captured.`}
               </div>
 
