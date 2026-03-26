@@ -175,13 +175,6 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         }
       }
 
-      const scanProgress = (elapsedTime * 0.00008) % 1;
-      const scanBandY = height * scanProgress;
-      atmosphereLayer.rect(0, Math.max(0, scanBandY - height * 0.08), width, height * 0.16);
-      atmosphereLayer.fill({ color: 0x67e8f9, alpha: 0.018 });
-      atmosphereLayer.rect(0, Math.max(0, scanBandY - 1), width, 2);
-      atmosphereLayer.fill({ color: 0xfef08a, alpha: 0.08 });
-
       for (let index = 0; index < 3; index += 1) {
         const diagonalProgress = ((elapsedTime * 0.00005) + index * 0.33) % 1;
         const offset = (diagonalProgress * (width + height)) - height;
