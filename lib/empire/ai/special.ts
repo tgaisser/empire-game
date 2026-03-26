@@ -60,8 +60,7 @@ function chooseEngineerImprovement(unit: Unit, state: GameState, plan: AiTurnPla
       plan.context.aiCountsByDomain.sea > 0 ||
       state.gameType === "naval" ||
       state.gameType === "archipelago" ||
-      state.gameType === "ocean" ||
-      state.gameType === "michigan"
+      state.gameType === "ocean"
     ) &&
     options.portTargets.length > 0
   ) {

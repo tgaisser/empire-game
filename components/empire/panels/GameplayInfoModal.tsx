@@ -47,7 +47,7 @@ const improvementNotes: Record<TileImprovementType, string> = {
   outpost: "Forward operating position used to extend map control, vision, and staging near contested areas.",
 };
 
-const gameTypeNotes: Record<Exclude<GameType, "michigan">, string> = {
+const gameTypeNotes: Record<GameType, string> = {
   normal: "Balanced fronts with mixed land, sea, and mountain play.",
   naval: "Lakes and rivers maps with stronger inland water pressure.",
   archipelago: "Many islands and scattered objectives. Sea control matters immediately.",

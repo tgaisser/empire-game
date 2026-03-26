@@ -258,8 +258,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
   const isNavalMap =
     context.state.gameType === "naval" ||
     context.state.gameType === "archipelago" ||
-    context.state.gameType === "ocean" ||
-    context.state.gameType === "michigan";
+    context.state.gameType === "ocean";
   const reasons: string[] = [];
   let score = 0;
 
@@ -416,7 +415,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     score -= aiCarriers * 18;
   } else if (unitType === "submarine") {
     score += 34;
-    if (context.state.gameType === "archipelago" || context.state.gameType === "ocean" || context.state.gameType === "michigan") {
+    if (context.state.gameType === "archipelago" || context.state.gameType === "ocean") {
       score += 18;
       reasons.push("map rewards long-range sea strikes");
     }

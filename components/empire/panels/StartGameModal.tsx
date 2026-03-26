@@ -23,7 +23,7 @@ type StartGameModalProps = {
   onStart: () => void;
 };
 
-const GAME_TYPE_COPY: Record<Exclude<GameType, "michigan">, { title: string; summary: string; accent: string; Icon: typeof Swords }> = {
+const GAME_TYPE_COPY: Record<GameType, { title: string; summary: string; accent: string; Icon: typeof Swords }> = {
   normal: {
     title: "Normal Campaign",
     summary: "Balanced continents, mixed fronts, and the standard empire crawl.",
@@ -74,8 +74,7 @@ export function StartGameModal({
 }: StartGameModalProps) {
   if (!open) return null;
 
-  const normalizedGameType = selectedGameType === "michigan" ? "normal" : selectedGameType;
-  const preview = GAME_TYPE_COPY[normalizedGameType];
+  const preview = GAME_TYPE_COPY[selectedGameType];
   const PreviewIcon = preview.Icon;
   const selectedWorldSize = worldSizeOptions.find((option) => option.id === selectedWorldSizeId) ?? worldSizeOptions[0];
   const playerFaction = getFactionOption(selectedPlayerFaction);
@@ -202,7 +201,7 @@ export function StartGameModal({
                 </div>
                 <div className="relative mt-3">
                   <select
-                    value={normalizedGameType}
+                    value={selectedGameType}
                     onChange={(event) => onChangeGameType(event.target.value as GameType)}
                     className="h-14 w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 px-4 pr-12 text-base font-semibold text-white outline-none transition focus:border-amber-300"
                   >
