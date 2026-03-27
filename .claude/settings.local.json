@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/CODE/SANDBOX/AI/FunLearning/Empire/empire-game -type d -not -path */node_modules/* -not -path */.next/* -not -path */out/*)",
+      "Bash(wc -l /c/CODE/SANDBOX/AI/FunLearning/Empire/empire-game/lib/empire/*.ts /c/CODE/SANDBOX/AI/FunLearning/Empire/empire-game/components/empire/*.tsx)",
+      "Bash(wc:*)"
+    ]
+  }
+}
