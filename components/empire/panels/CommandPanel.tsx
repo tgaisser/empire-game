@@ -66,6 +66,8 @@ type CommandPanelProps = {
   onUndoLastMove: () => void;
   onEndTurn: () => void;
   onShowUnmovedUnits: () => void;
+  showUnmovedHighlights: boolean;
+  highlightedUnitIds: Set<number>;
 };
 
 export function CommandPanel({
@@ -114,6 +116,8 @@ export function CommandPanel({
   onUndoLastMove,
   onEndTurn,
   onShowUnmovedUnits,
+  showUnmovedHighlights,
+  highlightedUnitIds,
 }: CommandPanelProps) {
   const mode = selectedCity ? "city" : selectedUnit ? "unit" : "overview";
   const selectedSiteOwner = selectedCity?.improvement?.owner ?? selectedCity?.improvementProject?.owner ?? selectedCity?.owner ?? null;
@@ -139,6 +143,8 @@ export function CommandPanel({
             onJump={onMiniMapJump}
             selectedUnit={selectedUnit}
             selectedCity={selectedCity}
+            showUnmovedHighlights={showUnmovedHighlights}
+            highlightedUnitIds={highlightedUnitIds}
           />
           <div className="grid grid-cols-4 gap-2">
             <Button
@@ -709,6 +715,8 @@ function MiniMapPanel({
   onJump,
   selectedUnit,
   selectedCity,
+  showUnmovedHighlights,
+  highlightedUnitIds,
 }: {
   map: Tile[][];
   playerVisible: boolean[][];
@@ -718,6 +726,8 @@ function MiniMapPanel({
   onJump: (target: { x: number; y: number }) => void;
   selectedUnit: Unit | null;
   selectedCity: Tile | null;
+  showUnmovedHighlights: boolean;
+  highlightedUnitIds: Set<number>;
 }) {
   const playerDisplay = getSideDisplayOption("player")!;
   const aiDisplay = getSideDisplayOption("ai")!;
@@ -759,7 +769,12 @@ function MiniMapPanel({
             >
               {occupant ? (
                 <span
-                      className="absolute inset-[22%] rounded-full border border-slate-950/60"
+                      className={[
+                        "absolute inset-[22%] rounded-full border border-slate-950/60",
+                        showUnmovedHighlights && highlightedUnitIds.has(occupant.id)
+                          ? "ring-2 ring-[#d9f99d] shadow-[0_0_10px_rgba(190,242,100,0.8)] animate-[pulse_0.85s_ease-in-out_infinite] z-10"
+                          : "",
+                      ].join(" ")}
                   style={{ backgroundColor: occupant.owner === "player" ? displaySwatch(playerDisplay) : displaySwatch(aiDisplay) }}
                 />
               ) : null}

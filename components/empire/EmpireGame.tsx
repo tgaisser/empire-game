@@ -730,6 +730,8 @@ export default function EmpireGame() {
                 onUndoLastMove={handleUndoLastMove}
                 onEndTurn={handleAttemptEndTurn}
                 onShowUnmovedUnits={handleShowUnmovedUnits}
+                showUnmovedHighlights={showUnmovedHighlights}
+                highlightedUnitIds={unmovedUnitIds}
               />
             </div>
           </motion.div>
