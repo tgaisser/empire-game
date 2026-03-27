@@ -88,6 +88,7 @@ export default function EmpireGame() {
     handleDecommissionSelectedUnit,
     handleTileClick,
     handleEndTurn,
+    selectUnit,
     carrierJamTargets,
     carrierRelayAttackTargets,
     dismissMovementPlayback,
@@ -124,6 +125,7 @@ export default function EmpireGame() {
   const [aiDiagnosticsReport, setAiDiagnosticsReport] = useState<ReturnType<typeof createAiDiagnosticsReport> | null>(null);
   const [miniMapJumpTarget, setMiniMapJumpTarget] = useState<{ x: number; y: number; nonce: number } | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
+  const unmovedCycleIndexRef = useRef(0);
   const aiPlaybackTimeoutRef = useRef<number | null>(null);
   const previousLogCountRef = useRef(game.logs.length);
   const previousGameAudioRef = useRef(game);
@@ -271,6 +273,13 @@ export default function EmpireGame() {
       setShowUnmovedHighlights(false);
       highlightTimeoutRef.current = null;
     }, 1600);
+
+    // Cycle to the next unmoved unit
+    const index = unmovedCycleIndexRef.current % unmovedUnits.length;
+    const targetUnit = unmovedUnits[index];
+    unmovedCycleIndexRef.current = index + 1;
+    selectUnit(targetUnit);
+    setMiniMapJumpTarget({ x: targetUnit.x, y: targetUnit.y, nonce: Date.now() });
   }
 
   function openStartGameModal(source: "menu" | "endgame" = "menu") {

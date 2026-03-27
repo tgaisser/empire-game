@@ -919,6 +919,7 @@ export function useEmpireGame() {
     handleDecommissionSelectedUnit,
     handleTileClick,
     handleEndTurn,
+    selectUnit,
     carrierJamTargets: getCarrierJamTargets(game, selectedUnit),
     carrierRelayAttackTargets: getCarrierRelayAttackTargets(game, selectedUnit),
     specialOpsDeploymentTargets: getSpecialOpsDeploymentTargets(game, selectedUnit),
