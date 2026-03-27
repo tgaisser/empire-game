@@ -10,11 +10,11 @@ export const CITY_VISION_RANGE = 2;
 export const MOVEMENT_PLAYBACK_STEP_MS = 140;
 
 export const WORLD_SIZE_OPTIONS: WorldSizeOption[] = [
-  { id: "medium", label: "Medium 20 x 15", width: 20, height: 15 },
-  { id: "large", label: "Large 24 x 18", width: 24, height: 18 },
-  { id: "huge", label: "Huge 30 x 22", width: 30, height: 22 },
-  { id: "massive", label: "Massive 36 x 26", width: 36, height: 26 },
-  { id: "colossal", label: "Colossal 42 x 30", width: 42, height: 30 },
+  { id: "small", label: "Small 20 x 15", width: 20, height: 15 },
+  { id: "medium", label: "Medium 24 x 18", width: 24, height: 18 },
+  { id: "large", label: "Large 30 x 22", width: 30, height: 22 },
+  { id: "huge", label: "Huge 36 x 26", width: 36, height: 26 },
+  { id: "massive", label: "Massive 42 x 30", width: 42, height: 30 },
 ];
 
 export const GAME_TYPE_OPTIONS: Array<{ id: GameType; label: string }> = [
@@ -23,7 +23,10 @@ export const GAME_TYPE_OPTIONS: Array<{ id: GameType; label: string }> = [
   { id: "archipelago", label: "Archipelago" },
   { id: "ocean", label: "Open Ocean" },
   { id: "alpine", label: "Alpine War" },
+  { id: "globe", label: "Random Globe" },
 ];
+
+export const GLOBE_MAP_SIZE = { width: 52, height: 38 };
 
 export const TERRAIN: Record<TerrainType, { name: string; moveCost: number }> = {
   water: { name: "Water", moveCost: 999 },
@@ -60,7 +63,7 @@ export const UNIT_STATS: Record<UnitType, UnitDefinition> = {
     cost: 8,
     buildTime: 1,
     domain: "land",
-    maxHp: 10,
+    maxHp: 6,
     canAttack: true,
     canCapture: true,
     attackDomains: ["land"],

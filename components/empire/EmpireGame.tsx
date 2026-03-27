@@ -22,7 +22,8 @@ import { TopCommandBar } from "@/components/empire/panels/TopCommandBar";
 import { UnitIntelModal } from "@/components/empire/panels/UnitIntelModal";
 import { createAiDiagnosticsReport } from "@/lib/empire/ai/diagnostics";
 import { getRemainingMove, getUnitStats, key } from "@/lib/empire/game";
-import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
+import { GLOBE_MAP_SIZE, MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
+import { clearAutoSave, downloadSaveFile, getAutoSaveSummary, loadAutoSave, uploadSaveFile } from "@/lib/empire/saveLoad";
 import type { DeveloperPlacementType, Faction, GameType, Side, UnitType } from "@/lib/empire/types";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -95,6 +96,7 @@ export default function EmpireGame() {
     resetGame,
     specialOpsDeploymentTargets,
     specialOpsAirStrikeTargets,
+    loadGame,
   } = useEmpireGame();
   const [battleLogOpen, setBattleLogOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -105,10 +107,10 @@ export default function EmpireGame() {
   const [startGameSource, setStartGameSource] = useState<"initial" | "menu" | "endgame">("initial");
   const [selectedGameType, setSelectedGameType] = useState<GameType>("normal");
   const [selectedPlayerFaction, setSelectedPlayerFaction] = useState<Faction>("usa");
-  const [selectedAiFaction, setSelectedAiFaction] = useState<Faction>("asia");
+  const [selectedAiFaction, setSelectedAiFaction] = useState<Faction>("china");
   const [selectedWorldSizeId, setSelectedWorldSizeId] = useState(worldSizeId);
   const [pendingBridgeAction, setPendingBridgeAction] = useState<{ x: number; y: number } | null>(null);
-  const [pendingEngineerPlacement, setPendingEngineerPlacement] = useState<"port" | "airfield" | "radar" | "tunnel" | "outpost" | null>(null);
+  const [pendingEngineerPlacement, setPendingEngineerPlacement] = useState<"port" | "airfield" | "radar" | "tunnel" | "outpost" | "minefield" | null>(null);
   const [pendingSeaBuild, setPendingSeaBuild] = useState<UnitType | null>(null);
   const [pendingSpecialOpsDeployment, setPendingSpecialOpsDeployment] = useState(false);
   const [pendingTransportLoad, setPendingTransportLoad] = useState(false);
@@ -124,6 +126,7 @@ export default function EmpireGame() {
   const [showUnmovedHighlights, setShowUnmovedHighlights] = useState(false);
   const [aiDiagnosticsReport, setAiDiagnosticsReport] = useState<ReturnType<typeof createAiDiagnosticsReport> | null>(null);
   const [miniMapJumpTarget, setMiniMapJumpTarget] = useState<{ x: number; y: number; nonce: number } | null>(null);
+  const [autoSaveSummary, setAutoSaveSummary] = useState<ReturnType<typeof getAutoSaveSummary>>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
   const unmovedCycleIndexRef = useRef(0);
   const aiPlaybackTimeoutRef = useRef<number | null>(null);
@@ -171,6 +174,8 @@ export default function EmpireGame() {
           ? engineerPlacementTargets.tunnel
         : pendingEngineerPlacement === "outpost"
           ? engineerPlacementTargets.outpost
+        : pendingEngineerPlacement === "minefield"
+          ? engineerPlacementTargets.minefield
           : [];
   const devPlacementTargets = pendingDevPlacement ? getDeveloperUnitPlacementTargets(pendingDevPlacement.side, pendingDevPlacement.unitType) : [];
   const devImprovementPlacementTargets = pendingDevImprovementPlacement
@@ -297,6 +302,8 @@ export default function EmpireGame() {
   function handleStartGame() {
     if (selectedPlayerFaction === selectedAiFaction) return;
     playDeployCampaign();
+    clearAutoSave();
+    setAutoSaveSummary(null);
     resetGame(selectedGameType, selectedWorldSizeId, selectedPlayerFaction, selectedAiFaction);
     setSkipEndTurnMoveWarning(false);
     setDismissedWinner(null);
@@ -304,6 +311,41 @@ export default function EmpireGame() {
     setPendingTransportLoad(false);
     setStartGameOpen(false);
     setStartGameSource("menu");
+  }
+
+  function handleContinueSavedGame() {
+    const saved = loadAutoSave();
+    if (!saved) {
+      toast.error("No saved game found.");
+      return;
+    }
+    loadGame(saved);
+    setDismissedWinner(null);
+    setAiDiagnosticsReport(null);
+    setPendingTransportLoad(false);
+    setStartGameOpen(false);
+    setStartGameSource("menu");
+    toast.success(`Resumed game at turn ${saved.turn}.`);
+  }
+
+  async function handleLoadSaveFile() {
+    const state = await uploadSaveFile();
+    if (!state) {
+      toast.error("Could not load save file. Make sure it is a valid Empire save.");
+      return;
+    }
+    loadGame(state);
+    setDismissedWinner(null);
+    setAiDiagnosticsReport(null);
+    setPendingTransportLoad(false);
+    setStartGameOpen(false);
+    setStartGameSource("menu");
+    toast.success(`Loaded game at turn ${state.turn}.`);
+  }
+
+  function handleSaveToFile() {
+    downloadSaveFile(game);
+    toast.success("Save file downloaded.");
   }
 
   function handleCancelStartGame() {
@@ -424,6 +466,12 @@ export default function EmpireGame() {
       setIntelUnitId(targetUnit.id);
     }
   }
+
+  useEffect(() => {
+    if (startGameOpen) {
+      setAutoSaveSummary(getAutoSaveSummary());
+    }
+  }, [startGameOpen]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -665,6 +713,7 @@ export default function EmpireGame() {
                 onOpenHelp={() => setHelpOpen(true)}
                 onToggleDevDrawer={() => setDevDrawerOpen((current) => !current)}
                 onReset={() => openStartGameModal("menu")}
+                onSaveToFile={handleSaveToFile}
               />
             </div>
           </motion.div>
@@ -855,8 +904,11 @@ export default function EmpireGame() {
         onChangeAiFaction={setSelectedAiFaction}
         onChangeWorldSize={setSelectedWorldSizeId}
         onOpenDocs={() => setHelpOpen(true)}
+        autoSaveSummary={autoSaveSummary}
         onCancel={handleCancelStartGame}
         onStart={handleStartGame}
+        onContinue={handleContinueSavedGame}
+        onLoadFile={handleLoadSaveFile}
       />
       <UnitIntelModal
         open={!!intelUnit}

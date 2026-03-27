@@ -349,6 +349,7 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         width,
         height,
         preference: "webgl",
+        backgroundColor: 0x0f172a,
         backgroundAlpha: 0,
         antialias: true,
       });

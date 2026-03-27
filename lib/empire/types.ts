@@ -37,8 +37,8 @@ export type UnitType =
   | "bomber"
   | "drone-swarm";
 export type TransportableTroopUnitType = "infantry" | "tank" | "engineer" | "wraith" | "special-ops";
-export type GameType = "normal" | "naval" | "archipelago" | "ocean" | "alpine";
-export type TileImprovementType = "bridge" | "port" | "airfield" | "tunnel" | "radar" | "outpost";
+export type GameType = "normal" | "naval" | "archipelago" | "ocean" | "alpine" | "globe";
+export type TileImprovementType = "bridge" | "port" | "airfield" | "tunnel" | "radar" | "outpost" | "minefield";
 export type DeveloperPlacementType = TileImprovementType | "city";
 
 export type TileImprovement = {

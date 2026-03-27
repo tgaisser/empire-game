@@ -6,7 +6,7 @@ import destroyerNames from "@/lib/empire/data/destroyer-names.json";
 import submarineNames from "@/lib/empire/data/submarine-names.json";
 import troopTransportNames from "@/lib/empire/data/troop-transport-names.json";
 import { getOrderedUnitDefinitions, UNIT_TYPE_ORDER } from "@/lib/empire/catalog";
-import { AI_TURN_DELAY_MS, WORLD_SIZE_OPTIONS } from "@/lib/empire/config";
+import { AI_TURN_DELAY_MS, GLOBE_MAP_SIZE, WORLD_SIZE_OPTIONS } from "@/lib/empire/config";
 import { getFactionCityNames } from "@/lib/empire/factions";
 import {
   addCredits,
@@ -44,6 +44,7 @@ import {
 import { runAiTurnWithPlayback } from "@/lib/empire/ai/engine";
 import { planAiTurn } from "@/lib/empire/ai/planner";
 import { evaluateUnitTacticalState } from "@/lib/empire/ai/tactics";
+import { autoSave } from "@/lib/empire/saveLoad";
 import type { AiTurnPlan } from "@/lib/empire/ai/planner";
 import type { DeveloperPlacementType, Faction, GameState, GameType, TileImprovementType, Unit, UnitType } from "@/lib/empire/types";
 import type { Side } from "@/lib/empire/types";
@@ -88,7 +89,7 @@ type LastPlayerMoveSnapshot = {
 };
 
 export function useEmpireGame() {
-  const defaultWorldSize = WORLD_SIZE_OPTIONS.find((option) => option.id === "large") ?? WORLD_SIZE_OPTIONS[0];
+  const defaultWorldSize = WORLD_SIZE_OPTIONS.find((option) => option.id === "medium") ?? WORLD_SIZE_OPTIONS[0];
   const [worldSizeId, setWorldSizeId] = useState(defaultWorldSize.id);
   const [game, setGame] = useState<GameState>(() =>
     createInitialState(
@@ -190,6 +191,7 @@ export function useEmpireGame() {
             path: move.path,
           }))
         );
+        autoSave(aiTurnResult.state);
         return aiTurnResult.state;
       });
     }, AI_TURN_DELAY_MS);
@@ -398,6 +400,15 @@ export function useEmpireGame() {
       });
     }
 
+    if (options.minefieldTargets.length > 0 && selectedUnit) {
+      actions.push({
+        improvementType: "minefield" as const,
+        x: selectedUnit.x,
+        y: selectedUnit.y,
+        label: "Choose minefield site",
+      });
+    }
+
     for (const tile of options.bridgeTargets) {
       actions.push({
         improvementType: "bridge" as const,
@@ -418,6 +429,7 @@ export function useEmpireGame() {
       radar: options.radarTargets,
       tunnel: options.tunnelTargets,
       outpost: options.outpostTargets,
+      minefield: options.minefieldTargets,
       bridge: options.bridgeTargets,
     };
   }, [game, selectedUnit]);
@@ -445,8 +457,11 @@ export function useEmpireGame() {
     nextPlayerFaction: Faction = game.playerFaction,
     nextAiFaction: Faction = game.aiFaction
   ) {
-    const worldSize = WORLD_SIZE_OPTIONS.find((option) => option.id === nextWorldSizeId) ?? defaultWorldSize;
-    setWorldSizeId(worldSize.id);
+    const isGlobe = nextGameType === "globe";
+    const worldSize = isGlobe
+      ? { id: "globe", width: GLOBE_MAP_SIZE.width, height: GLOBE_MAP_SIZE.height }
+      : WORLD_SIZE_OPTIONS.find((option) => option.id === nextWorldSizeId) ?? defaultWorldSize;
+    setWorldSizeId(isGlobe ? defaultWorldSize.id : worldSize.id);
     setGame(
       createInitialState(
         Math.floor(Math.random() * 9999) + 1,
@@ -457,6 +472,16 @@ export function useEmpireGame() {
         nextAiFaction
       )
     );
+    setLastPlayerMoveSnapshot(null);
+    setSelectedCity(null);
+  }
+
+  function loadGame(state: GameState) {
+    const worldSize = WORLD_SIZE_OPTIONS.find(
+      (option) => option.width === state.mapWidth && option.height === state.mapHeight
+    ) ?? defaultWorldSize;
+    setWorldSizeId(worldSize.id);
+    setGame(state);
     setLastPlayerMoveSnapshot(null);
     setSelectedCity(null);
   }
@@ -925,5 +950,6 @@ export function useEmpireGame() {
     specialOpsDeploymentTargets: getSpecialOpsDeploymentTargets(game, selectedUnit),
     specialOpsAirStrikeTargets: getSpecialOpsAirStrikeTargets(game, selectedUnit),
     resetGame,
+    loadGame,
   };
 }

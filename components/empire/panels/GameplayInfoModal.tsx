@@ -45,6 +45,7 @@ const improvementNotes: Record<TileImprovementType, string> = {
   radar: "Airfield upgrade that reveals enemy aircraft within 5 tiles, even through fog of war.",
   tunnel: "Mountain route that reduces movement through the tunnel tile and allows tanks through mountain barriers.",
   outpost: "Forward operating position used to extend map control, vision, and staging near contested areas.",
+  minefield: "Hidden explosive trap laid by engineers (2 turns). Invisible to enemies unless an enemy engineer is nearby. Deals heavy damage when a land unit walks over it. Engineers disarm them safely.",
 };
 
 const gameTypeNotes: Record<GameType, string> = {
@@ -53,6 +54,7 @@ const gameTypeNotes: Record<GameType, string> = {
   archipelago: "Many islands and scattered objectives. Sea control matters immediately.",
   ocean: "Two continental powers divided by a wide ocean with only a few stepping-stone islands.",
   alpine: "Mountain-heavy campaign focused on passes, tunnels, and hard ground combat.",
+  globe: "Massive procedural world with continents, oceans, island chains, rivers, and mountain ranges.",
 };
 
 function getImprovementBadgeClass(improvementType: TileImprovementType) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Bug, BookOpen, Coins, Map, ScrollText, Shield, Trophy } from "lucide-react";
+import { Bug, BookOpen, Coins, Download, Map, ScrollText, Shield, Trophy } from "lucide-react";
 import type { Side } from "@/lib/empire/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ type TopCommandBarProps = {
   onOpenHelp: () => void;
   onToggleDevDrawer: () => void;
   onReset: () => void;
+  onSaveToFile: () => void;
 };
 
 export function TopCommandBar({
@@ -44,6 +45,7 @@ export function TopCommandBar({
   onOpenHelp,
   onToggleDevDrawer,
   onReset,
+  onSaveToFile,
 }: TopCommandBarProps) {
   const statCards = [
     {
@@ -120,6 +122,10 @@ export function TopCommandBar({
             >
               <Bug className="mr-2 h-5 w-5" />
               Dev
+            </Button>
+            <Button variant="outline" className="rounded-2xl" onClick={onSaveToFile}>
+              <Download className="w-4 h-4 mr-2" />
+              Save
             </Button>
             <Button variant="secondary" className="rounded-2xl" onClick={onReset}>
               Start New Game

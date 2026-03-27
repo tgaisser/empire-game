@@ -66,6 +66,25 @@ export function ImprovementIcon({ improvementType }: ImprovementIconProps) {
     );
   }
 
+  if (improvementType === "minefield") {
+    return (
+      <svg viewBox="0 0 100 100" className={base} aria-hidden="true">
+        <circle cx="25" cy="35" r="10" fill="currentColor" />
+        <circle cx="50" cy="55" r="10" fill="currentColor" />
+        <circle cx="75" cy="35" r="10" fill="currentColor" />
+        <line x1="25" y1="25" x2="25" y2="15" stroke="currentColor" strokeWidth="3" />
+        <line x1="50" y1="45" x2="50" y2="35" stroke="currentColor" strokeWidth="3" />
+        <line x1="75" y1="25" x2="75" y2="15" stroke="currentColor" strokeWidth="3" />
+        <line x1="18" y1="28" x2="12" y2="20" stroke="currentColor" strokeWidth="2" />
+        <line x1="32" y1="28" x2="38" y2="20" stroke="currentColor" strokeWidth="2" />
+        <line x1="43" y1="48" x2="37" y2="40" stroke="currentColor" strokeWidth="2" />
+        <line x1="57" y1="48" x2="63" y2="40" stroke="currentColor" strokeWidth="2" />
+        <line x1="68" y1="28" x2="62" y2="20" stroke="currentColor" strokeWidth="2" />
+        <line x1="82" y1="28" x2="88" y2="20" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 100 100" className={base} aria-hidden="true">
       <path d="M0 40 L100 40 L100 60 L0 60 Z" fill="currentColor" />

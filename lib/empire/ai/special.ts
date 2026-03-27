@@ -81,6 +81,20 @@ function chooseEngineerImprovement(unit: Unit, state: GameState, plan: AiTurnPla
     return { improvementType: "tunnel" as const, x: target.x, y: target.y };
   }
 
+  if (options.minefieldTargets.length > 0) {
+    const frontlineTargets = options.minefieldTargets.filter((tile) => {
+      const nearbyEnemyCount = state.units.filter(
+        (u) => u.owner === "player" && distance(tile, u) <= 5
+      ).length;
+      return nearbyEnemyCount > 0 || scoreSite(tile) <= 6;
+    });
+    const targets = frontlineTargets.length > 0 ? frontlineTargets : options.minefieldTargets;
+    const target = [...targets].sort((a, b) => scoreSite(a) - scoreSite(b))[0];
+    if (target) {
+      return { improvementType: "minefield" as const, x: target.x, y: target.y };
+    }
+  }
+
   return null;
 }
 

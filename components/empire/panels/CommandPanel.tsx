@@ -173,7 +173,7 @@ export function CommandPanel({
                     onClick={onShowUnmovedUnits}
                     disabled={unmovedUnitCount === 0}
                   >
-                    Show {unmovedUnitCount} units without orders
+                    {unmovedUnitCount} units without orders
                   </Button>
                 </div>
               </>

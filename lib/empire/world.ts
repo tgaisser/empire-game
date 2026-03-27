@@ -240,6 +240,84 @@ function createOpenOceanTerrain(seed: number, width: number, height: number) {
   return { map, rand };
 }
 
+function createGlobeTerrain(seed: number, width: number, height: number) {
+  const rand = rng(seed);
+  const map = createEmptyMap(width, height, "water");
+
+  const continentCount = 3 + Math.floor(rand() * 3);
+  const continents: Array<{ cx: number; cy: number; rx: number; ry: number }> = [];
+
+  for (let i = 0; i < continentCount; i += 1) {
+    const cx = 3 + Math.floor(rand() * (width - 6));
+    const cy = 3 + Math.floor(rand() * (height - 6));
+    const rx = Math.max(3, Math.floor(width * (0.12 + rand() * 0.14)));
+    const ry = Math.max(3, Math.floor(height * (0.12 + rand() * 0.14)));
+    continents.push({ cx, cy, rx, ry });
+    fillEllipse(map, cx, cy, rx, ry, "land");
+
+    const lobeCount = 1 + Math.floor(rand() * 3);
+    for (let j = 0; j < lobeCount; j += 1) {
+      const angle = rand() * Math.PI * 2;
+      const lobeCx = cx + Math.cos(angle) * rx * (0.5 + rand() * 0.4);
+      const lobeCy = cy + Math.sin(angle) * ry * (0.5 + rand() * 0.4);
+      const lobeRx = Math.max(2, Math.floor(rx * (0.3 + rand() * 0.4)));
+      const lobeRy = Math.max(2, Math.floor(ry * (0.3 + rand() * 0.4)));
+      fillEllipse(map, lobeCx, lobeCy, lobeRx, lobeRy, "land");
+    }
+  }
+
+  for (const continent of continents) {
+    const mountainCount = 1 + Math.floor(rand() * 3);
+    for (let m = 0; m < mountainCount; m += 1) {
+      const mx = continent.cx + Math.floor((rand() - 0.5) * continent.rx * 1.2);
+      const my = continent.cy + Math.floor((rand() - 0.5) * continent.ry * 1.2);
+      const chainLength = 3 + Math.floor(rand() * 6);
+      let px = mx;
+      let py = my;
+      for (let s = 0; s < chainLength; s += 1) {
+        if (px >= 1 && px < width - 1 && py >= 1 && py < height - 1 && map[py][px].terrain === "land") {
+          map[py][px].terrain = "mountain";
+          if (rand() < 0.4 && py + 1 < height && map[py + 1][px].terrain === "land") {
+            map[py + 1][px].terrain = "mountain";
+          }
+        }
+        const dir = rand();
+        if (dir < 0.5) px += rand() < 0.5 ? 1 : -1;
+        else py += rand() < 0.5 ? 1 : -1;
+      }
+    }
+  }
+
+  const islandCount = Math.max(6, Math.floor((width * height) / 80));
+  for (let i = 0; i < islandCount; i += 1) {
+    const ix = 2 + Math.floor(rand() * (width - 4));
+    const iy = 2 + Math.floor(rand() * (height - 4));
+    const ir = 1 + rand() * 2;
+    stampIsland(map, ix, iy, ir, rand, 0.15);
+  }
+
+  const riverCount = 2 + Math.floor(rand() * 3);
+  for (let r = 0; r < riverCount; r += 1) {
+    const landTiles = map.flat().filter((t) => t.terrain === "land" || t.terrain === "mountain");
+    if (landTiles.length === 0) break;
+    const start = landTiles[Math.floor(rand() * landTiles.length)];
+    let rx = start.x;
+    let ry = start.y;
+    const riverLength = 4 + Math.floor(rand() * 8);
+    for (let s = 0; s < riverLength; s += 1) {
+      if (rx < 1 || rx >= width - 1 || ry < 1 || ry >= height - 1) break;
+      if (map[ry][rx].terrain === "water") break;
+      map[ry][rx].terrain = "water";
+      const vr = rand();
+      if (vr < 0.22 && ry > 1) ry -= 1;
+      else if (vr > 0.78 && ry < height - 2) ry += 1;
+      rx += rand() < 0.5 ? 1 : -1;
+    }
+  }
+
+  return { map, rand };
+}
+
 function createBaseTerrain(seed: number, width: number, height: number, gameType: GameType) {
   if (gameType === "archipelago") {
     return createArchipelagoTerrain(seed, width, height);
@@ -247,6 +325,10 @@ function createBaseTerrain(seed: number, width: number, height: number, gameType
 
   if (gameType === "ocean") {
     return createOpenOceanTerrain(seed, width, height);
+  }
+
+  if (gameType === "globe") {
+    return createGlobeTerrain(seed, width, height);
   }
 
   const rand = rng(seed);
@@ -298,6 +380,8 @@ function createBaseTerrain(seed: number, width: number, height: number, gameType
 
 function getNeutralCityCount(width: number, height: number) {
   const area = width * height;
+  if (area >= 1500) return 14;
+  if (area >= 900) return 10;
   if (area >= 400) return 8;
   if (area >= 260) return 6;
   return 4;

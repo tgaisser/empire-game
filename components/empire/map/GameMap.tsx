@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { TileClickTarget } from "@/components/empire/hooks/useEmpireGame";
 import type { MovementPlayback } from "@/components/empire/hooks/useEmpireGame";
@@ -148,7 +148,24 @@ export function GameMap({
     const container = scrollRef.current;
     if (!container) return;
 
+    let rafId = 0;
     const updateViewport = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        const width = container.scrollWidth || 1;
+        const height = container.scrollHeight || 1;
+        setViewport({
+          left: container.scrollLeft / width,
+          top: container.scrollTop / height,
+          width: container.clientWidth / width,
+          height: container.clientHeight / height,
+        });
+      });
+    };
+
+    // Run initial viewport sync immediately (no throttle)
+    {
       const width = container.scrollWidth || 1;
       const height = container.scrollHeight || 1;
       setViewport({
@@ -157,14 +174,13 @@ export function GameMap({
         width: container.clientWidth / width,
         height: container.clientHeight / height,
       });
-    };
-
-    updateViewport();
+    }
     container.addEventListener("scroll", updateViewport, { passive: true });
     window.addEventListener("resize", updateViewport);
     return () => {
       container.removeEventListener("scroll", updateViewport);
       window.removeEventListener("resize", updateViewport);
+      if (rafId) cancelAnimationFrame(rafId);
     };
   }, [mapWidth, mapHeight, zoom]);
 
@@ -300,6 +316,48 @@ export function GameMap({
     event.stopPropagation();
   }
 
+  const tileGrid = useMemo(() => (
+    <div
+      className="grid gap-1"
+      style={{
+        gridTemplateColumns: `repeat(${mapWidth}, minmax(${tileSize}px, 1fr))`,
+        width: gridWidth,
+      }}
+    >
+      {map.flat().map((tile) => {
+        const moveData = possibleMoves.find((move) => key(move.x, move.y) === key(tile.x, tile.y));
+        const visible = playerVisible[tile.y][tile.x];
+        const intelTile = playerIntel[tile.y][tile.x];
+        const occupants = getUnitsAt(displayUnits, tile.x, tile.y);
+        const isHighlightedUnit = occupants.some((occupant) => highlightedUnitIds.has(occupant.id));
+        const isBridgeBuildTarget = bridgeBuildKeys?.has(key(tile.x, tile.y)) ?? false;
+        const bridgeOrientation = getBridgeOrientation(map, tile);
+
+        return (
+          <MapTile
+            key={`${key(tile.x, tile.y)}-${isHighlightedUnit ? highlightOrderSignal : 0}`}
+            tile={tile}
+            intelTile={intelTile}
+            visible={visible}
+            units={displayUnits}
+            selectedUnit={selectedUnit}
+            playerFaction={playerFaction}
+            aiFaction={aiFaction}
+            selectedCity={selectedCity}
+            highlightOrderSignal={highlightOrderSignal}
+            highlightPendingOrder={isHighlightedUnit}
+            bridgeBuildTarget={isBridgeBuildTarget}
+            bridgeOrientation={bridgeOrientation}
+            moveData={visible ? moveData : undefined}
+            canInteract={canInteract}
+            onClick={onTileClick}
+            onRightClick={onTileRightClick}
+          />
+        );
+      })}
+    </div>
+  ), [map, mapWidth, tileSize, gridWidth, possibleMoves, playerVisible, playerIntel, displayUnits, highlightedUnitIds, bridgeBuildKeys, highlightOrderSignal, selectedUnit, playerFaction, aiFaction, selectedCity, canInteract, onTileClick, onTileRightClick]);
+
   return (
     <div className="mx-auto max-w-[1120px] rounded-2xl border border-slate-800 bg-slate-950/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -354,45 +412,7 @@ export function GameMap({
           possibleMoves={possibleMoves}
           events={battlefieldFxEvents}
         />
-        <div
-          className="grid gap-1"
-          style={{
-            gridTemplateColumns: `repeat(${mapWidth}, minmax(${tileSize}px, 1fr))`,
-            width: gridWidth,
-          }}
-        >
-          {map.flat().map((tile) => {
-            const moveData = possibleMoves.find((move) => key(move.x, move.y) === key(tile.x, tile.y));
-            const visible = playerVisible[tile.y][tile.x];
-            const intelTile = playerIntel[tile.y][tile.x];
-            const occupants = getUnitsAt(displayUnits, tile.x, tile.y);
-            const isHighlightedUnit = occupants.some((occupant) => highlightedUnitIds.has(occupant.id));
-            const isBridgeBuildTarget = bridgeBuildKeys?.has(key(tile.x, tile.y)) ?? false;
-            const bridgeOrientation = getBridgeOrientation(map, tile);
-
-            return (
-              <MapTile
-                key={`${key(tile.x, tile.y)}-${isHighlightedUnit ? highlightOrderSignal : 0}`}
-                tile={tile}
-                intelTile={intelTile}
-                visible={visible}
-                units={displayUnits}
-                selectedUnit={selectedUnit}
-                playerFaction={playerFaction}
-                aiFaction={aiFaction}
-                selectedCity={selectedCity}
-                highlightOrderSignal={highlightOrderSignal}
-                highlightPendingOrder={isHighlightedUnit}
-                bridgeBuildTarget={isBridgeBuildTarget}
-                bridgeOrientation={bridgeOrientation}
-                moveData={visible ? moveData : undefined}
-                canInteract={canInteract}
-                onClick={onTileClick}
-                onRightClick={onTileRightClick}
-              />
-            );
-          })}
-        </div>
+        {tileGrid}
         {movementPlayback.length > 0 ? (
           <MovementPlaybackOverlay
             key={playbackKey}

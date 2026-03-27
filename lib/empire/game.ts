@@ -24,7 +24,7 @@ import type {
   UnitDomain,
   UnitType,
 } from "@/lib/empire/types";
-import { createMap } from "@/lib/empire/world";
+import { createMap, findOpenAdjacentLand } from "@/lib/empire/world";
 
 const EXPLORATION_INCOME_STEP = 10;
 const SITE_VISION_RANGE = 2;
@@ -394,9 +394,12 @@ function getSpawnTileForProduction(
   return getSeaSpawnTiles(state, tile, units)[0] ?? null;
 }
 
+export const MINEFIELD_DAMAGE = 7;
+
 function getImprovementBuildTime(improvementType: TileImprovementType) {
   if (improvementType === "bridge") return 1;
   if (improvementType === "tunnel") return 2;
+  if (improvementType === "minefield") return 2;
   if (improvementType === "airfield" || improvementType === "radar") return 3;
   return 3;
 }
@@ -406,6 +409,7 @@ export function getImprovementBuildCost(improvementType: TileImprovementType) {
   if (improvementType === "airfield") return 10;
   if (improvementType === "radar") return 6;
   if (improvementType === "outpost") return 2;
+  if (improvementType === "minefield") return 4;
   return 0;
 }
 
@@ -460,6 +464,10 @@ function canBuildOutpostAt(tile: Tile) {
   return tile.terrain === "land" && !tile.city && !tile.improvement && !tile.improvementProject;
 }
 
+function canBuildMinefieldAt(tile: Tile) {
+  return tile.terrain === "land" && !tile.city && !tile.improvement && !tile.improvementProject;
+}
+
 function canBuildRadarAt(tile: Tile, side: Side) {
   return (
     tile.improvement?.type === "airfield" &&
@@ -471,10 +479,10 @@ function canBuildRadarAt(tile: Tile, side: Side) {
 
 export function getEngineerBuildOptions(state: GameState, unit: Unit | null) {
   if (!unit || unit.type !== "engineer" || getRemainingMove(unit) <= 0) {
-    return { portTargets: [] as Tile[], airfieldTargets: [] as Tile[], radarTargets: [] as Tile[], tunnelTargets: [] as Tile[], outpostTargets: [] as Tile[], bridgeTargets: [] as Tile[] };
+    return { portTargets: [] as Tile[], airfieldTargets: [] as Tile[], radarTargets: [] as Tile[], tunnelTargets: [] as Tile[], outpostTargets: [] as Tile[], bridgeTargets: [] as Tile[], minefieldTargets: [] as Tile[] };
   }
   if (getAssignedImprovementProjectTile(state, unit.id)) {
-    return { portTargets: [] as Tile[], airfieldTargets: [] as Tile[], radarTargets: [] as Tile[], tunnelTargets: [] as Tile[], outpostTargets: [] as Tile[], bridgeTargets: [] as Tile[] };
+    return { portTargets: [] as Tile[], airfieldTargets: [] as Tile[], radarTargets: [] as Tile[], tunnelTargets: [] as Tile[], outpostTargets: [] as Tile[], bridgeTargets: [] as Tile[], minefieldTargets: [] as Tile[] };
   }
 
   const adjacentTiles = DIRECTIONS
@@ -490,6 +498,7 @@ export function getEngineerBuildOptions(state: GameState, unit: Unit | null) {
   const radarTargets = adjacentTiles.filter((tile) => canBuildRadarAt(tile, unit.owner));
   const tunnelTargets = adjacentTiles.filter((tile) => canBuildTunnelAt(tile));
   const outpostTargets = adjacentTiles.filter((tile) => canBuildOutpostAt(tile));
+  const minefieldTargets = adjacentTiles.filter((tile) => canBuildMinefieldAt(tile));
   const bridgeTargets = DIRECTIONS
     .map(([dx, dy]) => {
       const x = unit.x + dx;
@@ -507,6 +516,7 @@ export function getEngineerBuildOptions(state: GameState, unit: Unit | null) {
     radarTargets,
     tunnelTargets,
     outpostTargets,
+    minefieldTargets,
     bridgeTargets,
   };
 }
@@ -811,10 +821,22 @@ function refreshSideIntel(state: GameState, side: Side) {
     }
   }
 
+  const friendlyEngineers = state.units.filter((unit) => unit.owner === side && unit.type === "engineer");
+
   for (let y = 0; y < state.mapHeight; y += 1) {
     for (let x = 0; x < state.mapWidth; x += 1) {
       if (visible[y][x]) {
-        intel[y][x] = cloneTile(state.map[y][x]);
+        const tile = cloneTile(state.map[y][x]);
+        if (tile.improvement?.type === "minefield" && tile.improvement.owner !== side) {
+          const detectedByEngineer = friendlyEngineers.some((eng) => distance(eng, tile) <= getUnitStats(eng).vision);
+          if (!detectedByEngineer) {
+            tile.improvement = null;
+          }
+        }
+        if (tile.improvementProject?.type === "minefield" && tile.improvementProject.owner !== side) {
+          tile.improvementProject = null;
+        }
+        intel[y][x] = tile;
       }
     }
   }
@@ -852,11 +874,20 @@ export function createInitialState(
   const aiCity = map.flat().find((tile) => tile.city && tile.owner === "ai");
   const units: Unit[] = [];
 
+  let nextId = 1;
   if (playerCity) {
-    units.push(createUnit(1, "player", "infantry", playerCity.x, playerCity.y));
+    units.push(createUnit(nextId++, "player", "infantry", playerCity.x, playerCity.y));
+    const scoutSpawn = findOpenAdjacentLand(map, playerCity.x, playerCity.y);
+    if (scoutSpawn) {
+      units.push(createUnit(nextId++, "player", "scout", scoutSpawn.x, scoutSpawn.y));
+    }
   }
   if (aiCity) {
-    units.push(createUnit(2, "ai", "infantry", aiCity.x, aiCity.y));
+    units.push(createUnit(nextId++, "ai", "infantry", aiCity.x, aiCity.y));
+    const scoutSpawn = findOpenAdjacentLand(map, aiCity.x, aiCity.y);
+    if (scoutSpawn) {
+      units.push(createUnit(nextId++, "ai", "scout", scoutSpawn.x, scoutSpawn.y));
+    }
   }
 
   const initialState: GameState = {
@@ -876,7 +907,7 @@ export function createInitialState(
       "Welcome, commander.",
       "Capture cities, scout the map, and build a force strong enough to break the enemy capital.",
     ],
-    nextUnitId: units.length + 1,
+    nextUnitId: nextId,
     winner: null,
     playerVisible: createVisionMask(mapWidth, mapHeight),
     playerIntel: createIntelGrid(mapWidth, mapHeight),
@@ -2081,6 +2112,8 @@ function buildImprovement(
     validBuild = distance(unit, targetTile) === 1 && canBuildTunnelAt(targetTile);
   } else if (improvementType === "outpost") {
     validBuild = distance(unit, targetTile) === 1 && canBuildOutpostAt(targetTile);
+  } else if (improvementType === "minefield") {
+    validBuild = distance(unit, targetTile) === 1 && canBuildMinefieldAt(targetTile);
   }
 
   if (!validBuild) return state;
@@ -2390,6 +2423,39 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
           logMessage = side === "player" ? `You destroyed the outpost at ${getLocationLabel(tile)}.` : `Enemy destroyed an outpost near ${getLocationLabel(tile)}.`;
         } else if (capture.capturedImprovement) {
           logMessage = side === "player" ? `You seized the ${getImprovementLabel(nextMap[y][x].improvement!.type).toLowerCase()} at ${getLocationLabel(tile)}.` : `Enemy seized a strategic site near ${getLocationLabel(tile)}.`;
+        }
+      }
+    }
+  }
+
+  const movedUnit = nextUnits.find((currentUnit) => currentUnit.id === unit.id);
+  if (movedUnit && unitStats.domain === "land") {
+    const landedTile = nextMap[movedUnit.y]?.[movedUnit.x];
+    if (landedTile?.improvement?.type === "minefield" && landedTile.improvement.owner !== side) {
+      if (movedUnit.type === "engineer") {
+        nextMap[movedUnit.y][movedUnit.x].improvement = null;
+        logMessage +=
+          side === "player"
+            ? ` Engineer disarmed a minefield at ${getLocationLabel(landedTile)}.`
+            : ` Enemy engineer disarmed a minefield near ${getLocationLabel(landedTile)}.`;
+      } else {
+        const mineDamage = MINEFIELD_DAMAGE;
+        const newHp = movedUnit.hp - mineDamage;
+        nextMap[movedUnit.y][movedUnit.x].improvement = null;
+        if (newHp <= 0) {
+          nextUnits = nextUnits.filter((currentUnit) => currentUnit.id !== movedUnit.id);
+          logMessage =
+            side === "player"
+              ? `${unitStats.name} hit a minefield at ${getLocationLabel(landedTile)} and was destroyed!`
+              : `Enemy ${unitStats.name.toLowerCase()} hit a minefield near ${getLocationLabel(landedTile)} and was destroyed!`;
+        } else {
+          nextUnits = nextUnits.map((currentUnit) =>
+            currentUnit.id === movedUnit.id ? { ...currentUnit, hp: newHp } : currentUnit
+          );
+          logMessage =
+            side === "player"
+              ? `${unitStats.name} hit a minefield at ${getLocationLabel(landedTile)}! Took ${mineDamage} damage.`
+              : `Enemy ${unitStats.name.toLowerCase()} hit a minefield near ${getLocationLabel(landedTile)}!`;
         }
       }
     }

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Cinzel_Decorative } from "next/font/google";
-import { BookOpen, ChevronDown, Mountain, Ship, Swords } from "lucide-react";
+import { BookOpen, ChevronDown, Globe, Mountain, Ship, Swords, Upload } from "lucide-react";
 import { FACTION_OPTIONS, getDisplayFactionOption, getFactionOption } from "@/lib/empire/factions";
 import { Button } from "@/components/ui/button";
 import type { Faction, GameType, WorldSizeOption } from "@/lib/empire/types";
@@ -24,9 +24,12 @@ type StartGameModalProps = {
   onChangePlayerFaction: (value: Faction) => void;
   onChangeAiFaction: (value: Faction) => void;
   onChangeWorldSize: (value: string) => void;
+  autoSaveSummary: { turn: number; playerFaction: string; aiFaction: string; savedAt: string } | null;
   onOpenDocs: () => void;
   onCancel?: () => void;
   onStart: () => void;
+  onContinue: () => void;
+  onLoadFile: () => void;
 };
 
 const GAME_TYPE_COPY: Record<GameType, { title: string; summary: string; accent: string; Icon: typeof Swords }> = {
@@ -60,6 +63,12 @@ const GAME_TYPE_COPY: Record<GameType, { title: string; summary: string; accent:
     accent: "from-stone-300/30 via-slate-300/10 to-emerald-300/10",
     Icon: Mountain,
   },
+  globe: {
+    title: "Random Globe",
+    summary: "A massive procedural world with continents, oceans, island chains, rivers, and mountain ranges. Fixed 52 x 38 map.",
+    accent: "from-emerald-300/30 via-cyan-300/10 to-amber-300/10",
+    Icon: Globe,
+  },
 };
 
 export function StartGameModal({
@@ -74,9 +83,12 @@ export function StartGameModal({
   onChangePlayerFaction,
   onChangeAiFaction,
   onChangeWorldSize,
+  autoSaveSummary,
   onOpenDocs,
   onCancel,
   onStart,
+  onContinue,
+  onLoadFile,
 }: StartGameModalProps) {
   if (!open) return null;
 
@@ -204,6 +216,19 @@ export function StartGameModal({
                     Deploy Campaign
                   </Button>
                 </div>
+                {autoSaveSummary && (
+                  <Button
+                    className="mt-3 h-12 w-full rounded-2xl border border-emerald-400/30 bg-emerald-600 text-white hover:bg-emerald-500"
+                    onClick={onContinue}
+                  >
+                    Continue Game
+                    <span className="ml-2 text-xs opacity-75">Turn {autoSaveSummary.turn}</span>
+                  </Button>
+                )}
+                <Button variant="outline" className="mt-3 h-12 w-full rounded-2xl" onClick={onLoadFile}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Load Save File
+                </Button>
                 {canCancel && onCancel && (
                   <Button variant="outline" className="mt-3 h-12 w-full rounded-2xl" onClick={onCancel}>
                     Cancel
@@ -237,6 +262,7 @@ export function StartGameModal({
                     <option value="archipelago">Archipelago</option>
                     <option value="ocean">Open Ocean</option>
                     <option value="alpine">Alpine War</option>
+                    <option value="globe">Random Globe</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 </div>
@@ -246,11 +272,14 @@ export function StartGameModal({
                 <label className="block text-xs font-semibold uppercase tracking-[0.24em] text-slate-300">
                   World Size
                 </label>
-                <div className="mt-1 text-sm text-slate-300">{selectedWorldSize.label}</div>
+                <div className="mt-1 text-sm text-slate-300">
+                  {selectedGameType === "globe" ? "Globe 52 x 38 (fixed)" : selectedWorldSize.label}
+                </div>
                 <div className="relative mt-3">
                   <select
                     value={selectedWorldSizeId}
                     onChange={(event) => onChangeWorldSize(event.target.value)}
+                    disabled={selectedGameType === "globe"}
                     className="h-14 w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 px-4 pr-12 text-base font-semibold text-white outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {worldSizeOptions.map((option) => (
