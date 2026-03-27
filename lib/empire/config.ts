@@ -21,6 +21,7 @@ export const GAME_TYPE_OPTIONS: Array<{ id: GameType; label: string }> = [
   { id: "normal", label: "Normal Game" },
   { id: "naval", label: "Lakes and Rivers" },
   { id: "archipelago", label: "Archipelago" },
+  { id: "pangea", label: "Pangea" },
   { id: "ocean", label: "Open Ocean" },
   { id: "alpine", label: "Alpine War" },
   { id: "globe", label: "Random Globe" },

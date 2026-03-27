@@ -35,30 +35,17 @@ export type BattlefieldFxEvent =
       bursts?: number;
     };
 
-type Spark = {
-  x: number;
-  y: number;
-  length: number;
-  thickness: number;
-  alpha: number;
-  phase: number;
-  speed: number;
-  tint: number;
-  driftX: number;
-  driftY: number;
-  tilt: number;
-};
-
 const AIRFIELD_RADAR_RANGE_TILES = 5;
-
-function createDeterministicNoise(seed: number) {
-  const value = Math.sin(seed * 12.9898) * 43758.5453;
-  return value - Math.floor(value);
-}
 
 export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, possibleMoves, events = [] }: BattlefieldFxOverlayProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
 
+  // Store current props in refs so the render loop always reads fresh data
+  // without needing to destroy/recreate the Pixi application.
+  const propsRef = useRef({ map, visible, units, selectedUnitId, possibleMoves, events });
+  propsRef.current = { map, visible, units, selectedUnitId, possibleMoves, events };
+
+  // Single effect — creates the Pixi app once, tears it down on unmount only.
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -67,46 +54,14 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
     let initialized = false;
     const app = new Application();
     const stageRoot = new Container();
-    const waterLayer = new Graphics();
-    const mountainLayer = new Graphics();
     const moveLayer = new Graphics();
     const radarLayer = new Graphics();
     const selectedLayer = new Graphics();
-    const sparkLayer = new Graphics();
-    const atmosphereLayer = new Graphics();
     const combatLayer = new Graphics();
     const explosionLayer = new Graphics();
-    let renderTick: (() => void) | null = null;
-    stageRoot.addChild(waterLayer, mountainLayer, moveLayer, radarLayer, selectedLayer, sparkLayer, atmosphereLayer, combatLayer, explosionLayer);
+    stageRoot.addChild(moveLayer, radarLayer, selectedLayer, combatLayer, explosionLayer);
 
-    const moveKeys = new Set(possibleMoves.map((move) => `${move.x},${move.y}`));
-    const selectedUnit = selectedUnitId !== null ? units.find((unit) => unit.id === selectedUnitId) ?? null : null;
-    const waterSparks: Spark[] = [];
-
-    for (let y = 0; y < map.length; y += 1) {
-      for (let x = 0; x < map[y].length; x += 1) {
-        if (!visible[y]?.[x]) continue;
-        const tile = map[y][x];
-        const seed = (x + 1) * 997 + (y + 1) * 463;
-        if (tile.terrain === "water") {
-          waterSparks.push({
-            x: x + 0.22 + createDeterministicNoise(seed) * 0.56,
-            y: y + 0.18 + createDeterministicNoise(seed + 1) * 0.58,
-            length: 0.1 + createDeterministicNoise(seed + 2) * 0.14,
-            thickness: 0.01 + createDeterministicNoise(seed + 9) * 0.02,
-            alpha: 0.05 + createDeterministicNoise(seed + 3) * 0.08,
-            phase: createDeterministicNoise(seed + 4) * Math.PI * 2,
-            speed: 0.6 + createDeterministicNoise(seed + 5) * 0.8,
-            tint: createDeterministicNoise(seed + 6) > 0.5 ? 0x9be7ff : 0x67d7ff,
-            driftX: (createDeterministicNoise(seed + 7) - 0.5) * 0.02,
-            driftY: (createDeterministicNoise(seed + 8) - 0.5) * 0.03,
-            tilt: (createDeterministicNoise(seed + 10) - 0.5) * 0.34,
-          });
-        }
-      }
-    }
-
-    const resizeAndRender = (elapsedTime = 0) => {
+    const render = (elapsedTime = 0) => {
       if (destroyed || !initialized || !host) return;
       const width = host.clientWidth;
       const height = host.clientHeight;
@@ -114,58 +69,27 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
 
       app.renderer.resize(width, height);
 
-      const tileWidth = width / Math.max(1, map[0]?.length ?? 1);
-      const tileHeight = height / Math.max(1, map.length);
+      const { map: curMap, visible: curVisible, units: curUnits, selectedUnitId: curSelectedId, possibleMoves: curMoves, events: curEvents } = propsRef.current;
+      const mapCols = curMap[0]?.length ?? 1;
+      const mapRows = curMap.length;
+      const tileWidth = width / Math.max(1, mapCols);
+      const tileHeight = height / Math.max(1, mapRows);
 
-      waterLayer.clear();
-      mountainLayer.clear();
       moveLayer.clear();
       radarLayer.clear();
       selectedLayer.clear();
-      sparkLayer.clear();
-      atmosphereLayer.clear();
       combatLayer.clear();
       explosionLayer.clear();
 
-      for (let y = 0; y < map.length; y += 1) {
-        for (let x = 0; x < map[y].length; x += 1) {
-          if (!visible[y]?.[x]) continue;
-          const tile = map[y][x];
+      const moveKeys = new Set(curMoves.map((move) => `${move.x},${move.y}`));
+      const selectedUnit = curSelectedId !== null ? curUnits.find((unit) => unit.id === curSelectedId) ?? null : null;
+
+      for (let y = 0; y < mapRows; y += 1) {
+        for (let x = 0; x < curMap[y].length; x += 1) {
+          if (!curVisible[y]?.[x]) continue;
+          const tile = curMap[y][x];
           const px = x * tileWidth;
           const py = y * tileHeight;
-
-          if (tile.terrain === "water") {
-            const phase = elapsedTime * 0.0018 + (x + y) * 0.55;
-            const crestDrift = Math.sin(phase) * tileWidth * 0.06;
-            const troughDrift = Math.cos(phase * 1.1) * tileWidth * 0.05;
-            const crestAlpha = 0.045 + (Math.sin(phase * 1.3) + 1) * 0.018;
-            const troughAlpha = 0.03 + (Math.cos(phase * 1.1) + 1) * 0.012;
-
-            waterLayer.roundRect(
-              px + tileWidth * 0.12 + crestDrift,
-              py + tileHeight * 0.16,
-              tileWidth * 0.72,
-              tileHeight * 0.16,
-              999
-            );
-            waterLayer.fill({ color: 0x93dcff, alpha: crestAlpha });
-            waterLayer.roundRect(
-              px + tileWidth * 0.22 + troughDrift,
-              py + tileHeight * 0.52,
-              tileWidth * 0.4,
-              tileHeight * 0.12,
-              999
-            );
-            waterLayer.fill({ color: 0xd4f3ff, alpha: troughAlpha });
-          }
-
-          if (tile.terrain === "mountain") {
-            mountainLayer.moveTo(px + tileWidth * 0.18, py + tileHeight * 0.76);
-            mountainLayer.lineTo(px + tileWidth * 0.38, py + tileHeight * 0.34);
-            mountainLayer.lineTo(px + tileWidth * 0.58, py + tileHeight * 0.76);
-            mountainLayer.closePath();
-            mountainLayer.fill({ color: 0xe2e8f0, alpha: 0.05 });
-          }
 
           if (moveKeys.has(`${x},${y}`)) {
             const pulse = 0.45 + (Math.sin(elapsedTime * 0.005 + (x + y) * 0.9) + 1) * 0.2;
@@ -204,14 +128,6 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         }
       }
 
-      for (let index = 0; index < 3; index += 1) {
-        const diagonalProgress = ((elapsedTime * 0.00005) + index * 0.33) % 1;
-        const offset = (diagonalProgress * (width + height)) - height;
-        atmosphereLayer.moveTo(Math.max(0, offset), Math.max(0, -offset));
-        atmosphereLayer.lineTo(Math.min(width, offset + height), Math.min(height, height - Math.max(0, offset + height - width)));
-        atmosphereLayer.stroke({ color: index === 1 ? 0xa3e635 : 0x67e8f9, alpha: 0.035, width: 1 });
-      }
-
       if (selectedUnit) {
         const selectedX = selectedUnit.x * tileWidth + tileWidth * 0.5;
         const selectedY = selectedUnit.y * tileHeight + tileHeight * 0.5;
@@ -227,23 +143,9 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         selectedLayer.stroke({ color: 0xfca5a5, alpha: 0.1, width: 1 });
       }
 
-      for (const spark of waterSparks) {
-        const pulse = 0.88 + Math.sin(elapsedTime * 0.0014 * spark.speed + spark.phase) * 0.22;
-        const drift = Math.sin(elapsedTime * 0.0011 + spark.phase) * 0.12;
-        const centerX = spark.x * tileWidth + tileWidth * spark.driftX * drift;
-        const centerY = spark.y * tileHeight + tileHeight * spark.driftY * drift;
-        const halfLength = tileWidth * spark.length * pulse;
-        const tiltOffset = tileHeight * spark.tilt;
-        const thickness = Math.max(1, Math.min(tileWidth, tileHeight) * spark.thickness);
-
-        sparkLayer.moveTo(centerX - halfLength, centerY - tiltOffset);
-        sparkLayer.lineTo(centerX + halfLength, centerY + tiltOffset);
-        sparkLayer.stroke({ color: spark.tint, alpha: spark.alpha * pulse, width: thickness, cap: "round" });
-      }
-
       const eventNow = Date.now();
 
-      for (const event of events) {
+      for (const event of curEvents) {
         const age = eventNow - event.createdAt;
         if (age < 0 || age > event.durationMs) continue;
 
@@ -361,11 +263,10 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
 
       host.appendChild(app.canvas);
       app.stage.addChild(stageRoot);
-      resizeAndRender(performance.now());
-      renderTick = () => {
-        resizeAndRender(performance.now());
-      };
-      app.ticker.add(renderTick);
+      render(performance.now());
+      app.ticker.add(() => {
+        render(performance.now());
+      });
     };
 
     void start().catch(() => {
@@ -373,20 +274,18 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
     });
 
     const observer = new ResizeObserver(() => {
-      resizeAndRender(performance.now());
+      render(performance.now());
     });
     observer.observe(host);
 
     return () => {
       destroyed = true;
       observer.disconnect();
-      if (!initialized) return;
-      if (renderTick) {
-        app.ticker.remove(renderTick);
+      if (initialized) {
+        app.destroy(true, { children: true });
       }
-      app.destroy(true, { children: true });
     };
-  }, [events, map, visible, units, selectedUnitId, possibleMoves]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Pixi app lives for the component lifetime; props are read via propsRef
 
-  return <div ref={hostRef} className="pointer-events-none absolute inset-0 z-[15] overflow-hidden rounded-xl opacity-95" />;
+  return <div ref={hostRef} className="pointer-events-none absolute inset-0 z-[15] overflow-hidden rounded-xl" />;
 }

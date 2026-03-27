@@ -37,7 +37,7 @@ export type UnitType =
   | "bomber"
   | "drone-swarm";
 export type TransportableTroopUnitType = "infantry" | "tank" | "engineer" | "wraith" | "special-ops";
-export type GameType = "normal" | "naval" | "archipelago" | "ocean" | "alpine" | "globe";
+export type GameType = "normal" | "naval" | "archipelago" | "ocean" | "alpine" | "globe" | "pangea";
 export type TileImprovementType = "bridge" | "port" | "airfield" | "tunnel" | "radar" | "outpost" | "minefield";
 export type DeveloperPlacementType = TileImprovementType | "city";
 
@@ -137,6 +137,7 @@ export type Unit = {
   hp: number;
   moveSpent: number;
   fortified: boolean;
+  sentry: boolean;
   concealed: boolean;
   extendedVision?: boolean;
   turnsAwayFromBase: number;
@@ -184,6 +185,8 @@ export type GameState = {
   aiIntel: (Tile | null)[][];
   playerDetectedUnitIds: number[];
   aiDetectedUnitIds: number[];
+  /** Paths units traveled this turn — used to reveal tiles along movement routes */
+  movementPathsThisTurn: Array<{ side: Side; path: Array<{ x: number; y: number }>; vision: number }>;
 };
 
 export type Command =
@@ -201,6 +204,8 @@ export type Command =
   | { type: "load_transport_troop"; side: Side; transportUnitId: number; troopUnitId: number }
   | { type: "unload_transport_troop"; side: Side; transportUnitId: number; x: number; y: number }
   | { type: "decommission_unit"; side: Side; unitId: number }
+  | { type: "sentry_unit"; side: Side; unitId: number }
+  | { type: "wake_unit"; side: Side; unitId: number }
   | { type: "build_improvement"; side: Side; unitId: number; improvementType: TileImprovementType; x: number; y: number }
   | { type: "begin_turn"; side: Side }
   | { type: "end_turn"; side: Side };

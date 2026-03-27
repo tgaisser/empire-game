@@ -191,7 +191,7 @@ function ImprovementTileOverlay({
   playerFaction,
   aiFaction,
 }: {
-  improvementType: "port" | "airfield" | "tunnel";
+  improvementType: "port" | "airfield" | "tunnel" | "minefield" | "outpost";
   underConstruction: boolean;
   turnsRemaining?: number;
   radarActive?: boolean;
@@ -264,6 +264,67 @@ function ImprovementTileOverlay({
             <span className="absolute inset-0 bg-slate-950/22" />
             <span className="absolute inset-x-[18%] top-[18%] border-t-2 border-dashed border-white/80" />
             <span className="absolute inset-x-[18%] top-[72%] border-t-2 border-dashed border-white/70" />
+            <span className="absolute inset-x-0 bottom-[10%] flex justify-center">
+              <TurnBadge value={turnsRemaining ?? "?"} />
+            </span>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (improvementType === "minefield") {
+    return (
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <ProductionPulseOverlay active={underConstruction} tintClass={productionPulseTint} />
+        <span className="absolute inset-[10%] rounded-[20%] border border-red-400/40 bg-[linear-gradient(135deg,rgba(127,29,29,0.32),rgba(52,21,21,0.88))]" />
+        <span className="absolute inset-[14%] rounded-[18%] bg-red-900/14" />
+        <span className="absolute inset-[22%] rounded-[16%] border border-red-300/30 bg-red-950/10" />
+        <svg viewBox="0 0 100 100" className="absolute inset-[10%] h-[80%] w-[80%] text-red-200/80">
+          <circle cx="25" cy="35" r="10" fill="currentColor" />
+          <circle cx="50" cy="55" r="10" fill="currentColor" />
+          <circle cx="75" cy="35" r="10" fill="currentColor" />
+          <line x1="25" y1="25" x2="25" y2="15" stroke="currentColor" strokeWidth="3" />
+          <line x1="50" y1="45" x2="50" y2="35" stroke="currentColor" strokeWidth="3" />
+          <line x1="75" y1="25" x2="75" y2="15" stroke="currentColor" strokeWidth="3" />
+          <line x1="18" y1="28" x2="12" y2="20" stroke="currentColor" strokeWidth="2" />
+          <line x1="32" y1="28" x2="38" y2="20" stroke="currentColor" strokeWidth="2" />
+          <line x1="43" y1="48" x2="37" y2="40" stroke="currentColor" strokeWidth="2" />
+          <line x1="57" y1="48" x2="63" y2="40" stroke="currentColor" strokeWidth="2" />
+          <line x1="68" y1="28" x2="62" y2="20" stroke="currentColor" strokeWidth="2" />
+          <line x1="82" y1="28" x2="88" y2="20" stroke="currentColor" strokeWidth="2" />
+        </svg>
+        {underConstruction ? (
+          <>
+            <span className="absolute inset-0 bg-slate-950/22" />
+            <span className="absolute inset-x-0 bottom-[10%] flex justify-center">
+              <TurnBadge value={turnsRemaining ?? "?"} />
+            </span>
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (improvementType === "outpost") {
+    return (
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <ProductionPulseOverlay active={underConstruction} tintClass={productionPulseTint} />
+        <span className="absolute inset-[10%] rounded-[20%] border" style={visuals.airfieldShellStyle} />
+        <span className="absolute inset-[14%] rounded-[18%]" style={visuals.glowStyle} />
+        <span className="absolute inset-[22%] rounded-[16%] border" style={visuals.innerStyle} />
+        <span className="absolute inset-[18%] flex items-center justify-center text-white/85">
+          <span className="relative block h-[70%] w-[70%]">
+            <span className="absolute left-[44%] top-[14%] h-[44%] w-[12%] rounded-sm bg-current" />
+            <span className="absolute left-[28%] top-[28%] h-[6%] w-[16%] rounded-sm bg-current" />
+            <span className="absolute right-[28%] top-[28%] h-[6%] w-[16%] rounded-sm bg-current" />
+            <span className="absolute left-[32%] top-[56%] h-[8%] w-[36%] rounded-sm bg-current" />
+            <span className="absolute left-[20%] top-[68%] h-[10%] w-[60%] rounded-sm bg-current" />
+          </span>
+        </span>
+        {underConstruction ? (
+          <>
+            <span className="absolute inset-0 bg-slate-950/22" />
             <span className="absolute inset-x-0 bottom-[10%] flex justify-center">
               <TurnBadge value={turnsRemaining ?? "?"} />
             </span>
@@ -454,7 +515,7 @@ export function MapTile({
   const tileLabel = isUnseen ? "Unexplored" : getTileLabel(displayTile);
   const improvementType = displayTile?.improvement?.type ?? displayTile?.improvementProject?.type ?? null;
   const showImprovementTileOverlay =
-    improvementType === "port" || improvementType === "airfield" || improvementType === "tunnel";
+    improvementType === "port" || improvementType === "airfield" || improvementType === "tunnel" || improvementType === "minefield" || improvementType === "outpost";
   const hasSpecialTileBackdrop = Boolean(displayTile?.city || displayTile?.improvement || displayTile?.improvementProject);
   const productionSiteOwner = displayTile?.improvement?.owner ?? displayTile?.owner ?? null;
   const radarActive =
@@ -492,7 +553,7 @@ export function MapTile({
         onRightClick?.(tile.x, tile.y, "tile");
       }}
       className={[
-        "aspect-square rounded-xl border text-xs relative transition-all duration-150",
+        "h-full w-full rounded-xl border text-xs relative transition-all duration-150",
         isUnseen ? "bg-slate-950/95" : terrainClass(displayTile),
         isSelected ? "border-white scale-[1.03]" : isSelectedCity ? "border-[#a3e635] scale-[1.03]" : "border-slate-900/70",
         isMove ? "ring-2" : "",
@@ -584,6 +645,7 @@ export function MapTile({
                     hp: 1,
                     moveSpent: 0,
                     fortified: false,
+                    sentry: false,
                     concealed: false,
                     turnsAwayFromBase: 0,
                   }).domain,
@@ -603,6 +665,7 @@ export function MapTile({
                   hp: 1,
                   moveSpent: 0,
                   fortified: false,
+                  sentry: false,
                   concealed: false,
                   turnsAwayFromBase: 0,
                 }).domain,

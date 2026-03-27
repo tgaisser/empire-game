@@ -51,7 +51,8 @@ const improvementNotes: Record<TileImprovementType, string> = {
 const gameTypeNotes: Record<GameType, string> = {
   normal: "Balanced fronts with mixed land, sea, and mountain play.",
   naval: "Lakes and rivers maps with stronger inland water pressure.",
-  archipelago: "Many islands and scattered objectives. Sea control matters immediately.",
+  archipelago: "Island chains and archipelagos scattered across the ocean. Sea and air control are essential.",
+  pangea: "One massive supercontinent breaking apart with rift channels, breakaway landmasses, and mountain ranges.",
   ocean: "Two continental powers divided by a wide ocean with only a few stepping-stone islands.",
   alpine: "Mountain-heavy campaign focused on passes, tunnels, and hard ground combat.",
   globe: "Massive procedural world with continents, oceans, island chains, rivers, and mountain ranges.",

@@ -148,6 +148,7 @@ function createUnit(id: number, owner: Side, type: UnitType, x: number, y: numbe
     hp: definition.maxHp,
     moveSpent,
     fortified: false,
+    sentry: false,
     concealed: false,
     turnsAwayFromBase: 0,
     sonarUpgraded: false,
@@ -170,6 +171,7 @@ export function getImprovementLabel(improvementType: TileImprovementType) {
   if (improvementType === "tunnel") return "Tunnel";
   if (improvementType === "radar") return "Radar Upgrade";
   if (improvementType === "outpost") return "Outpost";
+  if (improvementType === "minefield") return "Minefield";
   return "Airfield";
 }
 
@@ -780,6 +782,13 @@ function refreshSideIntel(state: GameState, side: Side) {
     }
   }
 
+  for (const entry of state.movementPathsThisTurn) {
+    if (entry.side !== side) continue;
+    for (const step of entry.path) {
+      revealAround(visible, step.x, step.y, entry.vision);
+    }
+  }
+
   for (const unit of state.units) {
     if (unit.owner !== side) continue;
     if (unit.type === "drone-swarm") continue;
@@ -915,6 +924,7 @@ export function createInitialState(
     aiIntel: createIntelGrid(mapWidth, mapHeight),
     playerDetectedUnitIds: [],
     aiDetectedUnitIds: [],
+    movementPathsThisTurn: [],
   };
 
   return refreshIntel(initialState);
@@ -1737,6 +1747,16 @@ function applyFortificationForSide(units: Unit[], side: Side) {
     if (unit.owner !== side) return unit;
     const unitStats = getUnitStats(unit);
 
+    if (unit.sentry) {
+      return {
+        ...unit,
+        concealed: Boolean(unitStats.concealedWhileStationary),
+        fortified: true,
+        moveSpent: unitStats.move,
+        turnsAwayFromBase: unit.turnsAwayFromBase,
+      };
+    }
+
     return {
       ...unit,
       concealed: Boolean(unitStats.concealedWhileStationary && unit.moveSpent === 0),
@@ -2464,6 +2484,10 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
   const updatedUnit = nextUnits.find((currentUnit) => currentUnit.id === unit.id);
   const keepSelected = side === "player" && updatedUnit && getRemainingMove(updatedUnit) > 0;
 
+  const pathEntry = chosenMove.path.length > 1
+    ? [{ side, path: chosenMove.path, vision: getUnitStats(unit).vision }]
+    : [];
+
   return finalizeState(
     addLog(
       {
@@ -2471,6 +2495,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
         units: nextUnits,
         map: nextMap,
         selectedUnitId: side === "player" ? (keepSelected ? unit.id : null) : state.selectedUnitId,
+        movementPathsThisTurn: [...state.movementPathsThisTurn, ...pathEntry],
       },
       logMessage
     )
@@ -2901,6 +2926,7 @@ function endTurn(state: GameState, side: Side): GameState {
     nextUnitId: productionResult.nextUnitId,
     side: "player" as Side,
     turn: state.turn + 1,
+    movementPathsThisTurn: [] as GameState["movementPathsThisTurn"],
   };
   for (const logMessage of productionResult.logs) {
     updated = addLog(updated, logMessage);
@@ -2927,6 +2953,33 @@ function endTurn(state: GameState, side: Side): GameState {
         : "Defeat. The enemy rules the map."
       : `Turn ${updated.turn}. Your command, commander.`
   );
+}
+
+function sentryUnit(state: GameState, side: Side, unitId: number): GameState {
+  const unit = state.units.find((u) => u.id === unitId);
+  if (!unit || unit.owner !== side) return state;
+  const unitStats = getUnitStats(unit);
+  return addLog(
+    {
+      ...state,
+      units: state.units.map((u) =>
+        u.id === unitId ? { ...u, sentry: true, moveSpent: unitStats.move } : u
+      ),
+      selectedUnitId: null,
+    },
+    `${unitStats.name} set to sentry duty.`
+  );
+}
+
+function wakeUnit(state: GameState, side: Side, unitId: number): GameState {
+  const unit = state.units.find((u) => u.id === unitId);
+  if (!unit || unit.owner !== side) return state;
+  return {
+    ...state,
+    units: state.units.map((u) =>
+      u.id === unitId ? { ...u, sentry: false } : u
+    ),
+  };
 }
 
 export function applyCommand(state: GameState, command: Command): GameState {
@@ -2959,6 +3012,10 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return unloadTransportTroop(state, command.side, command.transportUnitId, command.x, command.y);
     case "decommission_unit":
       return decommissionUnit(state, command.side, command.unitId);
+    case "sentry_unit":
+      return sentryUnit(state, command.side, command.unitId);
+    case "wake_unit":
+      return wakeUnit(state, command.side, command.unitId);
     case "build_improvement":
       return buildImprovement(state, command.side, command.unitId, command.improvementType, command.x, command.y);
     case "begin_turn":

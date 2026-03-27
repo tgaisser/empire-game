@@ -208,20 +208,134 @@ function getOpenOceanIslandAnchors(width: number, height: number) {
 function createArchipelagoTerrain(seed: number, width: number, height: number) {
   const rand = rng(seed);
   const map = createEmptyMap(width, height, "water");
-  const homeRadius = Math.max(2.4, Math.min(width, height) * 0.12);
-  const neutralRadius = Math.max(1.6, Math.min(width, height) * 0.08);
-  const playerHome = { x: Math.max(3, Math.floor(width * 0.2)), y: Math.max(3, Math.floor(height * 0.24)) };
-  const aiHome = { x: width - 1 - playerHome.x, y: height - 1 - playerHome.y };
 
-  stampIsland(map, playerHome.x, playerHome.y, homeRadius, rand, 0.12);
-  stampIsland(map, aiHome.x, aiHome.y, homeRadius, rand, 0.12);
+  // Generate island chains like Indonesia / Philippines / Caribbean
+  // Chains are linear sequences of islands with slight randomness
+  const chainCount = Math.max(4, Math.floor((width * height) / 120));
+  const minDim = Math.min(width, height);
 
-  const islandCount = Math.max(8, Math.floor((width * height) / 42));
-  for (let index = 0; index < islandCount; index += 1) {
+  for (let c = 0; c < chainCount; c += 1) {
+    // Chain start point — distributed across the map
+    let cx = 2 + Math.floor(rand() * (width - 4));
+    let cy = 2 + Math.floor(rand() * (height - 4));
+    // Chain direction (angle in radians)
+    const angle = rand() * Math.PI * 2;
+    const stepX = Math.cos(angle);
+    const stepY = Math.sin(angle);
+    // Islands per chain
+    const islandCount = 3 + Math.floor(rand() * 5);
+    const spacing = Math.max(2.5, minDim * 0.08 + rand() * minDim * 0.06);
+
+    for (let i = 0; i < islandCount; i += 1) {
+      // Each island in the chain has some perpendicular scatter
+      const perpOffset = (rand() - 0.5) * spacing * 0.6;
+      const ix = Math.round(cx + perpOffset * -stepY);
+      const iy = Math.round(cy + perpOffset * stepX);
+      const radius = Math.max(1.2, minDim * 0.04 + rand() * minDim * 0.05);
+      if (ix >= 2 && ix < width - 2 && iy >= 2 && iy < height - 2) {
+        stampIsland(map, ix, iy, radius, rand, 0.08);
+      }
+      // Advance along the chain
+      cx += stepX * spacing;
+      cy += stepY * spacing;
+    }
+  }
+
+  // Scatter some lone small islands for variety
+  const scatterCount = Math.max(6, Math.floor((width * height) / 60));
+  for (let i = 0; i < scatterCount; i += 1) {
     const x = 2 + Math.floor(rand() * (width - 4));
     const y = 2 + Math.floor(rand() * (height - 4));
-    const radius = neutralRadius + rand() * 1.7;
-    stampIsland(map, x, y, radius, rand, 0.08);
+    const radius = Math.max(0.8, minDim * 0.02 + rand() * minDim * 0.035);
+    stampIsland(map, x, y, radius, rand, 0.06);
+  }
+
+  return { map, rand };
+}
+
+function createPangeaTerrain(seed: number, width: number, height: number) {
+  const rand = rng(seed);
+  const map = createEmptyMap(width, height, "water");
+
+  // Main supercontinent — large elliptical landmass centered on the map
+  const cx = Math.floor(width / 2);
+  const cy = Math.floor(height / 2);
+  const mainRx = Math.max(6, Math.floor(width * 0.38 + (rand() - 0.5) * width * 0.06));
+  const mainRy = Math.max(5, Math.floor(height * 0.38 + (rand() - 0.5) * height * 0.06));
+  fillEllipse(map, cx, cy, mainRx, mainRy, "land");
+
+  // Add irregular lobes to make it look natural (not a perfect ellipse)
+  const lobeCount = 4 + Math.floor(rand() * 4);
+  for (let i = 0; i < lobeCount; i += 1) {
+    const angle = rand() * Math.PI * 2;
+    const lobeCx = cx + Math.cos(angle) * mainRx * (0.5 + rand() * 0.45);
+    const lobeCy = cy + Math.sin(angle) * mainRy * (0.5 + rand() * 0.45);
+    const lobeRx = Math.max(2, Math.floor(mainRx * (0.2 + rand() * 0.25)));
+    const lobeRy = Math.max(2, Math.floor(mainRy * (0.2 + rand() * 0.25)));
+    fillEllipse(map, lobeCx, lobeCy, lobeRx, lobeRy, "land");
+  }
+
+  // Rift channels carving through the continent (it's breaking up)
+  const riftCount = 2 + Math.floor(rand() * 2);
+  for (let r = 0; r < riftCount; r += 1) {
+    // Start from an edge of the continent
+    const riftAngle = rand() * Math.PI * 2;
+    let rx = cx + Math.cos(riftAngle) * mainRx * 0.7;
+    let ry = cy + Math.sin(riftAngle) * mainRy * 0.7;
+    const riftLength = Math.floor(Math.min(mainRx, mainRy) * (0.6 + rand() * 0.6));
+    const riftDir = riftAngle + Math.PI + (rand() - 0.5) * 1.2;
+
+    for (let s = 0; s < riftLength; s += 1) {
+      const ix = Math.round(rx);
+      const iy = Math.round(ry);
+      if (ix >= 1 && ix < width - 1 && iy >= 1 && iy < height - 1) {
+        map[iy][ix].terrain = "water";
+        // Widen the rift slightly
+        if (rand() < 0.5 && iy + 1 < height) map[iy + 1][ix].terrain = "water";
+        if (rand() < 0.3 && ix + 1 < width) map[iy][ix + 1].terrain = "water";
+      }
+      rx += Math.cos(riftDir + (rand() - 0.5) * 0.6);
+      ry += Math.sin(riftDir + (rand() - 0.5) * 0.6);
+    }
+  }
+
+  // Breakaway landmasses (like Australia breaking off from Gondwana)
+  const breakawayCount = 2 + Math.floor(rand() * 2);
+  for (let b = 0; b < breakawayCount; b += 1) {
+    const angle = rand() * Math.PI * 2;
+    const dist = Math.max(mainRx, mainRy) * (0.9 + rand() * 0.5);
+    const bx = cx + Math.cos(angle) * dist;
+    const by = cy + Math.sin(angle) * dist * (mainRy / Math.max(1, mainRx));
+    const brx = Math.max(2, Math.floor(mainRx * (0.12 + rand() * 0.14)));
+    const bry = Math.max(2, Math.floor(mainRy * (0.12 + rand() * 0.14)));
+    fillEllipse(map, bx, by, brx, bry, "land");
+    // Stepping-stone islands between breakaway and main continent
+    const steps = 1 + Math.floor(rand() * 3);
+    for (let s = 1; s <= steps; s += 1) {
+      const t = s / (steps + 1);
+      const sx = cx + (bx - cx) * t + (rand() - 0.5) * 3;
+      const sy = cy + (by - cy) * t + (rand() - 0.5) * 3;
+      stampIsland(map, Math.round(sx), Math.round(sy), 0.8 + rand() * 1.2, rand, 0.05);
+    }
+  }
+
+  // Mountain ranges through the continent
+  const mountainRanges = 2 + Math.floor(rand() * 3);
+  for (let m = 0; m < mountainRanges; m += 1) {
+    const mAngle = rand() * Math.PI;
+    let mx = cx + Math.floor((rand() - 0.5) * mainRx * 0.8);
+    let my = cy + Math.floor((rand() - 0.5) * mainRy * 0.8);
+    const chainLen = 4 + Math.floor(rand() * 8);
+    for (let s = 0; s < chainLen; s += 1) {
+      if (mx >= 1 && mx < width - 1 && my >= 1 && my < height - 1 && map[my][mx].terrain === "land") {
+        map[my][mx].terrain = "mountain";
+        if (rand() < 0.4 && my + 1 < height && map[my + 1][mx].terrain === "land") {
+          map[my + 1][mx].terrain = "mountain";
+        }
+      }
+      mx += Math.round(Math.cos(mAngle) + (rand() - 0.5) * 0.8);
+      my += Math.round(Math.sin(mAngle) + (rand() - 0.5) * 0.8);
+    }
   }
 
   return { map, rand };
@@ -325,6 +439,10 @@ function createBaseTerrain(seed: number, width: number, height: number, gameType
 
   if (gameType === "ocean") {
     return createOpenOceanTerrain(seed, width, height);
+  }
+
+  if (gameType === "pangea") {
+    return createPangeaTerrain(seed, width, height);
   }
 
   if (gameType === "globe") {
@@ -451,24 +569,6 @@ function createCityPlacements(
   playerFaction: Faction,
   aiFaction: Faction
 ) {
-  if (gameType === "archipelago") {
-    const placements: CityPlacement[] = [
-      { x: Math.max(3, Math.floor(width * 0.2)), y: Math.max(3, Math.floor(height * 0.24)), owner: "player", cityName: "" },
-      { x: width - 1 - Math.max(3, Math.floor(width * 0.2)), y: height - 1 - Math.max(3, Math.floor(height * 0.24)), owner: "ai", cityName: "" },
-    ];
-    const islandPairs = [
-      { x: Math.floor(width * 0.32), y: Math.floor(height * 0.22) },
-      { x: Math.floor(width * 0.38), y: Math.floor(height * 0.5) },
-      { x: Math.floor(width * 0.26), y: Math.floor(height * 0.72) },
-    ];
-    for (const candidate of shuffle(islandPairs, rand)) {
-      const mirror = mirrorPoint(width, height, candidate.x, candidate.y);
-      placements.push({ x: candidate.x, y: candidate.y, owner: null, cityName: "" });
-      placements.push({ x: mirror.x, y: mirror.y, owner: null, cityName: "" });
-    }
-    return assignCityNames(placements, rand, playerFaction, aiFaction);
-  }
-
   if (gameType === "ocean") {
     const playerHome = { x: Math.min(3, width - 1), y: Math.floor(height * 0.5) };
     const aiHome = { x: width - 1 - playerHome.x, y: height - 1 - playerHome.y };
@@ -535,7 +635,7 @@ function createCityPlacements(
   return assignCityNames(placements, rand, playerFaction, aiFaction);
 }
 
-function carveCityFootprint(map: Tile[][], x: number, y: number, gameType: GameType) {
+function carveCityFootprint(map: Tile[][], x: number, y: number, gameType: GameType, isStartingCity: boolean) {
   const height = map.length;
   const width = map[0]?.length ?? 0;
 
@@ -545,11 +645,17 @@ function carveCityFootprint(map: Tile[][], x: number, y: number, gameType: GameT
     return;
   }
 
-  for (const [dx, dy] of DIRECTIONS) {
-    const nx = x + dx;
-    const ny = y + dy;
-    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-    map[ny][nx].terrain = "land";
+  // Starting cities get a larger land footprint (radius 3) so units have room to maneuver
+  const radius = isStartingCity ? 3 : 1;
+
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      if (Math.abs(dx) + Math.abs(dy) > radius) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      map[ny][nx].terrain = "land";
+    }
   }
 }
 
@@ -567,7 +673,7 @@ export function createMap(
   const placements = createCityPlacements(mapWidth, mapHeight, rand, gameType, playerFaction, aiFaction);
 
   for (const placement of placements) {
-    carveCityFootprint(map, placement.x, placement.y, gameType);
+    carveCityFootprint(map, placement.x, placement.y, gameType, placement.owner === "player" || placement.owner === "ai");
     const tile = map[placement.y][placement.x];
     tile.city = true;
     tile.owner = placement.owner;

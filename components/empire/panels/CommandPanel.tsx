@@ -61,6 +61,8 @@ type CommandPanelProps = {
   onBeginTransportLoad: () => void;
   onLoadSpecialOps: () => void;
   onUnloadSpecialOps: () => void;
+  onSentryUnit: () => void;
+  onWakeUnit: () => void;
   onDecommissionUnit: () => void;
   canUndoLastMove: boolean;
   onUndoLastMove: () => void;
@@ -111,6 +113,8 @@ export function CommandPanel({
   onBeginTransportLoad,
   onLoadSpecialOps,
   onUnloadSpecialOps,
+  onSentryUnit,
+  onWakeUnit,
   onDecommissionUnit,
   canUndoLastMove,
   onUndoLastMove,
@@ -477,6 +481,25 @@ export function CommandPanel({
                 </div>
               </>
             )}
+            {selectedUnit && !selectedUnit.sentry ? (
+              <Button
+                variant="outline"
+                className="w-full rounded-2xl border-amber-900/70 bg-amber-950/20 text-amber-100 hover:bg-amber-950/35"
+                disabled={side !== "player" || !!winner}
+                onClick={onSentryUnit}
+              >
+                Sentry (Hold Position)
+              </Button>
+            ) : selectedUnit?.sentry ? (
+              <Button
+                variant="outline"
+                className="w-full rounded-2xl border-cyan-900/70 bg-cyan-950/20 text-cyan-100 hover:bg-cyan-950/35"
+                disabled={side !== "player" || !!winner}
+                onClick={onWakeUnit}
+              >
+                Wake Unit
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               className="w-full rounded-2xl border-red-900/70 bg-red-950/20 text-red-100 hover:bg-red-950/35"

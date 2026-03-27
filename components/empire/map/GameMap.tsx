@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { TileClickTarget } from "@/components/empire/hooks/useEmpireGame";
 import type { MovementPlayback } from "@/components/empire/hooks/useEmpireGame";
@@ -42,6 +42,8 @@ const TACTICAL_ZOOM_STEP = 0.2;
 const BASE_TILE_SIZE = 42;
 const TILE_GAP = 4;
 const DRAG_PAN_THRESHOLD = 6;
+/** Extra tiles rendered beyond the visible area to prevent pop-in during fast scrolling */
+const TILE_BUFFER = 3;
 
 function getBridgeOrientation(map: Tile[][], tile: Tile) {
   const improvementType = tile.improvement?.type ?? tile.improvementProject?.type ?? null;
@@ -97,6 +99,23 @@ function getPlaybackTrailSegments(path: Array<{ x: number; y: number }>, stepInd
   });
 }
 
+/** Compute the tile column/row range visible in the scroll container */
+function getVisibleTileRange(
+  scrollLeft: number,
+  scrollTop: number,
+  clientWidth: number,
+  clientHeight: number,
+  tileStep: number,
+  mapWidth: number,
+  mapHeight: number,
+) {
+  const colStart = Math.max(0, Math.floor(scrollLeft / tileStep) - TILE_BUFFER);
+  const colEnd = Math.min(mapWidth - 1, Math.ceil((scrollLeft + clientWidth) / tileStep) + TILE_BUFFER);
+  const rowStart = Math.max(0, Math.floor(scrollTop / tileStep) - TILE_BUFFER);
+  const rowEnd = Math.min(mapHeight - 1, Math.ceil((scrollTop + clientHeight) / tileStep) + TILE_BUFFER);
+  return { colStart, colEnd, rowStart, rowEnd };
+}
+
 export function GameMap({
   map,
   playerVisible,
@@ -133,6 +152,7 @@ export function GameMap({
   } | null>(null);
   const suppressClickRef = useRef(false);
   const [zoom, setZoom] = useState(DEFAULT_TACTICAL_ZOOM);
+  const [visibleRange, setVisibleRange] = useState({ colStart: 0, colEnd: mapWidth - 1, rowStart: 0, rowEnd: mapHeight - 1 });
   const [viewport, setViewport] = useState({ left: 0, top: 0, width: 1, height: 1 });
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -144,45 +164,64 @@ export function GameMap({
     [movementPlayback]
   );
 
+  const minZoom = useMemo(() => {
+    if (!containerSize.width || !containerSize.height || !mapWidth || !mapHeight) {
+      return DEFAULT_TACTICAL_ZOOM;
+    }
+
+    const usableWidth = Math.max(1, containerSize.width - 16);
+    const usableHeight = Math.max(1, containerSize.height - 16);
+    const baseGridWidth = mapWidth * BASE_TILE_SIZE + Math.max(0, mapWidth - 1) * TILE_GAP;
+    const baseGridHeight = mapHeight * BASE_TILE_SIZE + Math.max(0, mapHeight - 1) * TILE_GAP;
+    const fitZoom = Math.min(usableWidth / baseGridWidth, usableHeight / baseGridHeight);
+
+    return Math.min(DEFAULT_TACTICAL_ZOOM, Number(fitZoom.toFixed(2)));
+  }, [containerSize.height, containerSize.width, mapHeight, mapWidth]);
+
+  const effectiveZoom = Math.max(zoom, minZoom);
+  const tileSize = Math.round(BASE_TILE_SIZE * effectiveZoom);
+  const tileStep = tileSize + TILE_GAP;
+  const gridWidth = mapWidth * tileSize + Math.max(0, mapWidth - 1) * TILE_GAP;
+  const gridHeight = mapHeight * tileSize + Math.max(0, mapHeight - 1) * TILE_GAP;
+
+  // Scroll / viewport tracking — rAF-throttled to avoid per-event re-renders
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
 
     let rafId = 0;
-    const updateViewport = () => {
+    const sync = () => {
+      const sw = container.scrollWidth || 1;
+      const sh = container.scrollHeight || 1;
+      setViewport({
+        left: container.scrollLeft / sw,
+        top: container.scrollTop / sh,
+        width: container.clientWidth / sw,
+        height: container.clientHeight / sh,
+      });
+      setVisibleRange(
+        getVisibleTileRange(container.scrollLeft, container.scrollTop, container.clientWidth, container.clientHeight, tileStep, mapWidth, mapHeight)
+      );
+    };
+
+    const onScroll = () => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
         rafId = 0;
-        const width = container.scrollWidth || 1;
-        const height = container.scrollHeight || 1;
-        setViewport({
-          left: container.scrollLeft / width,
-          top: container.scrollTop / height,
-          width: container.clientWidth / width,
-          height: container.clientHeight / height,
-        });
+        sync();
       });
     };
 
-    // Run initial viewport sync immediately (no throttle)
-    {
-      const width = container.scrollWidth || 1;
-      const height = container.scrollHeight || 1;
-      setViewport({
-        left: container.scrollLeft / width,
-        top: container.scrollTop / height,
-        width: container.clientWidth / width,
-        height: container.clientHeight / height,
-      });
-    }
-    container.addEventListener("scroll", updateViewport, { passive: true });
-    window.addEventListener("resize", updateViewport);
+    // Initial sync (no throttle)
+    sync();
+    container.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
     return () => {
-      container.removeEventListener("scroll", updateViewport);
-      window.removeEventListener("resize", updateViewport);
+      container.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [mapWidth, mapHeight, zoom]);
+  }, [mapWidth, mapHeight, tileStep]);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -253,29 +292,10 @@ export function GameMap({
     };
   }, []);
 
-  const minZoom = useMemo(() => {
-    if (!containerSize.width || !containerSize.height || !mapWidth || !mapHeight) {
-      return DEFAULT_TACTICAL_ZOOM;
-    }
-
-    const usableWidth = Math.max(1, containerSize.width - 16);
-    const usableHeight = Math.max(1, containerSize.height - 16);
-    const baseGridWidth = mapWidth * BASE_TILE_SIZE + Math.max(0, mapWidth - 1) * TILE_GAP;
-    const baseGridHeight = mapHeight * BASE_TILE_SIZE + Math.max(0, mapHeight - 1) * TILE_GAP;
-    const fitZoom = Math.min(usableWidth / baseGridWidth, usableHeight / baseGridHeight);
-
-    return Math.min(DEFAULT_TACTICAL_ZOOM, Number(fitZoom.toFixed(2)));
-  }, [containerSize.height, containerSize.width, mapHeight, mapWidth]);
-
-  const effectiveZoom = Math.max(zoom, minZoom);
-
-  const viewColumnStart = Math.max(1, Math.floor(viewport.left * mapWidth) + 1);
-  const viewColumnEnd = Math.max(viewColumnStart, Math.min(mapWidth, Math.ceil((viewport.left + viewport.width) * mapWidth)));
-  const viewRowStart = Math.max(1, Math.floor(viewport.top * mapHeight) + 1);
-  const viewRowEnd = Math.max(viewRowStart, Math.min(mapHeight, Math.ceil((viewport.top + viewport.height) * mapHeight)));
-  const tileSize = Math.round(BASE_TILE_SIZE * effectiveZoom);
-  const gridWidth = mapWidth * tileSize + Math.max(0, mapWidth - 1) * TILE_GAP;
-  const gridHeight = mapHeight * tileSize + Math.max(0, mapHeight - 1) * TILE_GAP;
+  const viewColumnStart = Math.max(1, visibleRange.colStart + 1);
+  const viewColumnEnd = Math.min(mapWidth, visibleRange.colEnd + 1);
+  const viewRowStart = Math.max(1, visibleRange.rowStart + 1);
+  const viewRowEnd = Math.min(mapHeight, visibleRange.rowEnd + 1);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -316,26 +336,33 @@ export function GameMap({
     event.stopPropagation();
   }
 
-  const tileGrid = useMemo(() => (
-    <div
-      className="grid gap-1"
-      style={{
-        gridTemplateColumns: `repeat(${mapWidth}, minmax(${tileSize}px, 1fr))`,
-        width: gridWidth,
-      }}
-    >
-      {map.flat().map((tile) => {
-        const moveData = possibleMoves.find((move) => key(move.x, move.y) === key(tile.x, tile.y));
-        const visible = playerVisible[tile.y][tile.x];
-        const intelTile = playerIntel[tile.y][tile.x];
-        const occupants = getUnitsAt(displayUnits, tile.x, tile.y);
-        const isHighlightedUnit = occupants.some((occupant) => highlightedUnitIds.has(occupant.id));
-        const isBridgeBuildTarget = bridgeBuildKeys?.has(key(tile.x, tile.y)) ?? false;
-        const bridgeOrientation = getBridgeOrientation(map, tile);
+  // Build the list of visible tiles (virtualized)
+  const visibleTiles: React.ReactElement[] = [];
+  for (let row = visibleRange.rowStart; row <= visibleRange.rowEnd; row++) {
+    for (let col = visibleRange.colStart; col <= visibleRange.colEnd; col++) {
+      const tile = map[row]?.[col];
+      if (!tile) continue;
 
-        return (
+      const moveData = possibleMoves.find((move) => key(move.x, move.y) === key(tile.x, tile.y));
+      const visible = playerVisible[tile.y][tile.x];
+      const intelTile = playerIntel[tile.y][tile.x];
+      const occupants = getUnitsAt(displayUnits, tile.x, tile.y);
+      const isHighlightedUnit = occupants.some((occupant) => highlightedUnitIds.has(occupant.id));
+      const isBridgeBuildTarget = bridgeBuildKeys?.has(key(tile.x, tile.y)) ?? false;
+      const bridgeOrientation = getBridgeOrientation(map, tile);
+
+      visibleTiles.push(
+        <div
+          key={`${key(tile.x, tile.y)}-${isHighlightedUnit ? highlightOrderSignal : 0}`}
+          className="absolute"
+          style={{
+            left: col * tileStep,
+            top: row * tileStep,
+            width: tileSize,
+            height: tileSize,
+          }}
+        >
           <MapTile
-            key={`${key(tile.x, tile.y)}-${isHighlightedUnit ? highlightOrderSignal : 0}`}
             tile={tile}
             intelTile={intelTile}
             visible={visible}
@@ -353,10 +380,10 @@ export function GameMap({
             onClick={onTileClick}
             onRightClick={onTileRightClick}
           />
-        );
-      })}
-    </div>
-  ), [map, mapWidth, tileSize, gridWidth, possibleMoves, playerVisible, playerIntel, displayUnits, highlightedUnitIds, bridgeBuildKeys, highlightOrderSignal, selectedUnit, playerFaction, aiFaction, selectedCity, canInteract, onTileClick, onTileRightClick]);
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[1120px] rounded-2xl border border-slate-800 bg-slate-950/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
@@ -396,33 +423,33 @@ export function GameMap({
       <div
         ref={scrollRef}
         className={[
-          "relative max-h-[58vh] overflow-auto rounded-2xl border border-slate-800/70 bg-slate-950/80 p-2 select-none",
+          "relative max-h-[58vh] overflow-auto rounded-2xl border border-slate-800/70 bg-slate-950 p-2 select-none",
           isDragging ? "cursor-grabbing" : "cursor-grab",
         ].join(" ")}
         style={{ touchAction: "none" }}
         onPointerDown={handlePointerDown}
         onClickCapture={handleClickCapture}
       >
-        <div className="relative inline-block">
-        <BattlefieldFxOverlay
-          map={map}
-          visible={playerVisible}
-          units={displayUnits}
-          selectedUnitId={selectedUnit?.id ?? null}
-          possibleMoves={possibleMoves}
-          events={battlefieldFxEvents}
-        />
-        {tileGrid}
-        {movementPlayback.length > 0 ? (
-          <MovementPlaybackOverlay
-            key={playbackKey}
-            movementPlayback={movementPlayback}
-            mapWidth={mapWidth}
-            mapHeight={map.length}
-            playerFaction={playerFaction}
-            aiFaction={aiFaction}
+        <div className="relative" style={{ width: gridWidth, height: gridHeight }}>
+          <BattlefieldFxOverlay
+            map={map}
+            visible={playerVisible}
+            units={displayUnits}
+            selectedUnitId={selectedUnit?.id ?? null}
+            possibleMoves={possibleMoves}
+            events={battlefieldFxEvents}
           />
-        ) : null}
+          {visibleTiles}
+          {movementPlayback.length > 0 ? (
+            <MovementPlaybackOverlay
+              key={playbackKey}
+              movementPlayback={movementPlayback}
+              mapWidth={mapWidth}
+              mapHeight={map.length}
+              playerFaction={playerFaction}
+              aiFaction={aiFaction}
+            />
+          ) : null}
         </div>
       </div>
       <div className="mt-3">

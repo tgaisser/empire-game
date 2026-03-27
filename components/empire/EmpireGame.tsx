@@ -86,6 +86,8 @@ export default function EmpireGame() {
     handleUnloadSpecialOps,
     handleUpgradeSelectedUnit,
     handleUndoLastMove,
+    handleSentryUnit,
+    handleWakeUnit,
     handleDecommissionSelectedUnit,
     handleTileClick,
     handleEndTurn,
@@ -783,6 +785,8 @@ export default function EmpireGame() {
                   }
                   handleUnloadSpecialOps();
                 }}
+                onSentryUnit={handleSentryUnit}
+                onWakeUnit={handleWakeUnit}
                 onDecommissionUnit={() => setDecommissionConfirmOpen(true)}
                 canUndoLastMove={canUndoLastMove}
                 onUndoLastMove={handleUndoLastMove}

@@ -708,6 +708,20 @@ export function useEmpireGame() {
     applyGameUpdate((current) => applyCommand(current, { type: "end_turn", side: "player" }));
   }
 
+  function handleSentryUnit() {
+    if (game.side !== "player" || game.winner || !selectedUnit) return;
+    applyGameUpdate((current) =>
+      applyCommand(current, { type: "sentry_unit", side: "player", unitId: selectedUnit.id })
+    );
+  }
+
+  function handleWakeUnit() {
+    if (game.side !== "player" || game.winner || !selectedUnit) return;
+    applyGameUpdate((current) =>
+      applyCommand(current, { type: "wake_unit", side: "player", unitId: selectedUnit.id })
+    );
+  }
+
   function handleDecommissionSelectedUnit() {
     if (game.side !== "player" || game.winner || !selectedUnit) return;
     setSelectedCity(null);
@@ -941,6 +955,8 @@ export function useEmpireGame() {
     handleUndoLastMove,
     dismissMovementPlayback,
     handleArrowMove,
+    handleSentryUnit,
+    handleWakeUnit,
     handleDecommissionSelectedUnit,
     handleTileClick,
     handleEndTurn,

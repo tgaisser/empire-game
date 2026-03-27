@@ -40,6 +40,7 @@ export function loadAutoSave(): GameState | null {
     if (!raw) return null;
     const save: SaveFile = JSON.parse(raw);
     if (save.version !== SAVE_VERSION || !save.state) return null;
+    if (!save.state.movementPathsThisTurn) save.state.movementPathsThisTurn = [];
     return save.state;
   } catch {
     return null;
@@ -101,6 +102,7 @@ export function uploadSaveFile(): Promise<GameState | null> {
             resolve(null);
             return;
           }
+          if (!save.state.movementPathsThisTurn) save.state.movementPathsThisTurn = [];
           resolve(save.state);
         } catch {
           resolve(null);

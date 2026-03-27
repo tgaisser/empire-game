@@ -51,6 +51,12 @@ const GAME_TYPE_COPY: Record<GameType, { title: string; summary: string; accent:
     accent: "from-cyan-300/30 via-sky-300/10 to-emerald-300/10",
     Icon: Ship,
   },
+  pangea: {
+    title: "Pangea",
+    summary: "One massive supercontinent breaking apart — rift channels, breakaway islands, and mountain spines.",
+    accent: "from-amber-300/30 via-stone-300/10 to-emerald-300/10",
+    Icon: Mountain,
+  },
   ocean: {
     title: "Open Ocean",
     summary: "Major powers begin apart across broad water, with only a few stepping-stone islands between them.",
