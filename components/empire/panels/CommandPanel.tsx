@@ -257,7 +257,7 @@ export function CommandPanel({
                       : "Awaiting assignment"}
                   </div>
                 ) : null}
-                {["apache", "submarine"].includes(selectedUnit.type) && selectedUnit.carriedSpecialOps ? (
+                {["chopper", "submarine"].includes(selectedUnit.type) && selectedUnit.carriedSpecialOps ? (
                   <div className="col-span-2">Carrying Special Ops team</div>
                 ) : null}
                 {selectedUnit.type === "troop-transport" ? (
@@ -359,7 +359,7 @@ export function CommandPanel({
                   </div>
                 </>
               ) : null}
-              {["apache", "submarine"].includes(selectedUnit.type) && !selectedUnit.carriedSpecialOps ? (
+              {["chopper", "submarine"].includes(selectedUnit.type) && !selectedUnit.carriedSpecialOps ? (
                 <ActionTileButton
                   title={selectedUnit.type === "submarine" ? "Embark Special Ops" : "Load Special Ops"}
                   detail="Prepare an insertion team"
@@ -367,7 +367,7 @@ export function CommandPanel({
                   icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
                 />
               ) : null}
-              {selectedUnit.type === "apache" && selectedUnit.carriedSpecialOps ? (
+              {selectedUnit.type === "chopper" && selectedUnit.carriedSpecialOps ? (
                 <ActionTileButton
                   title="Deploy Special Ops"
                   detail="Drop the team from the chopper"
@@ -724,7 +724,7 @@ function UnitActionBadge({ unitType, faction }: { unitType: UnitType; faction: F
 }
 
 function getActionUnitDomain(unitType: UnitType) {
-  if (["apache", "fighter", "bomber", "drone-swarm"].includes(unitType)) return "air" as const;
+  if (["chopper", "fighter", "bomber", "drone-swarm"].includes(unitType)) return "air" as const;
   if (["destroyer", "troop-transport", "carrier", "submarine"].includes(unitType)) return "sea" as const;
   return "land" as const;
 }

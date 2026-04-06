@@ -157,7 +157,7 @@ export function planAiStrategicGoals(state: GameState, threatSummary: AiThreatSu
   const aiUnits = state.units.filter((unit) => unit.owner === "ai");
   const capturingUnits = aiUnits.filter((unit) => ["infantry", "tank", "scout"].includes(unit.type));
   const knownEnemyAirUnits = getDetectedEnemyUnits(state, "ai").filter((unit) => state.units.find((candidate) => candidate.id === unit.id)?.type && unit.type !== "infantry").filter((unit) => {
-    return ["apache", "fighter", "bomber", "drone-swarm"].includes(unit.type);
+    return ["chopper", "fighter", "bomber", "drone-swarm"].includes(unit.type);
   });
 
   for (const site of threatSummary.threatenedSites.slice(0, 3)) {
@@ -246,14 +246,14 @@ export function planAiStrategicGoals(state: GameState, threatSummary: AiThreatSu
 }
 
 export function classifyAiUnitRole(unit: Unit): AiUnitRole {
-  if (unit.type === "scout" || unit.type === "wraith") return "scout";
+  if (unit.type === "scout" || unit.type === "spy") return "scout";
   if (unit.type === "fighter") return "interceptor";
   if (unit.type === "bomber" || unit.type === "drone-swarm") return "bombardment";
   if (unit.type === "destroyer") return "fleet-screen";
   if (unit.type === "submarine") return "fleet-strike";
   if (unit.type === "carrier") return "carrier-core";
   if (unit.type === "troop-transport") return "transport-support";
-  if (unit.type === "special-ops" || unit.type === "engineer" || unit.type === "apache") return "specialist";
+  if (unit.type === "special-ops" || unit.type === "engineer" || unit.type === "chopper") return "specialist";
   if (unit.type === "infantry") return "garrison";
   return "line-attacker";
 }

@@ -1,0 +1,17 @@
+{
+  "name": "Infantry",
+  "shortLabel": "I",
+  "move": 2,
+  "atk": 4,
+  "armor": 1,
+  "piercing": 1,
+  "vision": 1,
+  "cost": 10,
+  "buildTime": 1,
+  "domain": "land",
+  "maxHp": 10,
+  "canAttack": true,
+  "canCapture": true,
+  "attackDomains": ["land"],
+  "canDetectSpies": true
+}

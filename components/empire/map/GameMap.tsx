@@ -63,7 +63,7 @@ function getBridgeOrientation(map: Tile[][], tile: Tile) {
 
 function getPlaybackDomain(unitType: MovementPlayback["unitType"]) {
   if (unitType === "destroyer" || unitType === "troop-transport" || unitType === "carrier" || unitType === "submarine") return "sea" as const;
-  if (unitType === "apache" || unitType === "fighter" || unitType === "bomber" || unitType === "drone-swarm") {
+  if (unitType === "chopper" || unitType === "fighter" || unitType === "bomber" || unitType === "drone-swarm") {
     return "air" as const;
   }
   return "land" as const;

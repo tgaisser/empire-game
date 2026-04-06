@@ -1,0 +1,21 @@
+{
+  "name": "Bomber",
+  "shortLabel": "B",
+  "move": 7,
+  "atk": 7,
+  "armor": 0,
+  "piercing": 3,
+  "vision": 3,
+  "cost": 24,
+  "buildTime": 3,
+  "domain": "air",
+  "maxHp": 7,
+  "canAttack": true,
+  "canCapture": false,
+  "attackDomains": ["land", "sea"],
+  "maxTurnsAwayFromBase": 2,
+  "attackRequiresSameTile": true,
+  "attackConsumesRemainingMove": false,
+  "canOnlyLandOnAirfield": true,
+  "bombCapacity": 6
+}

@@ -1,0 +1,17 @@
+{
+  "name": "Tank",
+  "shortLabel": "T",
+  "move": 3,
+  "atk": 6,
+  "armor": 2,
+  "piercing": 2,
+  "vision": 1,
+  "cost": 22,
+  "buildTime": 3,
+  "domain": "land",
+  "maxHp": 10,
+  "canAttack": true,
+  "canCapture": true,
+  "attackDomains": ["land", "air"],
+  "canDetectSpies": true
+}

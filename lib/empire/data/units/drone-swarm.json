@@ -1,0 +1,19 @@
+{
+  "name": "Drone Swarm",
+  "shortLabel": "W",
+  "move": 5,
+  "atk": 8,
+  "armor": 0,
+  "piercing": 2,
+  "vision": 0,
+  "cost": 14,
+  "buildTime": 2,
+  "domain": "air",
+  "maxHp": 2,
+  "canAttack": true,
+  "canCapture": false,
+  "attackDomains": ["land", "sea"],
+  "attackRequiresSameTile": true,
+  "selfDestructOnAttack": true,
+  "canLandOnCarrier": true
+}

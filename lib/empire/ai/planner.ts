@@ -55,9 +55,9 @@ type CandidateBuild = {
   spawnY?: number;
 };
 
-const LAND_PRODUCTION_UNITS: UnitType[] = ["infantry", "scout", "tank", "engineer", "special-ops", "wraith"];
+const LAND_PRODUCTION_UNITS: UnitType[] = ["infantry", "scout", "tank", "engineer", "special-ops", "spy"];
 const SEA_PRODUCTION_UNITS: UnitType[] = ["destroyer", "troop-transport", "carrier", "submarine"];
-const AIR_PRODUCTION_UNITS: UnitType[] = ["apache", "fighter", "bomber", "drone-swarm"];
+const AIR_PRODUCTION_UNITS: UnitType[] = ["chopper", "fighter", "bomber", "drone-swarm"];
 
 function countUnitsByType(units: Unit[]) {
   const counts = Object.keys(UNIT_STATS).reduce<Record<UnitType, number>>((accumulator, unitType) => {
@@ -252,7 +252,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
   const aiDestroyers = context.aiCountsByType.destroyer;
   const aiBombers = context.aiCountsByType.bomber;
   const aiFighters = context.aiCountsByType.fighter;
-  const aiApaches = context.aiCountsByType.apache;
+  const aiChoppers = context.aiCountsByType.chopper;
   const siteThreatScore =
     context.threatSummary.threatenedSites.find((threatenedSite) => threatenedSite.x === site.x && threatenedSite.y === site.y)?.threatScore ?? 0;
   const isNavalMap =
@@ -342,7 +342,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       score += 16;
       reasons.push("enemy cities are known for raids");
     }
-    if (context.aiCountsByType.submarine + aiApaches > 0) {
+    if (context.aiCountsByType.submarine + aiChoppers > 0) {
       score += 12;
       reasons.push("insertion carriers are available");
     }
@@ -351,7 +351,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       reasons.push("midgame timing suits infiltration");
     }
     score -= aiSpecialOps * 8;
-  } else if (unitType === "wraith") {
+  } else if (unitType === "spy") {
     score += 8;
     if (context.unexploredTileCount > (context.state.mapWidth * context.state.mapHeight) / 2) {
       score += 10;
@@ -424,7 +424,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       reasons.push("enemy fleet presence is growing");
     }
     score -= aiTypeCount * 5;
-  } else if (unitType === "apache") {
+  } else if (unitType === "chopper") {
     score += 32;
     if (enemyLand > 0) {
       score += 12;

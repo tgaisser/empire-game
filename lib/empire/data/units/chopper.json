@@ -1,0 +1,21 @@
+{
+  "name": "Chopper",
+  "shortLabel": "A",
+  "move": 4,
+  "atk": 5,
+  "armor": 1,
+  "piercing": 5,
+  "vision": 3,
+  "cost": 18,
+  "buildTime": 2,
+  "domain": "air",
+  "maxHp": 8,
+  "canAttack": true,
+  "canCapture": false,
+  "attackDomains": ["land", "air"],
+  "ignoresFortification": true,
+  "canDetectSpies": false,
+  "maxTurnsAwayFromBase": 2,
+  "canLandOnCarrier": true,
+  "transportCapacity": 1
+}

@@ -128,7 +128,7 @@ function chooseTroopTransportAction(unit: Unit, state: GameState) {
 }
 
 function chooseSpecialOpsCarrierAction(unit: Unit, state: GameState) {
-  if (!["apache", "submarine"].includes(unit.type)) return null;
+  if (!["chopper", "submarine"].includes(unit.type)) return null;
 
   if (unit.carriedSpecialOps) {
     if (unit.type === "submarine") {
@@ -156,7 +156,7 @@ function chooseSpecialOpsCarrierAction(unit: Unit, state: GameState) {
 
   const specialOps = state.units.find((candidate) => {
     if (candidate.owner !== unit.owner || candidate.type !== "special-ops") return false;
-    if (unit.type === "apache") return candidate.x === unit.x && candidate.y === unit.y;
+    if (unit.type === "chopper") return candidate.x === unit.x && candidate.y === unit.y;
     return distance(candidate, unit) === 1;
   });
 

@@ -1,0 +1,17 @@
+{
+  "name": "Engineer",
+  "shortLabel": "E",
+  "move": 2,
+  "atk": 2,
+  "armor": 0,
+  "piercing": 0,
+  "vision": 1,
+  "cost": 12,
+  "buildTime": 1,
+  "domain": "land",
+  "maxHp": 10,
+  "canAttack": true,
+  "canCapture": true,
+  "attackDomains": ["land"],
+  "canDetectSpies": true
+}

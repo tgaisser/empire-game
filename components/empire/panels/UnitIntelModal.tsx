@@ -51,7 +51,7 @@ export function UnitIntelModal({ open, unit, playerFaction, aiFaction, onClose }
         <div className="px-6 pb-5">
           <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm leading-6 text-slate-300">
             {stats.canCapture ? "Can seize cities and strategic sites. " : ""}
-            {stats.canDetectWraiths ? "Can detect stealth threats. " : ""}
+            {stats.canDetectSpies ? "Can detect stealth threats. " : ""}
             {stats.canLandOnCarrier ? "Can recover to carriers. " : ""}
             {stats.canOnlyLandOnAirfield ? "Requires an airfield or approved landing base. " : ""}
             {unit.type === "troop-transport" ? "Carries one tank or up to three light ground units. Destroyer escorts within 2 tiles improve its defense. " : ""}

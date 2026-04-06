@@ -1,0 +1,19 @@
+{
+  "name": "Carrier",
+  "shortLabel": "C",
+  "move": 4,
+  "atk": 4,
+  "armor": 2,
+  "piercing": 1,
+  "vision": 3,
+  "cost": 34,
+  "buildTime": 5,
+  "domain": "sea",
+  "maxHp": 14,
+  "canAttack": true,
+  "canCapture": false,
+  "attackDomains": ["sea", "air"],
+  "antiAirBonus": 3,
+  "airDetectionRange": 5,
+  "radarRelayRange": 5
+}

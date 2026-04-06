@@ -94,7 +94,7 @@ export function UnitTypeIcon({ unitType, className = "text-white" }: UnitTypeIco
     );
   }
 
-  if (unitType === "apache") {
+  if (unitType === "chopper") {
     return (
       <svg viewBox="0 0 489 282" className={`${base} h-[82%] w-[82%] overflow-visible`}>
         <g transform="translate(0,282) scale(0.1,-0.1)" fill="currentColor" stroke="none">
@@ -156,7 +156,7 @@ export function UnitTypeIcon({ unitType, className = "text-white" }: UnitTypeIco
     );
   }
 
-  if (unitType === "wraith") {
+  if (unitType === "spy") {
     return (
       <svg viewBox="0 0 245 242" className={`${base} h-[82%] w-[82%] overflow-visible`}>
         <g transform="translate(0,242) scale(0.1,-0.1)" fill="currentColor" stroke="none">

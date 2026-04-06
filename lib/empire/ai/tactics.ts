@@ -35,7 +35,7 @@ function getStrategicUnitValue(unit: Unit) {
   if (unit.type === "troop-transport") return 26;
   if (unit.type === "bomber" || unit.type === "submarine") return 22;
   if (unit.type === "engineer" || unit.type === "special-ops") return 18;
-  if (unit.type === "fighter" || unit.type === "apache") return 16;
+  if (unit.type === "fighter" || unit.type === "chopper") return 16;
   return 10;
 }
 

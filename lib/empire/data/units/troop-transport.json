@@ -1,0 +1,17 @@
+{
+  "name": "Troop Transport",
+  "shortLabel": "TT",
+  "move": 2,
+  "atk": 0,
+  "armor": 0,
+  "piercing": 0,
+  "vision": 2,
+  "cost": 18,
+  "buildTime": 3,
+  "domain": "sea",
+  "maxHp": 12,
+  "canAttack": false,
+  "canCapture": false,
+  "attackDomains": [],
+  "transportCapacity": 3
+}

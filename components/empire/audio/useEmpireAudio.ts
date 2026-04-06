@@ -61,7 +61,7 @@ const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
     filterType: "lowpass",
     filterFrequency: 1800,
   },
-  wraith: {
+  spy: {
     wave: "sine",
     accentWave: "triangle",
     accentRatio: 2,
@@ -84,7 +84,7 @@ const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
     filterQ: 1.2,
     noiseGain: 0.01,
   },
-  apache: {
+  chopper: {
     wave: "sawtooth",
     accentWave: "triangle",
     accentRatio: 2,

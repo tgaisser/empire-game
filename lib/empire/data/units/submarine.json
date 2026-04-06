@@ -1,0 +1,18 @@
+{
+  "name": "Submarine",
+  "shortLabel": "U",
+  "move": 4,
+  "atk": 10,
+  "armor": 1,
+  "piercing": 8,
+  "vision": 1,
+  "cost": 24,
+  "buildTime": 3,
+  "domain": "sea",
+  "maxHp": 7,
+  "canAttack": true,
+  "canCapture": false,
+  "attackDomains": ["sea"],
+  "canBeDetectedBySonarOnly": true,
+  "concealedWhileStationary": true
+}

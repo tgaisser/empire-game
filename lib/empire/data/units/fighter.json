@@ -1,0 +1,18 @@
+{
+  "name": "Fighter",
+  "shortLabel": "F",
+  "move": 6,
+  "atk": 6,
+  "armor": 1,
+  "piercing": 3,
+  "vision": 4,
+  "cost": 20,
+  "buildTime": 2,
+  "domain": "air",
+  "maxHp": 8,
+  "canAttack": true,
+  "canCapture": false,
+  "attackDomains": ["air"],
+  "maxTurnsAwayFromBase": 2,
+  "canLandOnCarrier": true
+}

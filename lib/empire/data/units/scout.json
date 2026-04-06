@@ -1,0 +1,17 @@
+{
+  "name": "Scout",
+  "shortLabel": "S",
+  "move": 3,
+  "atk": 1,
+  "armor": 0,
+  "piercing": 0,
+  "vision": 3,
+  "cost": 8,
+  "buildTime": 1,
+  "domain": "land",
+  "maxHp": 6,
+  "canAttack": true,
+  "canCapture": true,
+  "attackDomains": ["land"],
+  "canDetectSpies": true
+}

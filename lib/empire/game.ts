@@ -85,8 +85,8 @@ export function getDetectedEnemyUnitIdSet(state: GameState, side: Side) {
 
 function canUnitDetectTarget(observer: Unit, target: Unit) {
   const observerStats = getUnitStats(observer);
-  if (target.type === "wraith" && observerStats.canDetectWraiths === false) return false;
-  if (target.type === "special-ops" && observerStats.canDetectWraiths === false) return false;
+  if (target.type === "spy" && observerStats.canDetectSpies === false) return false;
+  if (target.type === "special-ops" && observerStats.canDetectSpies === false) return false;
   if (target.type === "submarine") return Boolean(observer.type === "destroyer" && observer.sonarUpgraded);
   return true;
 }
@@ -110,7 +110,7 @@ export function canUnitAttackTarget(attacker: Unit, defender: Unit) {
 }
 
 function isTransportableTroopType(unitType: UnitType): unitType is TransportableTroopUnitType {
-  return ["infantry", "tank", "engineer", "wraith", "special-ops"].includes(unitType);
+  return ["infantry", "tank", "engineer", "spy", "special-ops"].includes(unitType);
 }
 
 function getTroopTransportCargoSpaceRequired(unitType: TransportableTroopUnitType) {
@@ -187,7 +187,7 @@ export function getTileLabel(tile: Tile) {
 
 export function getUnitStats(unit: Unit) {
   const baseStats = UNIT_STATS[unit.type] ?? UNIT_STATS.infantry;
-  if (unit.type === "wraith") {
+  if (unit.type === "spy") {
     return {
       ...baseStats,
       vision: unit.extendedVision ? 5 : 3,
@@ -750,7 +750,7 @@ export function getTerrainMoveCost(state: GameState, unit: Unit, tile: Tile) {
   if (tile.improvement?.type === "bridge" && definition.domain === "land") return 1;
   if (tile.improvement?.type === "tunnel" && tile.terrain === "mountain" && definition.domain === "land") return 1;
   if (unit.type === "tank" && tile.terrain === "mountain") return 999;
-  if (unit.type === "wraith" && tile.terrain === "water") return definition.move;
+  if (unit.type === "spy" && tile.terrain === "water") return definition.move;
   if (tile.terrain === "water") return 999;
 
   if (tile.terrain === "mountain" && definition.domain === "land") return 2;
@@ -1768,7 +1768,7 @@ function applyFortificationForSide(units: Unit[], side: Side) {
 }
 
 function extendSpyVisionForSide(units: Unit[], side: Side) {
-  return units.map((unit) => (unit.owner === side && unit.type === "wraith" ? { ...unit, extendedVision: true } : unit));
+  return units.map((unit) => (unit.owner === side && unit.type === "spy" ? { ...unit, extendedVision: true } : unit));
 }
 
 function processAirbaseReturn(state: GameState, side: Side) {
@@ -2177,7 +2177,7 @@ function buildImprovement(
 }
 
 function resolveHiddenWraithEncounter(attacker: Unit, defender: Unit, side: Side, tile: Tile) {
-  const bothWraiths = attacker.type === "wraith" && defender.type === "wraith";
+  const bothWraiths = attacker.type === "spy" && defender.type === "spy";
 
   if (bothWraiths) {
     return {
@@ -2646,10 +2646,10 @@ function loadSpecialOps(state: GameState, side: Side, carrierUnitId: number, spe
   const specialOps = state.units.find((unit) => unit.id === specialOpsUnitId);
   if (!carrier || !specialOps) return state;
   if (carrier.owner !== side || specialOps.owner !== side) return state;
-  if (!["apache", "submarine"].includes(carrier.type) || specialOps.type !== "special-ops") return state;
+  if (!["chopper", "submarine"].includes(carrier.type) || specialOps.type !== "special-ops") return state;
   if (carrier.carriedSpecialOps) return state;
 
-  if (carrier.type === "apache") {
+  if (carrier.type === "chopper") {
     // Choppers can extract Special Ops from anywhere on the map.
   } else {
     if (distance(carrier, specialOps) !== 1) return state;
@@ -2765,7 +2765,7 @@ function unloadTransportTroop(state: GameState, side: Side, transportUnitId: num
 
 function unloadSpecialOps(state: GameState, side: Side, carrierUnitId: number, x?: number, y?: number): GameState {
   const carrier = state.units.find((unit) => unit.id === carrierUnitId);
-  if (!carrier || carrier.owner !== side || !["apache", "submarine"].includes(carrier.type) || !carrier.carriedSpecialOps) return state;
+  if (!carrier || carrier.owner !== side || !["chopper", "submarine"].includes(carrier.type) || !carrier.carriedSpecialOps) return state;
 
   let deployX = carrier.x;
   let deployY = carrier.y;

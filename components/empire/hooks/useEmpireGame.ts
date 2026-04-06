@@ -773,9 +773,9 @@ export function useEmpireGame() {
   }
 
   function handleLoadSpecialOps() {
-    if (!selectedUnit || !["apache", "submarine"].includes(selectedUnit.type)) return;
+    if (!selectedUnit || !["chopper", "submarine"].includes(selectedUnit.type)) return;
     const specialOps =
-      selectedUnit.type === "apache"
+      selectedUnit.type === "chopper"
         ? game.units.find(
             (unit) => unit.owner === "player" && unit.type === "special-ops"
           )
@@ -797,7 +797,7 @@ export function useEmpireGame() {
   }
 
   function handleUnloadSpecialOps(x?: number, y?: number) {
-    if (!selectedUnit || !["apache", "submarine"].includes(selectedUnit.type)) return;
+    if (!selectedUnit || !["chopper", "submarine"].includes(selectedUnit.type)) return;
     applyGameUpdate((current) =>
       applyCommand(current, { type: "unload_special_ops", side: "player", carrierUnitId: selectedUnit.id, x, y })
     );
