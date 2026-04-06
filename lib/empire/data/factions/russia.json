@@ -1,0 +1,16 @@
+{
+  "id": "russia",
+  "label": "Russia",
+  "cityListLabel": "Russian Cities",
+  "capitalCity": "Moscow",
+  "accentClass": "from-white/24 via-[#0039A6]/14 to-[#D52B1E]/12",
+  "chipClass": "bg-[#0039A6]/18 border-[#D52B1E]/40",
+  "textClass": "text-[#0039A6]",
+  "ringClass": "ring-white border-blue-950/20",
+  "primaryClass": "text-white",
+  "secondaryClass": "text-[#0039A6]",
+  "tertiaryClass": "text-[#D52B1E]",
+  "badgeBackgroundClass": "bg-white",
+  "borderClass": "border-[#0039A6]",
+  "cityNames": ["Moscow", "Saint Petersburg", "Novosibirsk", "Yekaterinburg", "Kazan", "Nizhny Novgorod", "Samara", "Omsk", "Chelyabinsk", "Rostov-on-Don", "Ufa", "Volgograd", "Perm", "Krasnoyarsk", "Vladivostok", "Irkutsk", "Murmansk", "Kaliningrad", "Sochi", "Voronezh"]
+}

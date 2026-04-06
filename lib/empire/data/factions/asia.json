@@ -1,0 +1,16 @@
+{
+  "id": "asia",
+  "label": "Asia",
+  "cityListLabel": "Asian Capitals",
+  "capitalCity": "Beijing",
+  "accentClass": "from-[#facc15]/34 via-white/12 to-[#ef4444]/10",
+  "chipClass": "bg-[#facc15]/20 border-white/44",
+  "textClass": "text-[#facc15]",
+  "ringClass": "ring-white border-slate-200/20",
+  "primaryClass": "text-[#facc15]",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#ef4444]",
+  "badgeBackgroundClass": "bg-[#facc15]",
+  "borderClass": "border-white",
+  "cityNames": ["Abu Dhabi", "Amman", "Ankara", "Astana", "Ashgabat", "Baghdad", "Baku", "Bandar Seri Begawan", "Bangkok", "Beijing", "Beirut", "Bishkek", "Colombo", "Damascus", "Dhaka", "Dili", "Doha", "Dushanbe", "Hanoi", "Islamabad", "Jakarta", "Jerusalem", "Kabul", "Kathmandu", "Kuala Lumpur", "Kuwait City", "Male", "Manama", "Manila", "Muscat", "Naypyidaw", "New Delhi", "Phnom Penh", "Pyongyang", "Riyadh", "Sanaa", "Seoul", "Singapore", "Sri Jayawardenepura Kotte", "Taipei", "Tashkent", "Tbilisi", "Tehran", "Thimphu", "Tokyo", "Ulaanbaatar", "Vientiane", "Yerevan"]
+}

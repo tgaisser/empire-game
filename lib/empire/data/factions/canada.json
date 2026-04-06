@@ -1,0 +1,16 @@
+{
+  "id": "canada",
+  "label": "Canada",
+  "cityListLabel": "Canadian Cities",
+  "capitalCity": "Ottawa",
+  "accentClass": "from-[#d80621]/38 via-white/12 to-[#d80621]/10",
+  "chipClass": "bg-[#d80621]/20 border-white/44",
+  "textClass": "text-[#d80621]",
+  "ringClass": "ring-white border-slate-200/20",
+  "primaryClass": "text-white",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#d80621]",
+  "badgeBackgroundClass": "bg-[#ffffff]",
+  "borderClass": "border-white",
+  "cityNames": ["Ottawa", "Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton", "Winnipeg", "Quebec City", "Halifax", "Victoria", "Regina", "Saskatoon", "Fredericton", "Charlottetown", "St. John's", "Whitehorse", "Yellowknife", "Iqaluit", "Hamilton", "Mississauga", "London", "Kitchener"]
+}

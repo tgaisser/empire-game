@@ -1,0 +1,16 @@
+{
+  "id": "usa",
+  "label": "USA",
+  "cityListLabel": "USA State Capitals",
+  "capitalCity": "Washington, D.C.",
+  "accentClass": "from-[#b31942]/42 via-[#0a3161]/18 to-white/8",
+  "chipClass": "bg-[#b31942]/24 border-[#0a3161]/52",
+  "textClass": "text-[#b31942]",
+  "ringClass": "ring-[#0a3161] border-blue-950/20",
+  "primaryClass": "text-[#0a3161]",
+  "secondaryClass": "text-[#b31942]",
+  "tertiaryClass": "text-white",
+  "badgeBackgroundClass": "bg-[#0a3161]",
+  "borderClass": "border-[#b31942]",
+  "cityNames": ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "north-korea",
+  "label": "North Korea",
+  "cityListLabel": "North Korean Cities",
+  "capitalCity": "Pyongyang",
+  "accentClass": "from-[#024FA2]/34 via-white/12 to-[#ED1C27]/10",
+  "chipClass": "bg-[#024FA2]/20 border-[#ED1C27]/42",
+  "textClass": "text-[#024FA2]",
+  "ringClass": "ring-white border-blue-950/20",
+  "primaryClass": "text-[#024FA2]",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#ED1C27]",
+  "badgeBackgroundClass": "bg-[#024FA2]",
+  "borderClass": "border-[#ED1C27]",
+  "cityNames": ["Pyongyang", "Hamhung", "Chongjin", "Nampo", "Wonsan", "Sinuiju", "Kaesong", "Haeju", "Kanggye", "Rason", "Kimchaek", "Anju", "Sariwon", "Kusong", "Tanchon", "Songnim", "Hoeryong", "Musan", "Pyongsong", "Sinpho"]
+}

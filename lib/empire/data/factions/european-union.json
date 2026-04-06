@@ -1,0 +1,16 @@
+{
+  "id": "european-union",
+  "label": "European Union",
+  "cityListLabel": "European Union Capitals",
+  "capitalCity": "Brussels",
+  "accentClass": "from-[#003399]/36 via-[#ffcc00]/12 to-white/8",
+  "chipClass": "bg-[#003399]/20 border-[#ffcc00]/44",
+  "textClass": "text-[#003399]",
+  "ringClass": "ring-[#ffcc00] border-blue-950/20",
+  "primaryClass": "text-[#003399]",
+  "secondaryClass": "text-[#ffcc00]",
+  "tertiaryClass": "text-white",
+  "badgeBackgroundClass": "bg-[#003399]",
+  "borderClass": "border-[#ffcc00]",
+  "cityNames": ["Brussels", "Paris", "Berlin", "Rome", "Madrid", "Amsterdam", "Vienna", "Prague", "Warsaw", "Dublin", "Lisbon", "Copenhagen", "Stockholm", "Helsinki", "Athens", "Budapest", "Bratislava", "Ljubljana", "Zagreb", "Luxembourg", "Vilnius", "Riga"]
+}

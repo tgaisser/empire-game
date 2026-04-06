@@ -1,4 +1,4 @@
-import { getFactionCityNames } from "@/lib/empire/factions";
+import { getFactionCapitalCity, getFactionCityNames } from "@/lib/empire/factions";
 import { DIRECTIONS, MIN_MAP_H, MIN_MAP_W } from "@/lib/empire/config";
 import type { Faction, GameType, Owner, Tile } from "@/lib/empire/types";
 
@@ -72,6 +72,14 @@ function shuffle<T>(items: T[], rand: () => number) {
   }
 
   return copy;
+}
+
+function getOrderedFactionCityNames(faction: Faction, rand: () => number) {
+  const capitalCity = getFactionCapitalCity(faction);
+  const cityNames = getFactionCityNames(faction);
+  const remainingCityNames = cityNames.filter((name) => name !== capitalCity);
+
+  return [capitalCity, ...shuffle(remainingCityNames, rand)];
 }
 
 function mirrorPoint(width: number, height: number, x: number, y: number) {
@@ -539,8 +547,8 @@ function assignCityNames(
   playerFaction: Faction,
   aiFaction: Faction
 ) {
-  const playerNames = shuffle(getFactionCityNames(playerFaction), rand);
-  const enemyNames = shuffle(getFactionCityNames(aiFaction), rand);
+  const playerNames = getOrderedFactionCityNames(playerFaction, rand);
+  const enemyNames = getOrderedFactionCityNames(aiFaction, rand);
   let playerIndex = 0;
   let enemyIndex = 0;
 

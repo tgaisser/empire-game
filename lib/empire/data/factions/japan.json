@@ -1,0 +1,16 @@
+{
+  "id": "japan",
+  "label": "Japan",
+  "cityListLabel": "Japanese Cities",
+  "capitalCity": "Tokyo",
+  "accentClass": "from-white/26 via-[#bc002d]/16 to-white/8",
+  "chipClass": "bg-white/18 border-[#bc002d]/40",
+  "textClass": "text-white",
+  "ringClass": "ring-[#bc002d] border-slate-200/20",
+  "primaryClass": "text-white",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#bc002d]",
+  "badgeBackgroundClass": "bg-white",
+  "borderClass": "border-[#bc002d]",
+  "cityNames": ["Tokyo", "Osaka", "Kyoto", "Yokohama", "Nagoya", "Sapporo", "Kobe", "Fukuoka", "Hiroshima", "Sendai", "Naha", "Niigata", "Kagoshima", "Kumamoto", "Nagasaki", "Okayama", "Kanazawa", "Matsuyama", "Shizuoka", "Aomori"]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "africa",
+  "label": "Africa",
+  "cityListLabel": "African Capitals",
+  "capitalCity": "Cairo",
+  "accentClass": "from-[#dc2626]/34 via-[#0f8a43]/12 to-black/10",
+  "chipClass": "bg-[#dc2626]/20 border-[#0f8a43]/44",
+  "textClass": "text-[#dc2626]",
+  "ringClass": "ring-[#0f8a43] border-emerald-950/20",
+  "primaryClass": "text-[#dc2626]",
+  "secondaryClass": "text-[#0f8a43]",
+  "tertiaryClass": "text-black",
+  "badgeBackgroundClass": "bg-[#dc2626]",
+  "borderClass": "border-[#0f8a43]",
+  "cityNames": ["Cairo", "Lagos", "Nairobi", "Addis Ababa", "Accra", "Dakar", "Algiers", "Rabat", "Tunis", "Kampala", "Kigali", "Lusaka", "Harare", "Gaborone", "Windhoek", "Pretoria", "Kinshasa", "Luanda", "Abidjan", "Yaounde", "Libreville", "Maputo"]
+}

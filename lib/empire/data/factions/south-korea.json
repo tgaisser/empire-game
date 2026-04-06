@@ -1,0 +1,16 @@
+{
+  "id": "south-korea",
+  "label": "South Korea",
+  "cityListLabel": "South Korean Cities",
+  "capitalCity": "Seoul",
+  "accentClass": "from-white/24 via-[#C60C30]/14 to-[#003478]/12",
+  "chipClass": "bg-white/18 border-[#003478]/42",
+  "textClass": "text-white",
+  "ringClass": "ring-[#003478] border-slate-200/20",
+  "primaryClass": "text-white",
+  "secondaryClass": "text-[#C60C30]",
+  "tertiaryClass": "text-[#003478]",
+  "badgeBackgroundClass": "bg-white",
+  "borderClass": "border-[#003478]",
+  "cityNames": ["Seoul", "Busan", "Incheon", "Daegu", "Daejeon", "Gwangju", "Ulsan", "Suwon", "Jeonju", "Changwon", "Cheongju", "Jeju", "Anyang", "Pohang", "Goyang", "Yongin", "Cheonan", "Sejong", "Mokpo", "Gangneung"]
+}

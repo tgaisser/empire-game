@@ -1,0 +1,16 @@
+{
+  "id": "ukraine",
+  "label": "Ukraine",
+  "cityListLabel": "Ukrainian Cities",
+  "capitalCity": "Kyiv",
+  "accentClass": "from-[#0057B7]/38 via-[#FFD700]/16 to-white/8",
+  "chipClass": "bg-[#0057B7]/20 border-[#FFD700]/44",
+  "textClass": "text-[#0057B7]",
+  "ringClass": "ring-[#FFD700] border-blue-950/20",
+  "primaryClass": "text-[#0057B7]",
+  "secondaryClass": "text-[#FFD700]",
+  "tertiaryClass": "text-white",
+  "badgeBackgroundClass": "bg-[#0057B7]",
+  "borderClass": "border-[#FFD700]",
+  "cityNames": ["Kyiv", "Kharkiv", "Odesa", "Dnipro", "Lviv", "Zaporizhzhia", "Mykolaiv", "Chernihiv", "Sumy", "Poltava", "Vinnytsia", "Kherson", "Zhytomyr", "Lutsk", "Rivne", "Ternopil", "Ivano-Frankivsk", "Kropyvnytskyi", "Kremenchuk", "Uzhhorod"]
+}

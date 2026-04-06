@@ -1,0 +1,16 @@
+{
+  "id": "argentina",
+  "label": "Argentina",
+  "cityListLabel": "Argentine Cities",
+  "capitalCity": "Buenos Aires",
+  "accentClass": "from-[#6CB4EE]/36 via-white/14 to-[#F6B40E]/8",
+  "chipClass": "bg-[#6CB4EE]/20 border-white/44",
+  "textClass": "text-[#6CB4EE]",
+  "ringClass": "ring-white border-sky-950/20",
+  "primaryClass": "text-[#6CB4EE]",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#F6B40E]",
+  "badgeBackgroundClass": "bg-[#6CB4EE]",
+  "borderClass": "border-white",
+  "cityNames": ["Buenos Aires", "Cordoba", "Rosario", "Mendoza", "La Plata", "San Miguel de Tucuman", "Mar del Plata", "Salta", "Santa Fe", "San Juan", "Resistencia", "Neuquen", "Santiago del Estero", "Corrientes", "Bahia Blanca", "Parana", "Posadas", "Jujuy", "Rawson", "Ushuaia"]
+}

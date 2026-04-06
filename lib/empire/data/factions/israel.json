@@ -1,0 +1,16 @@
+{
+  "id": "israel",
+  "label": "Israel",
+  "cityListLabel": "Israeli Cities",
+  "capitalCity": "Jerusalem",
+  "accentClass": "from-[#005EB8]/34 via-white/10 to-sky-100/8",
+  "chipClass": "bg-[#005EB8]/20 border-[#93c5fd]/44",
+  "textClass": "text-[#005EB8]",
+  "ringClass": "ring-white border-slate-200/20",
+  "primaryClass": "text-white",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#005EB8]",
+  "badgeBackgroundClass": "bg-[#ffffff]",
+  "borderClass": "border-white",
+  "cityNames": ["Jerusalem", "Tel Aviv", "Haifa", "Beersheba", "Nazareth", "Ashdod", "Netanya", "Eilat", "Tiberias", "Acre", "Rishon LeZion", "Petah Tikva"]
+}

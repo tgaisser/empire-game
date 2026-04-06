@@ -1,0 +1,16 @@
+{
+  "id": "china",
+  "label": "China",
+  "cityListLabel": "Chinese Command Cities",
+  "capitalCity": "Beijing",
+  "accentClass": "from-[#EE1C25]/36 via-[#FFFF00]/12 to-yellow-100/6",
+  "chipClass": "bg-[#EE1C25]/20 border-[#FFFF00]/44",
+  "textClass": "text-[#EE1C25]",
+  "ringClass": "ring-[#FFFF00] border-yellow-900/20",
+  "primaryClass": "text-[#EE1C25]",
+  "secondaryClass": "text-[#EE1C25]",
+  "tertiaryClass": "text-[#FFFF00]",
+  "badgeBackgroundClass": "bg-[#EE1C25]",
+  "borderClass": "border-[#EE1C25]",
+  "cityNames": ["Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Chengdu", "Wuhan", "Xi'an", "Nanjing", "Hangzhou", "Chongqing", "Tianjin", "Harbin", "Kunming", "Changsha", "Jinan", "Fuzhou", "Shenyang", "Xiamen", "Zhengzhou", "Hefei"]
+}

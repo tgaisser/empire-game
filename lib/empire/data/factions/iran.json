@@ -1,0 +1,16 @@
+{
+  "id": "iran",
+  "label": "Iran",
+  "cityListLabel": "Iranian Cities",
+  "capitalCity": "Tehran",
+  "accentClass": "from-[#239f40]/34 via-[#da0000]/10 to-white/10",
+  "chipClass": "bg-[#239f40]/20 border-[#da0000]/40",
+  "textClass": "text-[#239f40]",
+  "ringClass": "ring-[#da0000] border-red-950/20",
+  "primaryClass": "text-[#239f40]",
+  "secondaryClass": "text-[#da0000]",
+  "tertiaryClass": "text-white",
+  "badgeBackgroundClass": "bg-[#239f40]",
+  "borderClass": "border-[#da0000]",
+  "cityNames": ["Tehran", "Mashhad", "Isfahan", "Shiraz", "Tabriz", "Ahvaz", "Qom", "Kermanshah", "Urmia", "Rasht", "Zahedan", "Hamadan", "Yazd", "Arak", "Sanandaj", "Bandar Abbas"]
+}

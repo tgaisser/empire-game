@@ -1,0 +1,16 @@
+{
+  "id": "mexico",
+  "label": "Mexico",
+  "cityListLabel": "Mexican Cities",
+  "capitalCity": "Mexico City",
+  "accentClass": "from-[#006847]/36 via-white/12 to-[#ce1126]/10",
+  "chipClass": "bg-[#006847]/20 border-[#ce1126]/40",
+  "textClass": "text-[#006847]",
+  "ringClass": "ring-[#ce1126] border-red-950/20",
+  "primaryClass": "text-[#006847]",
+  "secondaryClass": "text-[#ce1126]",
+  "tertiaryClass": "text-white",
+  "badgeBackgroundClass": "bg-[#006847]",
+  "borderClass": "border-[#ce1126]",
+  "cityNames": ["Mexico City", "Guadalajara", "Monterrey", "Puebla", "Tijuana", "Leon", "Ciudad Juarez", "Merida", "Queretaro", "San Luis Potosi", "Morelia", "Chihuahua", "Hermosillo", "Culiacan", "Veracruz", "Oaxaca", "Toluca", "Tuxtla Gutierrez", "Cancun", "Acapulco", "Aguascalientes", "Durango"]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "australia",
+  "label": "Australia",
+  "cityListLabel": "Australian Cities",
+  "capitalCity": "Canberra",
+  "accentClass": "from-[#012169]/38 via-white/12 to-[#E4002B]/10",
+  "chipClass": "bg-[#012169]/22 border-[#E4002B]/42",
+  "textClass": "text-[#012169]",
+  "ringClass": "ring-white border-blue-950/20",
+  "primaryClass": "text-[#012169]",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#E4002B]",
+  "badgeBackgroundClass": "bg-[#012169]",
+  "borderClass": "border-white",
+  "cityNames": ["Canberra", "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Hobart", "Darwin", "Gold Coast", "Newcastle", "Wollongong", "Geelong", "Townsville", "Cairns", "Toowoomba", "Ballarat", "Bendigo", "Launceston", "Alice Springs", "Rockhampton"]
+}

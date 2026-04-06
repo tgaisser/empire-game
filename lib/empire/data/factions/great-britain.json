@@ -1,0 +1,16 @@
+{
+  "id": "great-britain",
+  "label": "Great Britain",
+  "cityListLabel": "British Cities",
+  "capitalCity": "London",
+  "accentClass": "from-[#012169]/38 via-white/12 to-[#C8102E]/10",
+  "chipClass": "bg-[#012169]/22 border-[#C8102E]/42",
+  "textClass": "text-[#012169]",
+  "ringClass": "ring-[#C8102E] border-blue-950/20",
+  "primaryClass": "text-[#012169]",
+  "secondaryClass": "text-white",
+  "tertiaryClass": "text-[#C8102E]",
+  "badgeBackgroundClass": "bg-[#012169]",
+  "borderClass": "border-[#C8102E]",
+  "cityNames": ["London", "Birmingham", "Manchester", "Liverpool", "Leeds", "Glasgow", "Edinburgh", "Cardiff", "Belfast", "Bristol", "Newcastle", "Sheffield", "Leicester", "Nottingham", "Southampton", "Portsmouth", "Coventry", "Aberdeen", "Dundee", "Inverness"]
+}
