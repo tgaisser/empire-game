@@ -11,6 +11,7 @@ import {
 import { getImprovementDefinition } from "@/lib/empire/data/improvements";
 import {
   CARRIER_AIR_CAPACITY,
+  AIR_SUPPORT_PER_CITY,
   ASW_DESTROYER_SUB_ATTACK_BONUS,
   CARRIER_JAM_MAX_DAMAGE,
   CARRIER_JAM_RANGE,
@@ -266,7 +267,13 @@ function isFriendlyPortSite(state: GameState, tile: Tile | null, side: Side) {
 export function canProduceUnitAtTile(state: GameState, tile: Tile, side: Side, unitType: UnitType) {
   const definition = getUnitDefinition(unitType);
   if (definition.domain === "air") {
-    return tile.improvement?.type === "airfield" && tile.improvement.owner === side;
+    if (!(tile.improvement?.type === "airfield" && tile.improvement.owner === side)) return false;
+    const ownedCities = countOwnedCities(state, side);
+    const airCap = AIR_SUPPORT_PER_CITY * ownedCities;
+    const currentAir = state.units.filter((u) => u.owner === side && getUnitDefinition(u.type).domain === "air").length;
+    const queuedAir = countQueuedUnitsOfDomain(state, side, "air");
+    if (currentAir + queuedAir >= airCap) return false;
+    return true;
   }
 
   if (definition.domain === "sea") {
@@ -274,6 +281,13 @@ export function canProduceUnitAtTile(state: GameState, tile: Tile, side: Side, u
       (tile.improvement?.type === "port" && tile.improvement.owner === side) ||
       Boolean(tile.city && tile.owner === side && isCoastalTile(state, tile));
     return validSite && getSeaSpawnTiles(state, tile).length > 0;
+  }
+
+  if (unitType === "special-ops") {
+    const ownedCities = countOwnedCities(state, side);
+    const currentSpecOps = state.units.filter((u) => u.owner === side && u.type === "special-ops").length;
+    const queuedSpecOps = countQueuedUnitsOfType(state, side, "special-ops");
+    if (currentSpecOps + queuedSpecOps >= ownedCities) return false;
   }
 
   return tile.city && tile.owner === side;
@@ -1082,6 +1096,36 @@ export function getBusyCityCount(map: Tile[][], owner: Side) {
   for (const row of map) {
     for (const tile of row) {
       if (tile.city && tile.owner === owner && tile.production) total += 1;
+    }
+  }
+  return total;
+}
+
+function countOwnedCities(state: GameState, side: Side) {
+  let total = 0;
+  for (const row of state.map) {
+    for (const tile of row) {
+      if (tile.city && tile.owner === side) total += 1;
+    }
+  }
+  return total;
+}
+
+function countQueuedUnitsOfDomain(state: GameState, side: Side, domain: UnitDomain) {
+  let total = 0;
+  for (const row of state.map) {
+    for (const tile of row) {
+      if (tile.owner === side && tile.production && getUnitDefinition(tile.production.unitType).domain === domain) total += 1;
+    }
+  }
+  return total;
+}
+
+function countQueuedUnitsOfType(state: GameState, side: Side, unitType: UnitType) {
+  let total = 0;
+  for (const row of state.map) {
+    for (const tile of row) {
+      if (tile.owner === side && tile.production && tile.production.unitType === unitType) total += 1;
     }
   }
   return total;
