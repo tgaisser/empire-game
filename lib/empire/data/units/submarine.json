@@ -1,6 +1,6 @@
 {
-  "name": "SSN",
-  "shortLabel": "U",
+  "name": "Attack Sub",
+  "shortLabel": "AS",
   "move": 4,
   "atk": 8,
   "armor": 1,

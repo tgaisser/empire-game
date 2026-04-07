@@ -75,7 +75,7 @@ export const TACTIC_ENTRIES: ManualTacticEntry[] = [
     ],
     related: [
       { kind: "unit", id: "special-ops", label: "Special Ops" },
-      { kind: "unit", id: "submarine", label: "Submarine" },
+      { kind: "unit", id: "submarine", label: "Attack Sub" },
       { kind: "unit", id: "chopper", label: "Chopper" },
     ],
   },

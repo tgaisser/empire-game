@@ -1,6 +1,6 @@
 {
-  "name": "SSBN",
-  "shortLabel": "B",
+  "name": "Missile Sub",
+  "shortLabel": "MS",
   "move": 3,
   "atk": 6,
   "armor": 1,

@@ -90,8 +90,8 @@ function buildUnitSpecialRules(unitType: UnitType) {
     rules.push(`Can jam nearby drone swarms within ${CARRIER_JAM_RANGE} tiles for up to ${CARRIER_JAM_MAX_DAMAGE} damage.`);
   }
   if (unitType === "bomber") rules.push("Rearms bombs only when back on a friendly legal base.");
-  if (unitType === "submarine") rules.push("Fast attack submarine. Carries torpedoes for sea combat and a cruise missile for land strikes. Can insert Special Ops covertly.");
-  if (unitType === "ssbn") rules.push("Missile submarine. Carries many cruise missiles for land strikes but limited torpedo defense.");
+  if (unitType === "submarine") rules.push("Attack Sub. Carries torpedoes for sea combat and a cruise missile for land strikes. Can insert Special Ops covertly.");
+  if (unitType === "ssbn") rules.push("Missile Sub. Carries many cruise missiles for land strikes but limited torpedo defense.");
   if (unitType === "drone-swarm") rules.push("Uses a same-tile self-destruct strike rather than surviving a normal attack exchange.");
   if (unit.domain === "air") {
     rules.push(`Standard land air bases support ${LAND_BASE_AIR_CAPACITY} friendly aircraft in a tile.`);

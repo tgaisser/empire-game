@@ -65,7 +65,7 @@ export const DOMAIN_ENTRIES: ManualDomainEntry[] = [
     related: [
       { kind: "unit", id: "destroyer", label: "Destroyer" },
       { kind: "unit", id: "carrier", label: "Carrier" },
-      { kind: "unit", id: "submarine", label: "Submarine" },
+      { kind: "unit", id: "submarine", label: "Attack Sub" },
       { kind: "rule", id: "transport-and-escort", label: "Transport And Escort" },
     ],
   },

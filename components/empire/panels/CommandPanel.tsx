@@ -438,7 +438,7 @@ export function CommandPanel({
                     icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
                   />
                   <div className="rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-3 text-xs text-cyan-100">
-                    Submarine insertion requires the boat to be one tile offshore. Click a highlighted adjacent beach tile to send the team ashore concealed.
+                    Attack Sub insertion requires the boat to be one tile offshore. Click a highlighted adjacent beach tile to send the team ashore concealed.
                     {specialOpsDeploymentTargetCount > 0 ? ` ${specialOpsDeploymentTargetCount} landing tile(s) available.` : " No legal beach tile is available from this position."}
                   </div>
                 </>
