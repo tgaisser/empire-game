@@ -204,7 +204,7 @@ export function DeveloperDrawer({
             <div className="text-slate-300">Quick state changes for testing economy, production, and endgame presentation.</div>
             <div className="grid gap-2 sm:grid-cols-2">
               <Button variant="secondary" onClick={onGrantCredits}>
-                +33 Credits
+                +1000 Credits
               </Button>
               <Button className="bg-emerald-500 text-slate-950 hover:bg-emerald-400" onClick={onSimulateVictory}>
                 Simulate Victory

@@ -8,6 +8,7 @@ import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { UNIT_TYPE_ORDER } from "@/lib/empire/catalog";
 import { getFactionOption, getSideDisplayOption } from "@/lib/empire/factions";
 import { getImprovementBuildCost, getTroopTransportRemainingCapacity, getUnitStats } from "@/lib/empire/game";
+import { getManualImprovementReference, getManualUnitReference } from "@/lib/empire/manual";
 import type { Faction, Side, Tile, TileImprovementType, Unit, UnitDefinition, UnitType } from "@/lib/empire/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,6 +128,7 @@ export function CommandPanel({
   const selectedSiteOwner = selectedCity?.improvement?.owner ?? selectedCity?.improvementProject?.owner ?? selectedCity?.owner ?? null;
   const engineerDemolitionTargets = selectedUnit?.type === "engineer" ? demolishableImprovementTargets : [];
   const bomberDemolitionTarget = selectedUnit?.type === "bomber" ? demolishableImprovementTargets[0] ?? null : null;
+  const selectedUnitManual = selectedUnit ? getManualUnitReference(selectedUnit.type) : null;
 
   return (
     <Card className="border-slate-800 bg-slate-900/90 rounded-3xl shadow-2xl">
@@ -277,11 +279,21 @@ export function CommandPanel({
                 </div>
               </div>
             </div>
+            {selectedUnitManual ? (
+              <div className="rounded-2xl border border-amber-500/25 bg-amber-950/20 p-4 text-sm text-amber-50">
+                <div className="text-[11px] uppercase tracking-[0.2em] text-amber-200/70">Field Tip</div>
+                <div className="mt-2 leading-6">{selectedUnitManual.summary}</div>
+                <div className="mt-2 text-xs leading-5 text-amber-100/80">
+                  {selectedUnitManual.entry.tips[0] ?? selectedUnitManual.specialRules[0] ?? selectedUnitManual.capabilities[0]}
+                </div>
+              </div>
+            ) : null}
             <div className="grid gap-2">
               {selectedUnit.type === "destroyer" && !selectedUnit.sonarUpgraded ? (
                 <ActionTileButton
                   title="Install Sonar"
                   detail="Upgrade destroyer detection"
+                  hint="Sonar lets destroyers reveal and attack submarines."
                   onClick={() => onUpgradeUnit("sonar")}
                   icon={<UnitActionBadge unitType="destroyer" faction={playerFaction} />}
                 />
@@ -290,6 +302,7 @@ export function CommandPanel({
                 <ActionTileButton
                   title="Install Radar Relay"
                   detail="Extend fleet air defense"
+                  hint="Radar relay lets nearby destroyers engage detected aircraft across the carrier screen."
                   onClick={() => onUpgradeUnit("radar-relay")}
                   icon={<UnitActionBadge unitType="carrier" faction={playerFaction} />}
                 />
@@ -311,6 +324,7 @@ export function CommandPanel({
                   <ActionTileButton
                     title={transportLoadMode ? "Select Troop" : "Load Troops"}
                     detail="Embark adjacent ground units"
+                    hint={getManualUnitReference("troop-transport").entry.tips[0]}
                     onClick={onBeginTransportLoad}
                     disabled={side !== "player" || !!winner || troopTransportLoadTargetCount === 0}
                     icon={
@@ -334,6 +348,7 @@ export function CommandPanel({
                   <ActionTileButton
                     title="Bombs Away"
                     detail="Strike the tile below"
+                    hint={getManualUnitReference("bomber").entry.tips[0]}
                     onClick={onBombsAway}
                     disabled={side !== "player" || !!winner || !canSelectedBomberAttackHere}
                     icon={
@@ -347,6 +362,7 @@ export function CommandPanel({
                     <ActionTileButton
                       title={`Demolish ${bomberDemolitionTarget.improvement?.type === "bridge" ? "Bridge" : "Tunnel"}`}
                       detail="Use a bomb to destroy the structure below"
+                      hint={getManualImprovementReference(bomberDemolitionTarget.improvement!.type).summary}
                       onClick={() => onDemolishImprovement(bomberDemolitionTarget.x, bomberDemolitionTarget.y)}
                       disabled={side !== "player" || !!winner}
                       icon={<ImprovementActionBadge improvementType={bomberDemolitionTarget.improvement!.type} />}
@@ -363,6 +379,7 @@ export function CommandPanel({
                 <ActionTileButton
                   title={selectedUnit.type === "submarine" ? "Embark Special Ops" : "Load Special Ops"}
                   detail="Prepare an insertion team"
+                  hint={getManualUnitReference("special-ops").summary}
                   onClick={onLoadSpecialOps}
                   icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
                 />
@@ -371,6 +388,7 @@ export function CommandPanel({
                 <ActionTileButton
                   title="Deploy Special Ops"
                   detail="Drop the team from the chopper"
+                  hint={getManualUnitReference("special-ops").entry.tips[0]}
                   onClick={onUnloadSpecialOps}
                   icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
                 />
@@ -380,6 +398,7 @@ export function CommandPanel({
                   <ActionTileButton
                     title="Insert Special Ops"
                     detail="Launch a concealed shore landing"
+                    hint={getManualUnitReference("special-ops").entry.tips[0]}
                     onClick={onUnloadSpecialOps}
                     icon={<UnitActionBadge unitType="special-ops" faction={playerFaction} />}
                   />
@@ -421,6 +440,7 @@ export function CommandPanel({
                               key={`${action.improvementType}-${action.x}-${action.y}`}
                               title={action.label.replace("Choose ", "").replace(" site", "")}
                               detail={`${buildCost > 0 ? `Cost ${buildCost}` : "No cost"}${!canAfford ? " • Not enough credits" : ""}`}
+                              hint={getManualImprovementReference(action.improvementType).summary}
                               disabled={
                                 side !== "player" ||
                                 !!winner ||
@@ -448,6 +468,7 @@ export function CommandPanel({
                               key={`bridge-${action.x}-${action.y}`}
                               title="Build Bridge"
                               detail={`At (${action.x + 1}, ${action.y + 1})`}
+                              hint={getManualImprovementReference("bridge").summary}
                               onClick={() => onBuildImprovement(action)}
                               disabled={side !== "player" || !!winner || getUnitStats(selectedUnit).move - selectedUnit.moveSpent <= 0}
                               icon={<ImprovementActionBadge improvementType="bridge" />}
@@ -466,6 +487,7 @@ export function CommandPanel({
                           key={`demolish-${target.x}-${target.y}`}
                           title={`Demolish ${target.improvement?.type === "bridge" ? "Bridge" : "Tunnel"}`}
                           detail={`At (${target.x + 1}, ${target.y + 1})`}
+                          hint={getManualImprovementReference(target.improvement!.type).summary}
                           onClick={() => onDemolishImprovement(target.x, target.y)}
                           disabled={side !== "player" || !!winner}
                           icon={<ImprovementActionBadge improvementType={target.improvement!.type} />}
@@ -584,6 +606,7 @@ export function CommandPanel({
                   selectedSiteOwner !== "player" ||
                   slotBlocked;
                 const attackProfile = unitDefinition.attackDomains.length ? `${unitDefinition.attackDomains.join("/")} attack` : "Non-combat";
+                const unitManual = getManualUnitReference(unitType);
 
                 return (
                   <Button
@@ -592,6 +615,7 @@ export function CommandPanel({
                     className="h-auto min-h-16 justify-between rounded-2xl px-4 py-3"
                     disabled={disabled}
                     onClick={() => onBuild(unitType)}
+                    title={unitManual.summary}
                   >
                     <span className="text-left">
                       <span className="block font-semibold">{unitDefinition.name}</span>
@@ -603,6 +627,9 @@ export function CommandPanel({
                       </span>
                       <span className="block text-xs text-slate-400">
                         {unitDefinition.canCapture ? "Captures cities" : "Cannot capture"} • {attackProfile}
+                      </span>
+                      <span className="block text-xs text-slate-500">
+                        {unitManual.entry.tips[0] ?? unitManual.summary}
                       </span>
                       {unitDefinition.domain === "sea" && selectedSeaSpawnTileCount > 1 && (
                         <span className="block text-xs text-cyan-300">
@@ -671,12 +698,14 @@ export function CommandPanel({
 function ActionTileButton({
   title,
   detail,
+  hint,
   icon,
   disabled = false,
   onClick,
 }: {
   title: string;
   detail: string;
+  hint?: string;
   icon: ReactNode;
   disabled?: boolean;
   onClick: () => void;
@@ -687,12 +716,14 @@ function ActionTileButton({
       className="h-auto min-h-20 justify-start rounded-2xl px-4 py-3 text-left"
       disabled={disabled}
       onClick={onClick}
+      title={hint ?? detail}
     >
       <span className="flex items-center gap-3">
         <span className="shrink-0">{icon}</span>
         <span>
           <span className="block font-semibold text-white">{title}</span>
           <span className="block text-xs text-slate-400">{detail}</span>
+          {hint ? <span className="mt-1 block text-[11px] leading-5 text-slate-500">{hint}</span> : null}
         </span>
       </span>
     </Button>

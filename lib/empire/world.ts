@@ -59,10 +59,6 @@ function fillEllipse(map: Tile[][], cx: number, cy: number, rx: number, ry: numb
   }
 }
 
-function carveEllipse(map: Tile[][], cx: number, cy: number, rx: number, ry: number) {
-  fillEllipse(map, cx, cy, rx, ry, "water");
-}
-
 function shuffle<T>(items: T[], rand: () => number) {
   const copy = [...items];
 

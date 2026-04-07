@@ -114,7 +114,7 @@ export function TopCommandBar({
             </Button>
             <Button variant="outline" className="rounded-2xl" onClick={onOpenHelp}>
               <BookOpen className="w-4 h-4 mr-2" />
-              Docs
+              Field Manual
             </Button>
             <Button
               className="rounded-2xl border border-amber-200/30 bg-amber-300 text-slate-950 shadow-[0_0_28px_rgba(251,191,36,0.28)] hover:bg-amber-200"

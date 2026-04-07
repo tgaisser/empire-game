@@ -5,19 +5,26 @@ import type { Faction, Unit } from "@/lib/empire/types";
 import { getSideUnitBadgeStyle, getSideUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { Button } from "@/components/ui/button";
+import { getManualUnitReference } from "@/lib/empire/manual";
 
 type UnitIntelModalProps = {
   open: boolean;
   unit: Unit | null;
   playerFaction: Faction;
   aiFaction: Faction;
+  onOpenFieldManual: (unit: Unit) => void;
   onClose: () => void;
 };
 
-export function UnitIntelModal({ open, unit, playerFaction, aiFaction, onClose }: UnitIntelModalProps) {
+export function UnitIntelModal({ open, unit, playerFaction, aiFaction, onOpenFieldManual, onClose }: UnitIntelModalProps) {
   if (!open || !unit) return null;
 
   const stats = getUnitStats(unit);
+  const manualReference = getManualUnitReference(unit.type);
+  const intelHighlights = [
+    ...manualReference.capabilities.slice(0, 2),
+    ...manualReference.specialRules.slice(0, 2),
+  ].slice(0, 3);
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/72 p-4 backdrop-blur-sm">
@@ -49,15 +56,22 @@ export function UnitIntelModal({ open, unit, playerFaction, aiFaction, onClose }
           <IntelCard label="Vision" value={stats.vision} />
         </div>
         <div className="px-6 pb-5">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 text-sm leading-6 text-slate-300">
-            {stats.canCapture ? "Can seize cities and strategic sites. " : ""}
-            {stats.canDetectSpies ? "Can detect stealth threats. " : ""}
-            {stats.canLandOnCarrier ? "Can recover to carriers. " : ""}
-            {stats.canOnlyLandOnAirfield ? "Requires an airfield or approved landing base. " : ""}
-            {unit.type === "troop-transport" ? "Carries one tank or up to three light ground units. Destroyer escorts within 2 tiles improve its defense. " : ""}
-            {stats.attackRequiresSameTile ? "Attacks are resolved on the occupied target square." : "Uses normal ranged or adjacent attack rules."}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+            <div className="text-sm leading-6 text-slate-300">{manualReference.summary}</div>
+            <div className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+              {intelHighlights.map((item) => (
+                <p key={item}>{item}</p>
+              ))}
+            </div>
           </div>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              onClick={() => onOpenFieldManual(unit)}
+            >
+              Open Field Manual
+            </Button>
             <Button variant="outline" className="rounded-2xl" onClick={onClose}>
               Close
             </Button>

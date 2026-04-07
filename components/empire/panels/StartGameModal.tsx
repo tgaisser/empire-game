@@ -25,7 +25,7 @@ type StartGameModalProps = {
   onChangeAiFaction: (value: Faction) => void;
   onChangeWorldSize: (value: string) => void;
   autoSaveSummary: { turn: number; playerFaction: string; aiFaction: string; savedAt: string } | null;
-  onOpenDocs: () => void;
+  onOpenFieldManual: () => void;
   onCancel?: () => void;
   onStart: () => void;
   onContinue: () => void;
@@ -90,7 +90,7 @@ export function StartGameModal({
   onChangeAiFaction,
   onChangeWorldSize,
   autoSaveSummary,
-  onOpenDocs,
+  onOpenFieldManual,
   onCancel,
   onStart,
   onContinue,
@@ -210,9 +210,9 @@ export function StartGameModal({
                 ) : null}
 
                 <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <Button variant="outline" className="h-12 flex-1 rounded-2xl" onClick={onOpenDocs}>
+                  <Button variant="outline" className="h-12 flex-1 rounded-2xl" onClick={onOpenFieldManual}>
                     <BookOpen className="mr-2 h-4 w-4" />
-                    Documents
+                    Field Manual
                   </Button>
                   <Button
                     className="h-12 flex-1 rounded-2xl bg-amber-400 text-slate-950 hover:bg-amber-300"

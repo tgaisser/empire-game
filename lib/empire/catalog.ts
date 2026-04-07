@@ -1,4 +1,5 @@
 import { UNIT_STATS } from "@/lib/empire/config";
+import { getImprovementDefinition } from "@/lib/empire/data/improvements";
 import type { TileImprovementType, UnitDefinition, UnitType } from "@/lib/empire/types";
 
 export const UNIT_TYPE_ORDER: UnitType[] = [
@@ -25,13 +26,7 @@ export function getUnitTypeLabel(unitType: UnitType) {
 }
 
 export function getImprovementTypeLabel(improvementType: TileImprovementType) {
-  if (improvementType === "radar") return "Radar Upgrade";
-  if (improvementType === "airfield") return "Airfield";
-  if (improvementType === "bridge") return "Bridge";
-  if (improvementType === "port") return "Port";
-  if (improvementType === "outpost") return "Outpost";
-  if (improvementType === "minefield") return "Minefield";
-  return "Tunnel";
+  return getImprovementDefinition(improvementType).name;
 }
 
 export function getOrderedUnitDefinitions() {

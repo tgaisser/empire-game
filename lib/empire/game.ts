@@ -8,6 +8,21 @@ import {
   TERRAIN,
   UNIT_STATS,
 } from "@/lib/empire/config";
+import { getImprovementDefinition } from "@/lib/empire/data/improvements";
+import {
+  CARRIER_AIR_CAPACITY,
+  CARRIER_JAM_MAX_DAMAGE,
+  CARRIER_JAM_RANGE,
+  DESTROYER_ESCORT_ARMOR_BONUS,
+  DESTROYER_ESCORT_RANGE,
+  EXPLORATION_INCOME_STEP,
+  LAND_BASE_AIR_CAPACITY,
+  MINEFIELD_DAMAGE,
+  OUTPOST_ARMOR,
+  OUTPOST_MAX_HP,
+  RADAR_DETECTION_RANGE,
+  STATIC_SITE_VISION_RANGE,
+} from "@/lib/empire/data/rules";
 import type {
   Command,
   DeveloperPlacementType,
@@ -25,11 +40,6 @@ import type {
   UnitType,
 } from "@/lib/empire/types";
 import { createMap, findOpenAdjacentLand } from "@/lib/empire/world";
-
-const EXPLORATION_INCOME_STEP = 10;
-const SITE_VISION_RANGE = 2;
-const OUTPOST_MAX_HP = 12;
-const OUTPOST_ARMOR = 2;
 
 export function key(x: number, y: number) {
   return `${x},${y}`;
@@ -166,13 +176,7 @@ function getLocationLabel(tile: Tile) {
 }
 
 export function getImprovementLabel(improvementType: TileImprovementType) {
-  if (improvementType === "bridge") return "Bridge";
-  if (improvementType === "port") return "Port";
-  if (improvementType === "tunnel") return "Tunnel";
-  if (improvementType === "radar") return "Radar Upgrade";
-  if (improvementType === "outpost") return "Outpost";
-  if (improvementType === "minefield") return "Minefield";
-  return "Airfield";
+  return getImprovementDefinition(improvementType).name;
 }
 
 export function getTileLabel(tile: Tile) {
@@ -396,23 +400,12 @@ function getSpawnTileForProduction(
   return getSeaSpawnTiles(state, tile, units)[0] ?? null;
 }
 
-export const MINEFIELD_DAMAGE = 7;
-
 function getImprovementBuildTime(improvementType: TileImprovementType) {
-  if (improvementType === "bridge") return 1;
-  if (improvementType === "tunnel") return 2;
-  if (improvementType === "minefield") return 2;
-  if (improvementType === "airfield" || improvementType === "radar") return 3;
-  return 3;
+  return getImprovementDefinition(improvementType).buildTime;
 }
 
 export function getImprovementBuildCost(improvementType: TileImprovementType) {
-  if (improvementType === "port") return 8;
-  if (improvementType === "airfield") return 10;
-  if (improvementType === "radar") return 6;
-  if (improvementType === "outpost") return 2;
-  if (improvementType === "minefield") return 4;
-  return 0;
+  return getImprovementDefinition(improvementType).buildCost;
 }
 
 function canBuildPort(tile: Tile) {
@@ -623,11 +616,11 @@ function getAirCapacityAtTile(state: GameState, x: number, y: number, side: Side
   const tile = state.map[y]?.[x] ?? null;
   if (!tile) return 0;
   if (!unitType) {
-    if (getFriendlyCarrierAt(state.units, x, y, side)) return 4;
-    return isFriendlyAirBase(tile, side) ? 1 : 0;
+    if (getFriendlyCarrierAt(state.units, x, y, side)) return CARRIER_AIR_CAPACITY;
+    return isFriendlyAirBase(tile, side) ? LAND_BASE_AIR_CAPACITY : 0;
   }
-  if (getUnitDefinition(unitType).canLandOnCarrier && getFriendlyCarrierAt(state.units, x, y, side)) return 4;
-  return canUnitLandAtTile(state, tile, side, unitType, x, y) ? 1 : 0;
+  if (getUnitDefinition(unitType).canLandOnCarrier && getFriendlyCarrierAt(state.units, x, y, side)) return CARRIER_AIR_CAPACITY;
+  return canUnitLandAtTile(state, tile, side, unitType, x, y) ? LAND_BASE_AIR_CAPACITY : 0;
 }
 
 function canStackAirUnitAt(state: GameState, x: number, y: number, side: Side, unitType: UnitType, units: Unit[] = state.units) {
@@ -772,10 +765,10 @@ function refreshSideIntel(state: GameState, side: Side) {
         ((tile.improvement?.type === "port" || tile.improvement?.type === "airfield" || tile.improvement?.type === "outpost") && tile.improvement.owner === side);
       if (!providesStaticVision) continue;
 
-      revealAround(visible, tile.x, tile.y, SITE_VISION_RANGE);
+      revealAround(visible, tile.x, tile.y, STATIC_SITE_VISION_RANGE);
       for (const enemyUnit of enemyUnits) {
         if (enemyUnit.concealed) continue;
-        if (distance(tile, enemyUnit) <= SITE_VISION_RANGE) {
+        if (distance(tile, enemyUnit) <= STATIC_SITE_VISION_RANGE) {
           detectedEnemyUnitIds.add(enemyUnit.id);
         }
       }
@@ -820,7 +813,7 @@ function refreshSideIntel(state: GameState, side: Side) {
       if (tile.improvement?.type !== "airfield" || tile.improvement.owner !== side || !tile.improvement.hasRadar) continue;
       for (const enemyUnit of enemyUnits) {
         if (getUnitStats(enemyUnit).domain !== "air") continue;
-        if (distance(tile, enemyUnit) <= 5) {
+        if (distance(tile, enemyUnit) <= RADAR_DETECTION_RANGE) {
           if (inBounds(enemyUnit.x, enemyUnit.y, state.mapWidth, state.mapHeight)) {
             visible[enemyUnit.y][enemyUnit.x] = true;
           }
@@ -1342,9 +1335,13 @@ function setDroneTarget(state: GameState, side: Side, unitId: number, x: number,
 function getDefenderArmorBonus(state: GameState, defender: Unit) {
   if (defender.type !== "troop-transport") return 0;
   return state.units.some(
-    (unit) => unit.owner === defender.owner && unit.type === "destroyer" && unit.id !== defender.id && distance(unit, defender) <= 2
+    (unit) =>
+      unit.owner === defender.owner &&
+      unit.type === "destroyer" &&
+      unit.id !== defender.id &&
+      distance(unit, defender) <= DESTROYER_ESCORT_RANGE
   )
-    ? 2
+    ? DESTROYER_ESCORT_ARMOR_BONUS
     : 0;
 }
 
@@ -1460,14 +1457,14 @@ function resolveSpecialOpsCombat(
 function jamDrone(state: GameState, side: Side, unitId: number, x: number, y: number): GameState {
   const unit = state.units.find((currentUnit) => currentUnit.id === unitId);
   if (!unit || unit.owner !== side || unit.type !== "carrier") return state;
-  if (distance(unit, { x, y }) > 2) return state;
+  if (distance(unit, { x, y }) > CARRIER_JAM_RANGE) return state;
 
   const drone = state.units.find(
     (currentUnit) => currentUnit.x === x && currentUnit.y === y && currentUnit.owner !== side && currentUnit.type === "drone-swarm"
   );
   if (!drone) return state;
 
-  const jamDamage = Math.min(drone.hp, 5);
+  const jamDamage = Math.min(drone.hp, CARRIER_JAM_MAX_DAMAGE);
   const nextUnits = state.units
     .map((currentUnit) =>
       currentUnit.id === drone.id ? { ...currentUnit, hp: currentUnit.hp - jamDamage, fortified: false, concealed: false } : currentUnit

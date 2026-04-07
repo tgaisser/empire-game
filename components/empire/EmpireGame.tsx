@@ -15,14 +15,15 @@ import { DecommissionConfirmModal } from "@/components/empire/panels/Decommissio
 import { DeveloperDrawer } from "@/components/empire/panels/DeveloperDrawer";
 import { EndTurnConfirmModal } from "@/components/empire/panels/EndTurnConfirmModal";
 import { EndgameOverlay } from "@/components/empire/panels/EndgameOverlay";
-import { GameplayInfoModal } from "@/components/empire/panels/GameplayInfoModal";
+import { FieldManualModal } from "@/components/empire/panels/FieldManualModal";
 import { NamePromptModal } from "@/components/empire/panels/NamePromptModal";
 import { StartGameModal } from "@/components/empire/panels/StartGameModal";
 import { TopCommandBar } from "@/components/empire/panels/TopCommandBar";
 import { UnitIntelModal } from "@/components/empire/panels/UnitIntelModal";
 import { createAiDiagnosticsReport } from "@/lib/empire/ai/diagnostics";
 import { getRemainingMove, getUnitStats, key } from "@/lib/empire/game";
-import { GLOBE_MAP_SIZE, MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
+import type { ManualRelatedLink } from "@/lib/empire/manual";
+import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
 import { clearAutoSave, downloadSaveFile, getAutoSaveSummary, loadAutoSave, uploadSaveFile } from "@/lib/empire/saveLoad";
 import type { DeveloperPlacementType, Faction, GameType, Side, UnitType } from "@/lib/empire/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,7 +102,7 @@ export default function EmpireGame() {
     loadGame,
   } = useEmpireGame();
   const [battleLogOpen, setBattleLogOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [fieldManualOpen, setFieldManualOpen] = useState(false);
   const [devDrawerOpen, setDevDrawerOpen] = useState(false);
   const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
   const [skipEndTurnMoveWarning, setSkipEndTurnMoveWarning] = useState(false);
@@ -128,7 +129,6 @@ export default function EmpireGame() {
   const [showUnmovedHighlights, setShowUnmovedHighlights] = useState(false);
   const [aiDiagnosticsReport, setAiDiagnosticsReport] = useState<ReturnType<typeof createAiDiagnosticsReport> | null>(null);
   const [miniMapJumpTarget, setMiniMapJumpTarget] = useState<{ x: number; y: number; nonce: number } | null>(null);
-  const [autoSaveSummary, setAutoSaveSummary] = useState<ReturnType<typeof getAutoSaveSummary>>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
   const unmovedCycleIndexRef = useRef(0);
   const aiPlaybackTimeoutRef = useRef<number | null>(null);
@@ -144,6 +144,8 @@ export default function EmpireGame() {
   const [phaseBanner, setPhaseBanner] = useState<string | null>(null);
   const [tacticalViewport, setTacticalViewport] = useState({ left: 0, top: 0, width: 1, height: 1 });
   const [battlefieldFxEvents, setBattlefieldFxEvents] = useState<BattlefieldFxEvent[]>([]);
+  const [fieldManualFocusLink, setFieldManualFocusLink] = useState<ManualRelatedLink | null>(null);
+  const autoSaveSummary = startGameOpen ? getAutoSaveSummary() : null;
   const showPhaseBanner = useEffectEvent((message: string) => {
     setPhaseBanner(message);
   });
@@ -305,7 +307,6 @@ export default function EmpireGame() {
     if (selectedPlayerFaction === selectedAiFaction) return;
     playDeployCampaign();
     clearAutoSave();
-    setAutoSaveSummary(null);
     resetGame(selectedGameType, selectedWorldSizeId, selectedPlayerFaction, selectedAiFaction);
     setSkipEndTurnMoveWarning(false);
     setDismissedWinner(null);
@@ -469,17 +470,21 @@ export default function EmpireGame() {
     }
   }
 
-  useEffect(() => {
-    if (startGameOpen) {
-      setAutoSaveSummary(getAutoSaveSummary());
-    }
-  }, [startGameOpen]);
+  function handleOpenFieldManualForUnit(unit: NonNullable<typeof intelUnit>) {
+    setFieldManualFocusLink({
+      kind: "unit",
+      id: unit.type,
+      label: getUnitStats(unit).name,
+    });
+    setIntelUnitId(null);
+    setFieldManualOpen(true);
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (
         battleLogOpen ||
-        helpOpen ||
+        fieldManualOpen ||
         devDrawerOpen ||
         endTurnConfirmOpen ||
         endgameOpen ||
@@ -504,7 +509,7 @@ export default function EmpireGame() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [battleLogOpen, devDrawerOpen, endTurnConfirmOpen, endgameOpen, handleArrowMove, helpOpen, pendingCityRename, pendingDroneTarget, pendingUnitRename, startGameOpen]);
+  }, [battleLogOpen, devDrawerOpen, endTurnConfirmOpen, endgameOpen, fieldManualOpen, handleArrowMove, pendingCityRename, pendingDroneTarget, pendingUnitRename, startGameOpen]);
 
   useEffect(() => {
     if (movementPlayback.length === 0) return;
@@ -712,7 +717,7 @@ export default function EmpireGame() {
                 playerExplorationIncome={playerExplorationIncome}
                 aiExplorationIncome={aiExplorationIncome}
                 onOpenLog={() => setBattleLogOpen(true)}
-                onOpenHelp={() => setHelpOpen(true)}
+                onOpenHelp={() => setFieldManualOpen(true)}
                 onToggleDevDrawer={() => setDevDrawerOpen((current) => !current)}
                 onReset={() => openStartGameModal("menu")}
                 onSaveToFile={handleSaveToFile}
@@ -801,7 +806,16 @@ export default function EmpireGame() {
       </div>
 
       <BattleLogModal open={battleLogOpen} logs={game.logs} onClose={() => setBattleLogOpen(false)} />
-      <GameplayInfoModal open={helpOpen} playerFaction={game.playerFaction} onClose={() => setHelpOpen(false)} />
+      <FieldManualModal
+        open={fieldManualOpen}
+        playerFaction={game.playerFaction}
+        focusLink={fieldManualFocusLink}
+        onFocusHandled={() => setFieldManualFocusLink(null)}
+        onClose={() => {
+          setFieldManualFocusLink(null);
+          setFieldManualOpen(false);
+        }}
+      />
       <EndTurnConfirmModal
         open={endTurnConfirmOpen}
         unmovedUnitCount={unmovedUnitCount}
@@ -907,7 +921,7 @@ export default function EmpireGame() {
         onChangePlayerFaction={setSelectedPlayerFaction}
         onChangeAiFaction={setSelectedAiFaction}
         onChangeWorldSize={setSelectedWorldSizeId}
-        onOpenDocs={() => setHelpOpen(true)}
+        onOpenFieldManual={() => setFieldManualOpen(true)}
         autoSaveSummary={autoSaveSummary}
         onCancel={handleCancelStartGame}
         onStart={handleStartGame}
@@ -919,6 +933,7 @@ export default function EmpireGame() {
         unit={intelUnit}
         playerFaction={game.playerFaction}
         aiFaction={game.aiFaction}
+        onOpenFieldManual={handleOpenFieldManualForUnit}
         onClose={() => setIntelUnitId(null)}
       />
       <NamePromptModal

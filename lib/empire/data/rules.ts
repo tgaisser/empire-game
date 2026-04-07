@@ -1,0 +1,12 @@
+export const EXPLORATION_INCOME_STEP = 10;
+export const STATIC_SITE_VISION_RANGE = 2;
+export const CARRIER_AIR_CAPACITY = 4;
+export const LAND_BASE_AIR_CAPACITY = 1;
+export const RADAR_DETECTION_RANGE = 5;
+export const DESTROYER_ESCORT_RANGE = 2;
+export const DESTROYER_ESCORT_ARMOR_BONUS = 2;
+export const CARRIER_JAM_RANGE = 2;
+export const CARRIER_JAM_MAX_DAMAGE = 5;
+export const MINEFIELD_DAMAGE = 7;
+export const OUTPOST_MAX_HP = 12;
+export const OUTPOST_ARMOR = 2;

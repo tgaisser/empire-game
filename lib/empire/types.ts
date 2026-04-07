@@ -41,6 +41,19 @@ export type GameType = "normal" | "naval" | "archipelago" | "ocean" | "alpine" |
 export type TileImprovementType = "bridge" | "port" | "airfield" | "tunnel" | "radar" | "outpost" | "minefield";
 export type DeveloperPlacementType = TileImprovementType | "city";
 
+export type ImprovementDefinition = {
+  name: string;
+  shortLabel: string;
+  buildCost: number;
+  buildTime: number;
+  maxHp?: number;
+  armor?: number;
+  detectionRange?: number;
+  triggerDamage?: number;
+  hiddenUntilDetected?: boolean;
+  upgradeOf?: TileImprovementType;
+};
+
 export type TileImprovement = {
   type: TileImprovementType;
   owner: Side;

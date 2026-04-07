@@ -43,7 +43,10 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
   // Store current props in refs so the render loop always reads fresh data
   // without needing to destroy/recreate the Pixi application.
   const propsRef = useRef({ map, visible, units, selectedUnitId, possibleMoves, events });
-  propsRef.current = { map, visible, units, selectedUnitId, possibleMoves, events };
+
+  useEffect(() => {
+    propsRef.current = { map, visible, units, selectedUnitId, possibleMoves, events };
+  }, [events, map, possibleMoves, selectedUnitId, units, visible]);
 
   // Single effect — creates the Pixi app once, tears it down on unmount only.
   useEffect(() => {
@@ -285,7 +288,7 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         app.destroy(true, { children: true });
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Pixi app lives for the component lifetime; props are read via propsRef
+  }, []);
 
   return <div ref={hostRef} className="pointer-events-none absolute inset-0 z-[15] overflow-hidden rounded-xl" />;
 }

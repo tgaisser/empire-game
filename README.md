@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Empire Game
 
-## Getting Started
+Turn-based conquest strategy game inspired by classic DOS Empire. The project is built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, and Pixi.js, and currently targets static export output.
 
-First, run the development server:
+## Purpose
+
+This repository is split between two concerns:
+
+- the game itself, including rules, AI, map generation, and UI
+- the documentation that explains why those systems work the way they do
+
+The markdown files in this repo are meant to capture project intent, not just setup commands. If a rule, constraint, or design choice keeps coming up in implementation discussions, it belongs in docs.
+
+## Quick Start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Other useful commands:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+npm run lint
+```
 
-## Learn More
+## Release Build For A Server
 
-To learn more about Next.js, take a look at the following resources:
+This project is configured for a static export in [next.config.ts](c:/CODE/SANDBOX/AI/FunLearning/Empire/empire-game/next.config.ts) with `output: "export"`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+That means the release build flow is:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run build
+```
 
-## Deploy on Vercel
+After `npm run build`, Next.js writes the deployable static site into the `out/` directory.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Do not run `npx next export` for this project. In current Next.js versions, `next export` has been removed in favor of `output: "export"` plus `next build`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+To publish to a server:
+
+1. Run `npm run build`.
+2. Copy the contents of `out/` to your web server or static hosting target.
+3. Serve `out/` as plain static files from Nginx, Apache, S3, a CDN, or any other static host.
+
+Notes:
+
+- `npm run start` is for running a Next.js server build, but this repo is configured to ship as static files.
+- Because this is a static export, server-only Next.js features are not available in production unless the deployment model changes.
+- `images.unoptimized: true` is already set so the app can ship without a Next.js image optimization server.
+
+## Documentation Map
+
+- [docs/game-rules.md](docs/game-rules.md)  
+  Gameplay rules, core systems, and the strategic model the implementation is trying to preserve.
+
+- [docs/developer-guide.md](docs/developer-guide.md)  
+  Developer-facing workflow, architectural boundaries, and repository conventions.
+
+- [docs/design-principles.md](docs/design-principles.md)  
+  Why the game is structured the way it is, including the reasoning behind engine, UI, and AI decisions.
+
+- [CLAUDE.md](CLAUDE.md)  
+  Concise coding-oriented reference for repository structure and core modules.
+
+- [AGENTS.md](AGENTS.md)  
+  Local agent instructions, including the requirement to verify Next.js behavior against the installed docs.
+
+## Source Of Truth Guidance
+
+- `lib/empire/game.ts` is the gameplay execution source of truth.
+- `lib/empire/types.ts` defines the canonical data model.
+- `lib/empire/manual/` and `lib/empire/data/` capture player-facing rules and balance-oriented constants.
+- The docs in `docs/` should explain intent and constraints, but they should not silently drift away from the implementation.
+
+When changing rules or mechanics, update both the code and the relevant markdown file in the same change when practical.

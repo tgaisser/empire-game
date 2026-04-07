@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { TileClickTarget } from "@/components/empire/hooks/useEmpireGame";
 import type { MovementPlayback } from "@/components/empire/hooks/useEmpireGame";
@@ -450,15 +450,6 @@ export function GameMap({
               aiFaction={aiFaction}
             />
           ) : null}
-        </div>
-      </div>
-      <div className="mt-3">
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
-        <span className="rounded-full border border-slate-800 bg-slate-900/80 px-3 py-1">Legend</span>
-        <span className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1">Large centered badge: lone visible unit</span>
-        <span className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1">Split corner badges: air + surface stack</span>
-        <span className="rounded-full border border-slate-800 bg-slate-950/70 px-3 py-1">Pulsing tiles: active production or construction</span>
-        <span className="rounded-full border border-cyan-900/60 bg-cyan-950/20 px-3 py-1 text-cyan-100">Pixi overlay: move lanes, selection pulse, water shimmer, combat FX</span>
         </div>
       </div>
     </div>

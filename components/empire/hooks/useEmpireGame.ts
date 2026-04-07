@@ -764,7 +764,7 @@ export function useEmpireGame() {
   }
 
   function handleGrantCredits() {
-    applyGameUpdate((current) => addCredits(current, "player", 33));
+    applyGameUpdate((current) => addCredits(current, "player", 1000));
   }
 
   function handleUpgradeSelectedUnit(upgrade: "sonar" | "radar-relay") {
