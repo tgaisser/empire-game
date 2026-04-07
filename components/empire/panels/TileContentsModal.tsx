@@ -14,6 +14,8 @@ type TileContentsModalProps = {
   tile: Tile | null;
   units: Unit[];
   playerFaction: Faction;
+  moveActionLabel?: string | null;
+  onMoveHere?: (x: number, y: number) => void;
   onSelectSite: (x: number, y: number) => void;
   onSelectUnit: (unit: Unit) => void;
   onClose: () => void;
@@ -24,6 +26,8 @@ export function TileContentsModal({
   tile,
   units,
   playerFaction,
+  moveActionLabel,
+  onMoveHere,
   onSelectSite,
   onSelectUnit,
   onClose,
@@ -57,6 +61,21 @@ export function TileContentsModal({
           </Button>
         </div>
         <div className="space-y-4 px-6 py-5">
+          {moveActionLabel && onMoveHere ? (
+            <button
+              type="button"
+              className="flex w-full items-center justify-between rounded-3xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-4 text-left transition hover:border-cyan-300/40 hover:bg-cyan-500/14"
+              onClick={() => onMoveHere(tile.x, tile.y)}
+            >
+              <span>
+                <span className="block text-base font-semibold text-white">{moveActionLabel}</span>
+                <span className="block text-xs text-slate-300">Use the selected unit’s highlighted path and keep this tile’s other occupants available for focus after movement.</span>
+              </span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                Move
+              </span>
+            </button>
+          ) : null}
           {siteType && (tile.owner === "player" || tile.improvement?.owner === "player") ? (
             <button
               type="button"

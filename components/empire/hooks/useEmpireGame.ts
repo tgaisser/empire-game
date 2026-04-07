@@ -707,6 +707,25 @@ export function useEmpireGame() {
     commitSelectedUnitMove();
   }
 
+  function moveSelectedUnitTo(x: number, y: number) {
+    if (game.side !== "player" || game.winner || !selectedUnit) return;
+    const chosenMove = possibleMoves.find((move) => move.x === x && move.y === y);
+    if (!chosenMove) return;
+
+    setSelectedCity(null);
+    setMovementPlayback([
+      {
+        unitId: selectedUnit.id,
+        unitType: selectedUnit.type,
+        owner: "player",
+        path: [{ x: selectedUnit.x, y: selectedUnit.y }, ...chosenMove.path],
+      },
+    ]);
+    applyGameUpdate((current) =>
+      applyCommand(current, { type: "move_unit", side: "player", unitId: selectedUnit.id, x, y })
+    , { captureLastPlayerMove: true });
+  }
+
   function handleEndTurn() {
     if (game.side !== "player" || game.winner) return;
     setPendingDroneTarget(null);
@@ -966,8 +985,9 @@ export function useEmpireGame() {
     handleSentryUnit,
     handleWakeUnit,
   handleDecommissionSelectedUnit,
-  handleTileClick,
-  handleEndTurn,
+    handleTileClick,
+    moveSelectedUnitTo,
+    handleEndTurn,
   selectCity,
   selectUnit,
   carrierJamTargets: getCarrierJamTargets(game, selectedUnit),

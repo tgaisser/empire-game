@@ -95,6 +95,7 @@ export default function EmpireGame() {
     handleWakeUnit,
     handleDecommissionSelectedUnit,
     handleTileClick,
+    moveSelectedUnitTo,
     handleEndTurn,
     selectCity,
     selectUnit,
@@ -513,16 +514,23 @@ export default function EmpireGame() {
       (clickedTile.city && clickedTile.owner === "player") ||
       (clickedTile.improvement && clickedTile.improvement.owner === "player" && (clickedTile.improvement.type === "port" || clickedTile.improvement.type === "airfield"))
     );
+    const selectedUnitCanMoveHere = Boolean(
+      selectedUnit &&
+      selectedUnit.owner === "player" &&
+      (selectedUnit.x !== x || selectedUnit.y !== y) &&
+      possibleMoves.some((move) => move.x === x && move.y === y)
+    );
 
-    if (target === "site") return false;
-    if (target === "surface-unit") return friendlySurfaceUnits.length > 1;
-    if (target === "air-unit") return friendlyAirUnits.length > 1;
+    if (target === "site") return friendlySite && selectedUnitCanMoveHere;
+    if (target === "surface-unit") return selectedUnitCanMoveHere || friendlySurfaceUnits.length > 1;
+    if (target === "air-unit") return selectedUnitCanMoveHere || friendlyAirUnits.length > 1;
 
     const browsingThisTile =
       !selectedUnit ||
       (selectedUnit.x === x && selectedUnit.y === y) ||
       (selectedCity?.x === x && selectedCity?.y === y);
 
+    if (selectedUnitCanMoveHere && friendlyUnits.length + (friendlySite ? 1 : 0) > 0) return true;
     return browsingThisTile && friendlyUnits.length + (friendlySite ? 1 : 0) > 1;
   }
 
@@ -1149,6 +1157,15 @@ export default function EmpireGame() {
             : []
         }
         playerFaction={game.playerFaction}
+        moveActionLabel={
+          tileContentsTarget && selectedUnit && possibleMoves.some((move) => move.x === tileContentsTarget.x && move.y === tileContentsTarget.y)
+            ? `Move ${selectedUnit.name ?? getUnitStats(selectedUnit).name} here`
+            : null
+        }
+        onMoveHere={(x, y) => {
+          setTileContentsTarget(null);
+          moveSelectedUnitTo(x, y);
+        }}
         onSelectSite={handleTileContentsSiteSelect}
         onSelectUnit={handleTileContentsUnitSelect}
         onClose={() => setTileContentsTarget(null)}

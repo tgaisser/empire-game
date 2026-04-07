@@ -57,6 +57,12 @@ function getOccupiedSiteOutlineClass(siteType: "city" | "port" | "airfield") {
   return "border-amber-300/36 shadow-[0_0_18px_rgba(251,191,36,0.16),inset_0_0_0_1px_rgba(253,224,71,0.14)]";
 }
 
+function getOccupiedSitePlateClass(siteType: "city" | "port" | "airfield") {
+  if (siteType === "city") return "border-slate-200/30 bg-slate-950/58 text-slate-100";
+  if (siteType === "port") return "border-sky-300/32 bg-sky-950/55 text-sky-100";
+  return "border-amber-300/32 bg-amber-950/52 text-amber-100";
+}
+
 function TerrainPattern({ tile }: { tile: Tile }) {
   if (tile.terrain === "water") {
     return (
@@ -620,6 +626,24 @@ export function MapTile({
           ].join(" ")}
         />
       ) : null}
+      {showSiteChip ? (
+        <span className="pointer-events-none absolute inset-0 z-[11] flex items-center justify-center">
+          <span
+            className={[
+              "flex h-[68%] w-[68%] items-center justify-center rounded-[30%] border shadow-[0_0_16px_rgba(2,6,23,0.25)]",
+              getOccupiedSitePlateClass(siteType as "city" | "port" | "airfield"),
+            ].join(" ")}
+          >
+            {siteType === "city" ? (
+              <CityIcon className={`h-[54%] w-[54%] opacity-85 ${ownerPrimaryColor(displayTile?.owner ?? null)}`} />
+            ) : (
+              <span className={`h-[52%] w-[52%] opacity-90 ${ownerPrimaryColor(displayTile?.improvement?.owner ?? displayTile?.owner ?? null)}`}>
+                <ImprovementIcon improvementType={siteType as "port" | "airfield"} />
+              </span>
+            )}
+          </span>
+        </span>
+      ) : null}
       <div className="absolute inset-0 z-10 flex items-center justify-center">
         {showSiteChip ? (
           <span
@@ -628,7 +652,7 @@ export function MapTile({
             onClick={(event) => handleTargetClick(event, "site")}
             onContextMenu={(event) => handleTargetContextMenu(event, "site")}
             className={[
-              "absolute left-1 top-1 z-20 inline-flex h-auto min-h-4 min-w-4 max-w-[78%] items-center gap-1 rounded-full border px-1.5 py-1 shadow-md cursor-pointer",
+              "absolute bottom-1 left-1/2 z-20 inline-flex h-auto min-h-4 min-w-4 max-w-[82%] -translate-x-1/2 items-center gap-1 rounded-full border px-1.5 py-1 shadow-md cursor-pointer",
               getSiteChipClass(siteType as "city" | "port" | "airfield"),
             ].join(" ")}
           >
