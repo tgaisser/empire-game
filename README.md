@@ -60,6 +60,9 @@ Notes:
 - [docs/game-rules.md](docs/game-rules.md)  
   Gameplay rules, core systems, and the strategic model the implementation is trying to preserve.
 
+- [docs/unit-stats-and-combat.md](docs/unit-stats-and-combat.md)  
+  Consolidated unit values, improvement values, combat formulas, and balance constants from the current implementation.
+
 - [docs/developer-guide.md](docs/developer-guide.md)  
   Developer-facing workflow, architectural boundaries, and repository conventions.
 
