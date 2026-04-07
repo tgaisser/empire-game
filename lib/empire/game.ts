@@ -158,6 +158,7 @@ function createUnit(id: number, owner: Side, type: UnitType, x: number, y: numbe
     hp: definition.maxHp,
     moveSpent,
     fortified: false,
+    entrenched: false,
     sentry: false,
     concealed: false,
     turnsAwayFromBase: 0,
@@ -1396,10 +1397,12 @@ function resolveOutpostAssault(attacker: Unit, tile: Tile) {
   };
 }
 
-function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderFortified?: boolean; defenderArmorBonus?: number }) {
+function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderFortified?: boolean; defenderEntrenched?: boolean; defenderArmorBonus?: number }) {
   const attackerStats = getUnitStats(attacker);
   const defenderStats = getUnitStats(defender);
-  const defenderDamageReduction = options?.defenderFortified && !attackerStats.ignoresFortification ? 1 : 0;
+  const defenderDamageReduction = options?.defenderFortified && !attackerStats.ignoresFortification
+    ? (options?.defenderEntrenched ? 2 : 1)
+    : 0;
   const effectiveDefenderArmor = Math.max(0, defenderStats.armor + (options?.defenderArmorBonus ?? 0) - attackerStats.piercing);
   const effectiveAttackerArmor = Math.max(0, attackerStats.armor - defenderStats.piercing);
   const attackerBaseAttack = attackerStats.atk + (defenderStats.domain === "air" ? attackerStats.antiAirBonus ?? 0 : 0);
@@ -1428,7 +1431,7 @@ function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderForti
 function resolveSpecialOpsCombat(
   attacker: Unit,
   defender: Unit,
-  options: { defenderFortified?: boolean; defenderArmorBonus?: number },
+  options: { defenderFortified?: boolean; defenderEntrenched?: boolean; defenderArmorBonus?: number },
   allowFollowUp: boolean
 ) {
   const first = resolveCombat(attacker, defender, options);
@@ -1469,7 +1472,7 @@ function jamDrone(state: GameState, side: Side, unitId: number, x: number, y: nu
   const jamDamage = Math.min(drone.hp, CARRIER_JAM_MAX_DAMAGE);
   const nextUnits = state.units
     .map((currentUnit) =>
-      currentUnit.id === drone.id ? { ...currentUnit, hp: currentUnit.hp - jamDamage, fortified: false, concealed: false } : currentUnit
+      currentUnit.id === drone.id ? { ...currentUnit, hp: currentUnit.hp - jamDamage, fortified: false, entrenched: false, concealed: false } : currentUnit
     )
     .filter((currentUnit) => currentUnit.hp > 0);
 
@@ -1500,13 +1503,14 @@ function resolveTileAttack(state: GameState, side: Side, attacker: Unit, x: numb
   const nextMap = state.map.map((row) => row.map((cell) => ({ ...cell })));
   const combat = resolveCombat(attacker, defender, {
     defenderFortified: tile.city || defender.fortified,
+    defenderEntrenched: defender.entrenched,
     defenderArmorBonus: getDefenderArmorBonus(state, defender),
   });
   const moveSpentAfterAttack = attackerStats.attackConsumesRemainingMove === false ? attacker.moveSpent : attackerStats.move;
   const nextUnits = state.units
     .map((currentUnit) => {
       if (currentUnit.id === defender.id) {
-        return { ...currentUnit, hp: combat.defenderHp, fortified: false, concealed: false };
+        return { ...currentUnit, hp: combat.defenderHp, fortified: false, entrenched: false, concealed: false };
       }
       if (currentUnit.id === attacker.id) {
         if (attackerStats.selfDestructOnAttack) return null;
@@ -1514,7 +1518,7 @@ function resolveTileAttack(state: GameState, side: Side, attacker: Unit, x: numb
           ...currentUnit,
           hp: combat.attackerHp,
           moveSpent: moveSpentAfterAttack,
-          fortified: false,
+          fortified: false, entrenched: false,
           concealed: false,
           bombsRemaining: attackerStats.bombCapacity
             ? Math.max(0, (currentUnit.bombsRemaining ?? attackerStats.bombCapacity) - 1)
@@ -1594,12 +1598,13 @@ function resolveDroneStrikeAtTarget(state: GameState, side: Side, attacker: Unit
     const tile = state.map[strikeY][strikeX];
     const combat = resolveCombat(attacker, defender, {
       defenderFortified: tile.city || defender.fortified,
+      defenderEntrenched: defender.entrenched,
       defenderArmorBonus: getDefenderArmorBonus(state, defender),
     });
     const nextUnits = state.units
       .map((currentUnit) => {
         if (currentUnit.id === defender.id) {
-          return { ...currentUnit, hp: combat.defenderHp, fortified: false, concealed: false };
+          return { ...currentUnit, hp: combat.defenderHp, fortified: false, entrenched: false, concealed: false };
         }
         if (currentUnit.id === attacker.id) return null;
         return currentUnit;
@@ -1725,7 +1730,7 @@ function processDroneSwarmOrders(state: GameState, side: Side, aiOmniscience = f
               x: chosenMove.x,
               y: chosenMove.y,
               moveSpent: unit.moveSpent + chosenMove.cost,
-              fortified: false,
+              fortified: false, entrenched: false,
               concealed: false,
             }
           : unit
@@ -1751,15 +1756,18 @@ function applyFortificationForSide(units: Unit[], side: Side) {
         ...unit,
         concealed: Boolean(unitStats.concealedWhileStationary),
         fortified: true,
+        entrenched: unit.type === "infantry",
         moveSpent: unitStats.move,
         turnsAwayFromBase: unit.turnsAwayFromBase,
       };
     }
 
+    const didNotMove = unit.moveSpent === 0;
     return {
       ...unit,
-      concealed: Boolean(unitStats.concealedWhileStationary && unit.moveSpent === 0),
-      fortified: unit.moveSpent === 0,
+      concealed: Boolean(unitStats.concealedWhileStationary && didNotMove),
+      fortified: didNotMove,
+      entrenched: didNotMove && unit.type === "infantry",
       moveSpent: 0,
       turnsAwayFromBase: unit.turnsAwayFromBase,
     };
@@ -2137,7 +2145,7 @@ function buildImprovement(
   const nextMap = state.map.map((row) => row.map((cell) => cloneTile(cell)));
   const nextUnits = state.units.map((currentUnit) =>
     currentUnit.id === unit.id
-      ? { ...currentUnit, moveSpent: getUnitStats(currentUnit).move, fortified: false, concealed: false }
+      ? { ...currentUnit, moveSpent: getUnitStats(currentUnit).move, fortified: false, entrenched: false, concealed: false }
       : currentUnit
   );
 
@@ -2280,7 +2288,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
     if (hiddenEncounter.attackerSurvives) {
       nextUnits = nextUnits.map((currentUnit) =>
         currentUnit.id === unit.id
-          ? { ...currentUnit, x, y, moveSpent: moveSpentAfterAction, fortified: false, concealed: false, extendedVision: false }
+          ? { ...currentUnit, x, y, moveSpent: moveSpentAfterAction, fortified: false, entrenched: false, concealed: false, extendedVision: false }
           : currentUnit
       );
       if (unitStats.canCapture) {
@@ -2300,12 +2308,14 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
             attackableOccupant,
             {
               defenderFortified: tile.city || attackableOccupant.fortified,
+              defenderEntrenched: attackableOccupant.entrenched,
               defenderArmorBonus: getDefenderArmorBonus(state, attackableOccupant),
             },
             specialOpsFollowUpAvailable
           )
         : resolveCombat(unit, attackableOccupant, {
             defenderFortified: tile.city || attackableOccupant.fortified,
+            defenderEntrenched: attackableOccupant.entrenched,
             defenderArmorBonus: getDefenderArmorBonus(state, attackableOccupant),
           });
     const moveSpentAfterCombat =
@@ -2321,7 +2331,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
 
     nextUnits = nextUnits
       .map((currentUnit) => {
-        if (currentUnit.id === attackableOccupant.id) return { ...currentUnit, hp: combat.defenderHp, fortified: false, concealed: false };
+        if (currentUnit.id === attackableOccupant.id) return { ...currentUnit, hp: combat.defenderHp, fortified: false, entrenched: false, concealed: false };
         if (currentUnit.id === unit.id) {
           return {
             ...currentUnit,
@@ -2329,7 +2339,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
             y: bomberBombRun ? y : attackOriginY,
             hp: combat.attackerHp,
             moveSpent: moveSpentAfterCombat,
-            fortified: false,
+            fortified: false, entrenched: false,
             concealed: false,
             extendedVision: false,
           };
@@ -2346,13 +2356,13 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
       nextUnits = nextUnits.map((currentUnit) => {
         if (currentUnit.id !== unit.id) return currentUnit;
         return occupiesTarget
-          ? { ...currentUnit, x, y, moveSpent: moveSpentAfterCombat, fortified: false, concealed: false, extendedVision: false }
+          ? { ...currentUnit, x, y, moveSpent: moveSpentAfterCombat, fortified: false, entrenched: false, concealed: false, extendedVision: false }
           : {
               ...currentUnit,
               x: attackOriginX,
               y: attackOriginY,
               moveSpent: moveSpentAfterCombat,
-              fortified: false,
+              fortified: false, entrenched: false,
               concealed: false,
               extendedVision: false,
             };
@@ -2363,7 +2373,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
       }
     } else if (survivingAttacker) {
       nextUnits = nextUnits.map((currentUnit) =>
-        currentUnit.id === unit.id ? { ...currentUnit, moveSpent: moveSpentAfterCombat, fortified: false, concealed: false, extendedVision: false } : currentUnit
+        currentUnit.id === unit.id ? { ...currentUnit, moveSpent: moveSpentAfterCombat, fortified: false, entrenched: false, concealed: false, extendedVision: false } : currentUnit
       );
     }
   } else {
@@ -2384,7 +2394,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
 
       if (assault.destroyed) {
         nextUnits = nextUnits.map((currentUnit) =>
-          currentUnit.id === unit.id ? { ...currentUnit, x, y, moveSpent: moveSpentAfterStep, fortified: false, concealed: false } : currentUnit
+          currentUnit.id === unit.id ? { ...currentUnit, x, y, moveSpent: moveSpentAfterStep, fortified: false, entrenched: false, concealed: false } : currentUnit
         );
         const capture = captureSite(nextMap[y][x], side);
         logMessage =
@@ -2396,7 +2406,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
         }
       } else {
         nextUnits = nextUnits.map((currentUnit) =>
-          currentUnit.id === unit.id ? { ...currentUnit, moveSpent: moveSpentAfterAction, fortified: false, concealed: false, extendedVision: false } : currentUnit
+          currentUnit.id === unit.id ? { ...currentUnit, moveSpent: moveSpentAfterAction, fortified: false, entrenched: false, concealed: false, extendedVision: false } : currentUnit
         );
         logMessage =
           side === "player"
@@ -2406,7 +2416,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
     } else if (contestedSite && !resolveSiteCaptureDefense(state, unit, tile)) {
       nextUnits = nextUnits.map((currentUnit) =>
         currentUnit.id === unit.id
-          ? { ...currentUnit, moveSpent: moveSpentAfterAction, fortified: false, concealed: false, extendedVision: false }
+          ? { ...currentUnit, moveSpent: moveSpentAfterAction, fortified: false, entrenched: false, concealed: false, extendedVision: false }
           : currentUnit
       );
       logMessage =
@@ -2415,7 +2425,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
           : `Enemy assault on ${getLocationLabel(tile)} was repelled by local defenses.`;
     } else {
       nextUnits = nextUnits.map((currentUnit) =>
-        currentUnit.id === unit.id ? { ...currentUnit, x, y, moveSpent: moveSpentAfterStep, fortified: false, concealed: false, extendedVision: false } : currentUnit
+        currentUnit.id === unit.id ? { ...currentUnit, x, y, moveSpent: moveSpentAfterStep, fortified: false, entrenched: false, concealed: false, extendedVision: false } : currentUnit
       );
 
       if (unitStats.canCapture) {
@@ -2524,7 +2534,7 @@ function demolishImprovement(state: GameState, side: Side, unitId: number, x: nu
         return {
           ...currentUnit,
           moveSpent: unitStats.move,
-          fortified: false,
+          fortified: false, entrenched: false,
           concealed: false,
           bombsRemaining:
             unit.type === "bomber" && unitStats.bombCapacity
@@ -2569,8 +2579,8 @@ function specialOpsAirstrike(state: GameState, side: Side, unitId: number, x: nu
   const strikeDamage = Math.min(defender.hp, clamp(getUnitStats(unit).atk * 2 + 2 - getUnitStats(defender).armor, 4, 12));
   const nextUnits = state.units
     .map((currentUnit) => {
-      if (currentUnit.id === defender.id) return { ...currentUnit, hp: currentUnit.hp - strikeDamage, fortified: false, concealed: false };
-      if (currentUnit.id === unit.id) return { ...currentUnit, moveSpent: getUnitStats(unit).move, fortified: false, concealed: false };
+      if (currentUnit.id === defender.id) return { ...currentUnit, hp: currentUnit.hp - strikeDamage, fortified: false, entrenched: false, concealed: false };
+      if (currentUnit.id === unit.id) return { ...currentUnit, moveSpent: getUnitStats(unit).move, fortified: false, entrenched: false, concealed: false };
       return currentUnit;
     })
     .filter((currentUnit) => currentUnit.hp > 0);
@@ -2691,7 +2701,7 @@ function loadTransportTroop(state: GameState, side: Side, transportUnitId: numbe
   const nextUnits = state.units
     .map((unit) =>
       unit.id === transport.id
-        ? { ...unit, carriedTroops: nextCargo, fortified: false, concealed: false }
+        ? { ...unit, carriedTroops: nextCargo, fortified: false, entrenched: false, concealed: false }
         : unit
     )
     .filter((unit) => unit.id !== troop.id);
@@ -2726,7 +2736,7 @@ function unloadTransportTroop(state: GameState, side: Side, transportUnitId: num
 
   const nextUnits = state.units.map((unit) =>
     unit.id === transport.id
-      ? { ...unit, carriedTroops: transport.carriedTroops?.slice(1) ?? null, fortified: false, concealed: false }
+      ? { ...unit, carriedTroops: transport.carriedTroops?.slice(1) ?? null, fortified: false, entrenched: false, concealed: false }
       : unit
   );
   nextUnits.push(unloaded);

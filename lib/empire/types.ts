@@ -149,6 +149,7 @@ export type Unit = {
   hp: number;
   moveSpent: number;
   fortified: boolean;
+  entrenched: boolean;
   sentry: boolean;
   concealed: boolean;
   extendedVision?: boolean;
