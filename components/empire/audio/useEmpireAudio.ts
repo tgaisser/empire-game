@@ -126,6 +126,17 @@ const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
     filterFrequency: 540,
     filterQ: 1.6,
   },
+  ssbn: {
+    wave: "sine",
+    accentWave: "triangle",
+    accentRatio: 1,
+    noteFrequencies: [146.83, 174.61, 146.83],
+    stepSeconds: 0.1,
+    masterGain: 0.1,
+    filterType: "lowpass",
+    filterFrequency: 480,
+    filterQ: 1.8,
+  },
   fighter: {
     wave: "sawtooth",
     accentWave: "triangle",
