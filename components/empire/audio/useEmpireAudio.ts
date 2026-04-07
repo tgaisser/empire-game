@@ -3,7 +3,17 @@
 import { useEffect, useRef } from "react";
 import type { GameState, Tile, UnitType } from "@/lib/empire/types";
 
-type AudioCue = "combat" | "tankMove" | "portClick" | "airfieldClick" | "deployCampaign" | "endTurnConfirm" | "unitSelect";
+type AudioCue =
+  | "combat"
+  | "counterFire"
+  | "missileLaunch"
+  | "sonarPing"
+  | "tankMove"
+  | "portClick"
+  | "airfieldClick"
+  | "deployCampaign"
+  | "endTurnConfirm"
+  | "unitSelect";
 type UnitSelectProfile = {
   wave: OscillatorType;
   accentWave?: OscillatorType;
@@ -188,6 +198,9 @@ export function useEmpireAudio() {
   const contextRef = useRef<AudioContext | null>(null);
   const lastCueTimesRef = useRef<Record<AudioCue, number>>({
     combat: 0,
+    counterFire: 0,
+    missileLaunch: 0,
+    sonarPing: 0,
     tankMove: 0,
     portClick: 0,
     airfieldClick: 0,
@@ -259,6 +272,122 @@ export function useEmpireAudio() {
     boomGain.connect(master);
     boom.start(now);
     boom.stop(now + 0.34);
+  }
+
+  function playCounterFire() {
+    if (shouldThrottle("counterFire", 180)) return;
+    const context = getContext();
+    if (!context) return;
+
+    const now = context.currentTime;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.1, now + 0.01);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+    master.connect(context.destination);
+
+    const crack = context.createBufferSource();
+    crack.buffer = createNoiseBuffer(context, 0.16);
+    const crackFilter = context.createBiquadFilter();
+    crackFilter.type = "highpass";
+    crackFilter.frequency.setValueAtTime(900, now);
+    crack.connect(crackFilter);
+    crackFilter.connect(master);
+    crack.start(now);
+    crack.stop(now + 0.16);
+
+    const tail = context.createOscillator();
+    tail.type = "square";
+    tail.frequency.setValueAtTime(220, now);
+    tail.frequency.exponentialRampToValueAtTime(96, now + 0.24);
+    const tailGain = context.createGain();
+    tailGain.gain.setValueAtTime(0.0001, now);
+    tailGain.gain.exponentialRampToValueAtTime(0.06, now + 0.01);
+    tailGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+    tail.connect(tailGain);
+    tailGain.connect(master);
+    tail.start(now);
+    tail.stop(now + 0.26);
+  }
+
+  function playMissileLaunch() {
+    if (shouldThrottle("missileLaunch", 280)) return;
+    const context = getContext();
+    if (!context) return;
+
+    const now = context.currentTime;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.14, now + 0.04);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    master.connect(context.destination);
+
+    const rumble = context.createOscillator();
+    rumble.type = "sawtooth";
+    rumble.frequency.setValueAtTime(68, now);
+    rumble.frequency.exponentialRampToValueAtTime(190, now + 0.72);
+    const rumbleGain = context.createGain();
+    rumbleGain.gain.setValueAtTime(0.0001, now);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.11, now + 0.05);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.82);
+    rumble.connect(rumbleGain);
+    rumbleGain.connect(master);
+    rumble.start(now);
+    rumble.stop(now + 0.84);
+
+    const exhaust = context.createBufferSource();
+    exhaust.buffer = createNoiseBuffer(context, 0.86);
+    const exhaustFilter = context.createBiquadFilter();
+    exhaustFilter.type = "bandpass";
+    exhaustFilter.frequency.setValueAtTime(480, now);
+    const exhaustGain = context.createGain();
+    exhaustGain.gain.setValueAtTime(0.0001, now);
+    exhaustGain.gain.exponentialRampToValueAtTime(0.07, now + 0.05);
+    exhaustGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.82);
+    exhaust.connect(exhaustFilter);
+    exhaustFilter.connect(exhaustGain);
+    exhaustGain.connect(master);
+    exhaust.start(now);
+    exhaust.stop(now + 0.86);
+  }
+
+  function playSonarPing() {
+    if (shouldThrottle("sonarPing", 320)) return;
+    const context = getContext();
+    if (!context) return;
+
+    const now = context.currentTime;
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+    master.connect(context.destination);
+
+    const ping = context.createOscillator();
+    ping.type = "sine";
+    ping.frequency.setValueAtTime(880, now);
+    ping.frequency.exponentialRampToValueAtTime(1120, now + 0.12);
+    const pingGain = context.createGain();
+    pingGain.gain.setValueAtTime(0.0001, now);
+    pingGain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+    pingGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+    ping.connect(pingGain);
+    pingGain.connect(master);
+    ping.start(now);
+    ping.stop(now + 0.42);
+
+    const tail = context.createOscillator();
+    tail.type = "triangle";
+    tail.frequency.setValueAtTime(440, now + 0.1);
+    tail.frequency.exponentialRampToValueAtTime(330, now + 0.86);
+    const tailGain = context.createGain();
+    tailGain.gain.setValueAtTime(0.0001, now + 0.08);
+    tailGain.gain.exponentialRampToValueAtTime(0.06, now + 0.13);
+    tailGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
+    tail.connect(tailGain);
+    tailGain.connect(master);
+    tail.start(now + 0.08);
+    tail.stop(now + 0.92);
   }
 
   function playTankMove() {
@@ -538,15 +667,29 @@ export function useEmpireAudio() {
     }
   }
 
-  function playFromLogDelta(previousGame: GameState, nextGame: GameState) {
-    if (previousGame.logs.length >= nextGame.logs.length) return;
-    const newMessages = nextGame.logs.slice(previousGame.logs.length);
-    if (
-      newMessages.some((message) =>
-        /battle at|strike at|called in an air strike|target destroyed|captured|destroyed|detonated|jamming attack/i.test(message)
-      )
-    ) {
-      playCombat();
+  function playCombatEventDelta(previousGame: GameState, nextGame: GameState) {
+    const previousIds = new Set(previousGame.combatEvents.map((event) => event.id));
+    const newCombatEvents = nextGame.combatEvents.filter((event) => event.visibleToPlayer && !previousIds.has(event.id));
+
+    for (const [index, event] of newCombatEvents.entries()) {
+      const delayMs = index * 170;
+      window.setTimeout(() => {
+        if (event.type === "sonar-ping") {
+          playSonarPing();
+          return;
+        }
+
+        if (event.style === "missile") {
+          playMissileLaunch();
+          window.setTimeout(() => playCombat(), 220);
+          return;
+        }
+
+        playCombat();
+        if (event.counterAttack) {
+          window.setTimeout(() => playCounterFire(), 260);
+        }
+      }, delayMs);
     }
   }
 
@@ -556,6 +699,6 @@ export function useEmpireAudio() {
     playUnitSelect,
     playTileClick,
     playMovement,
-    playFromLogDelta,
+    playCombatEventDelta,
   };
 }

@@ -43,7 +43,7 @@ type PendingTargetAction = {
 };
 
 export default function EmpireGame() {
-  const { playDeployCampaign, playEndTurnConfirm, playFromLogDelta, playMovement, playTileClick, playUnitSelect } = useEmpireAudio();
+  const { playCombatEventDelta, playDeployCampaign, playEndTurnConfirm, playMovement, playTileClick, playUnitSelect } = useEmpireAudio();
   const {
     game,
     worldSizeId,
@@ -987,10 +987,10 @@ export default function EmpireGame() {
   useEffect(() => {
     const previousGame = previousGameAudioRef.current;
     if (previousGame !== game) {
-      playFromLogDelta(previousGame, game);
+      playCombatEventDelta(previousGame, game);
       previousGameAudioRef.current = game;
     }
-  }, [game, playFromLogDelta]);
+  }, [game, playCombatEventDelta]);
 
   useEffect(() => {
     const previous = previousTurnStateRef.current;

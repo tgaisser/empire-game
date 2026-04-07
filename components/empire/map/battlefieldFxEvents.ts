@@ -1,175 +1,122 @@
 import type { BattlefieldFxEvent } from "@/components/empire/map/BattlefieldFxOverlay";
-import type { GameState, Side, Tile } from "@/lib/empire/types";
+import type { CombatEventRecord, GameState } from "@/lib/empire/types";
 
-type ParsedCombatImpact = {
-  label: string;
-  firefight: boolean;
-  attackerOwner: Side | null;
-  size: "small" | "large";
-  bursts: number;
-};
+function createCombatFxEvents(event: Extract<CombatEventRecord, { type: "combat" }>, createdAt: number) {
+  const attackRole = event.style === "missile" ? "missile" : event.style === "airstrike" ? "airstrike" : "attack";
+  const attackTravelMs = event.style === "missile" ? 420 : event.style === "airstrike" ? 300 : 240;
+  const attackImpactDelayMs = Math.round(attackTravelMs * 0.72);
+  const attackImpactSize = event.style === "missile" ? "large" : "small";
 
-type CombatPattern = {
-  regex: RegExp;
-  firefight: boolean;
-  attackerOwner: Side | null;
-  size: "small" | "large";
-  bursts?: number;
-};
+  const events: BattlefieldFxEvent[] = [
+    {
+      id: `projectile-${event.id}-attack`,
+      type: "projectile",
+      role: attackRole,
+      fromX: event.fromX,
+      fromY: event.fromY,
+      toX: event.targetX,
+      toY: event.targetY,
+      createdAt,
+      durationMs: attackTravelMs,
+      bursts: event.style === "firefight" ? 2 : 1,
+    },
+    {
+      id: `impact-${event.id}-target`,
+      type: "impact",
+      role: attackRole,
+      x: event.targetX,
+      y: event.targetY,
+      createdAt,
+      delayMs: attackImpactDelayMs,
+      durationMs: event.style === "missile" ? 980 : 680,
+      size: attackImpactSize,
+    },
+  ];
 
-const COMBAT_PATTERNS: CombatPattern[] = [
-  { regex: /^Battle at (.+?):/, firefight: true, attackerOwner: "player", size: "small" },
-  { regex: /^Bombing run at (.+?):/, firefight: false, attackerOwner: "player", size: "small" },
-  { regex: /^Strike at (.+?):/, firefight: false, attackerOwner: "player", size: "small" },
-  { regex: /^Special Ops called in an air strike on (.+?) for/, firefight: false, attackerOwner: "player", size: "small" },
-  { regex: /^Carrier jamming attack hit drone swarm near (.+?) for/, firefight: false, attackerOwner: "player", size: "small" },
-  { regex: /^Drone swarm detonated over (.+?)(?: for|,|\.)/, firefight: false, attackerOwner: "player", size: "small" },
-  { regex: /^You hit the outpost at (.+?) for/, firefight: false, attackerOwner: "player", size: "small" },
-  { regex: /^You destroyed the outpost at (.+?)(?: after|\.)/, firefight: false, attackerOwner: "player", size: "large" },
-  { regex: /^Enemy attacked near (.+?)\./, firefight: true, attackerOwner: "ai", size: "small" },
-  { regex: /^Enemy strike near (.+?)\./, firefight: false, attackerOwner: "ai", size: "small" },
-  { regex: /^Enemy special operations directed an air strike near (.+?)\./, firefight: false, attackerOwner: "ai", size: "small" },
-  { regex: /^Enemy drone swarm detonated near (.+?)\./, firefight: false, attackerOwner: "ai", size: "small" },
-  { regex: /^Enemy destroyed an outpost near (.+?)\./, firefight: false, attackerOwner: "ai", size: "large" },
-];
-
-function findTileByLocationLabel(map: Tile[][], label: string) {
-  const coordinateMatch = label.match(/^\((\d+),\s*(\d+)\)$/);
-  if (coordinateMatch) {
-    const x = Number(coordinateMatch[1]) - 1;
-    const y = Number(coordinateMatch[2]) - 1;
-    return map[y]?.[x] ?? null;
-  }
-
-  for (const row of map) {
-    for (const tile of row) {
-      if (tile.cityName === label) return tile;
-    }
-  }
-
-  return null;
-}
-
-function parseCombatImpact(message: string): ParsedCombatImpact | null {
-  for (const pattern of COMBAT_PATTERNS) {
-    const match = message.match(pattern.regex);
-    if (!match) continue;
-
-    return {
-      label: match[1],
-      firefight: pattern.firefight,
-      attackerOwner: pattern.attackerOwner,
-      size: pattern.size,
-      bursts: message.includes("Special Ops struck twice.") ? 2 : pattern.bursts ?? 1,
-    };
-  }
-
-  return null;
-}
-
-function inferAttackerOrigin(
-  previousGame: GameState,
-  currentGame: GameState,
-  attackerOwner: Side | null,
-  target: Pick<Tile, "x" | "y">
-) {
-  if (attackerOwner === "player" && previousGame.selectedUnitId !== null) {
-    const selectedAttacker = previousGame.units.find((unit) => unit.id === previousGame.selectedUnitId);
-    if (selectedAttacker) return { x: selectedAttacker.x, y: selectedAttacker.y };
-  }
-
-  const currentUnitsById = new Map(currentGame.units.map((unit) => [unit.id, unit] as const));
-  let bestCandidate: { x: number; y: number; distance: number } | null = null;
-
-  for (const previousUnit of previousGame.units) {
-    if (attackerOwner && previousUnit.owner !== attackerOwner) continue;
-
-    const currentUnit = currentUnitsById.get(previousUnit.id);
-    if (!currentUnit) continue;
-
-    const changed =
-      currentUnit.x !== previousUnit.x ||
-      currentUnit.y !== previousUnit.y ||
-      currentUnit.moveSpent > previousUnit.moveSpent ||
-      currentUnit.hp < previousUnit.hp;
-    if (!changed) continue;
-
-    const distanceFromPrevious = Math.abs(previousUnit.x - target.x) + Math.abs(previousUnit.y - target.y);
-    const distanceFromCurrent = Math.abs(currentUnit.x - target.x) + Math.abs(currentUnit.y - target.y);
-    const score = Math.min(distanceFromPrevious, distanceFromCurrent);
-
-    if (!bestCandidate || score < bestCandidate.distance) {
-      bestCandidate = { x: previousUnit.x, y: previousUnit.y, distance: score };
-    }
-  }
-
-  if (!bestCandidate || bestCandidate.distance > 3) return null;
-  return { x: bestCandidate.x, y: bestCandidate.y };
-}
-
-export function createBattlefieldFxEvents(previousGame: GameState, currentGame: GameState) {
-  const createdAt = Date.now();
-  const newMessages = currentGame.logs.slice(previousGame.logs.length);
-  const parsedImpacts = newMessages
-    .map((message, index) => {
-      const parsedImpact = parseCombatImpact(message);
-      if (!parsedImpact) return null;
-
-      const tile = findTileByLocationLabel(currentGame.map, parsedImpact.label);
-      if (!tile) return null;
-
-      return { ...parsedImpact, tile, index };
-    })
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-
-  const currentUnitsById = new Set(currentGame.units.map((unit) => unit.id));
-  const events: BattlefieldFxEvent[] = parsedImpacts.flatMap((impact) => {
-    const impactEvents: BattlefieldFxEvent[] = [
-      {
-        id: `impact-${createdAt}-${impact.index}`,
-        type: "explosion",
-        x: impact.tile.x,
-        y: impact.tile.y,
-        createdAt,
-        durationMs: impact.size === "large" ? 1100 : 840,
-        size: impact.size,
-      },
-    ];
-
-    if (impact.firefight) {
-      const attackerOrigin = inferAttackerOrigin(previousGame, currentGame, impact.attackerOwner, impact.tile);
-      if (attackerOrigin && (attackerOrigin.x !== impact.tile.x || attackerOrigin.y !== impact.tile.y)) {
-        impactEvents.push({
-          id: `firefight-${createdAt}-${impact.index}`,
-          type: "firefight",
-          fromX: attackerOrigin.x,
-          fromY: attackerOrigin.y,
-          toX: impact.tile.x,
-          toY: impact.tile.y,
-          createdAt,
-          durationMs: 720,
-          bursts: impact.bursts,
-        });
-      }
-    }
-
-    return impactEvents;
-  });
-
-  for (const previousUnit of previousGame.units) {
-    if (currentUnitsById.has(previousUnit.id)) continue;
-    if (!parsedImpacts.some((impact) => Math.abs(impact.tile.x - previousUnit.x) + Math.abs(impact.tile.y - previousUnit.y) <= 1)) continue;
-
+  if (event.defenderDamage > 0) {
     events.push({
-      id: `destroyed-${createdAt}-${previousUnit.id}`,
-      type: "explosion",
-      x: previousUnit.x,
-      y: previousUnit.y,
-      createdAt: createdAt + 220,
-      durationMs: 1320,
-      size: "large",
+      id: `damage-${event.id}-target`,
+      type: "damage",
+      role: "attack",
+      x: event.targetX,
+      y: event.targetY,
+      amount: event.defenderDamage,
+      createdAt,
+      delayMs: attackImpactDelayMs + 50,
+      durationMs: 760,
     });
   }
 
+  if (event.counterAttack) {
+    const counterCreatedAt = createdAt;
+    const counterDelayMs = attackImpactDelayMs + 220;
+    events.push(
+      {
+        id: `projectile-${event.id}-counter`,
+        type: "projectile",
+        role: "counter",
+        fromX: event.targetX,
+        fromY: event.targetY,
+        toX: event.fromX,
+        toY: event.fromY,
+        createdAt: counterCreatedAt,
+        delayMs: counterDelayMs,
+        durationMs: 230,
+        bursts: 1,
+      },
+      {
+        id: `impact-${event.id}-attacker`,
+        type: "impact",
+        role: "counter",
+        x: event.fromX,
+        y: event.fromY,
+        createdAt: counterCreatedAt,
+        delayMs: counterDelayMs + 150,
+        durationMs: 620,
+        size: "small",
+      }
+    );
+
+    if (event.attackerDamage > 0) {
+      events.push({
+        id: `damage-${event.id}-attacker`,
+        type: "damage",
+        role: "counter",
+        x: event.fromX,
+        y: event.fromY,
+        amount: event.attackerDamage,
+        createdAt: counterCreatedAt,
+        delayMs: counterDelayMs + 190,
+        durationMs: 760,
+      });
+    }
+  }
+
   return events;
+}
+
+function createSonarFxEvent(event: Extract<CombatEventRecord, { type: "sonar-ping" }>, createdAt: number): BattlefieldFxEvent {
+  return {
+    id: `sonar-${event.id}`,
+    type: "sonar-ring",
+    x: event.x,
+    y: event.y,
+    radius: event.radius,
+    detected: event.detectedSubmarineIds.length > 0,
+    createdAt,
+    durationMs: 1300,
+  };
+}
+
+export function createBattlefieldFxEvents(previousGame: GameState, currentGame: GameState) {
+  const previousIds = new Set(previousGame.combatEvents.map((event) => event.id));
+  const newCombatEvents = currentGame.combatEvents.filter((event) => event.visibleToPlayer && !previousIds.has(event.id));
+
+  return newCombatEvents.flatMap((event, index) => {
+    const createdAt = Date.now() + index * 170;
+    if (event.type === "sonar-ping") {
+      return [createSonarFxEvent(event, createdAt)];
+    }
+    return createCombatFxEvents(event, createdAt);
+  });
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from "react";
-import { Application, Container, Graphics } from "pixi.js";
+import { Application, Container, Graphics, Text } from "pixi.js";
 import type { ReachableMove, Tile, Unit } from "@/lib/empire/types";
 
 type BattlefieldFxOverlayProps = {
@@ -16,23 +16,48 @@ type BattlefieldFxOverlayProps = {
 export type BattlefieldFxEvent =
   | {
       id: string;
-      type: "explosion";
-      x: number;
-      y: number;
-      createdAt: number;
-      durationMs: number;
-      size: "small" | "large";
-    }
-  | {
-      id: string;
-      type: "firefight";
+      type: "projectile";
+      role: "attack" | "counter" | "missile" | "airstrike";
       fromX: number;
       fromY: number;
       toX: number;
       toY: number;
       createdAt: number;
+      delayMs?: number;
       durationMs: number;
       bursts?: number;
+    }
+  | {
+      id: string;
+      type: "impact";
+      role: "attack" | "counter" | "missile" | "airstrike";
+      x: number;
+      y: number;
+      createdAt: number;
+      delayMs?: number;
+      durationMs: number;
+      size: "small" | "large";
+    }
+  | {
+      id: string;
+      type: "damage";
+      role: "attack" | "counter";
+      x: number;
+      y: number;
+      amount: number;
+      createdAt: number;
+      delayMs?: number;
+      durationMs: number;
+    }
+  | {
+      id: string;
+      type: "sonar-ring";
+      x: number;
+      y: number;
+      radius: number;
+      detected: boolean;
+      createdAt: number;
+      durationMs: number;
     };
 
 const AIRFIELD_RADAR_RANGE_TILES = 5;
@@ -62,7 +87,8 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
     const selectedLayer = new Graphics();
     const combatLayer = new Graphics();
     const explosionLayer = new Graphics();
-    stageRoot.addChild(moveLayer, radarLayer, selectedLayer, combatLayer, explosionLayer);
+    const labelLayer = new Container();
+    stageRoot.addChild(moveLayer, radarLayer, selectedLayer, combatLayer, explosionLayer, labelLayer);
 
     const render = (elapsedTime = 0) => {
       if (destroyed || !initialized || !host) return;
@@ -83,6 +109,7 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
       selectedLayer.clear();
       combatLayer.clear();
       explosionLayer.clear();
+      labelLayer.removeChildren();
 
       const moveKeys = new Set(curMoves.map((move) => `${move.x},${move.y}`));
       const selectedUnit = curSelectedId !== null ? curUnits.find((unit) => unit.id === curSelectedId) ?? null : null;
@@ -149,10 +176,10 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
       const eventNow = Date.now();
 
       for (const event of curEvents) {
-        const age = eventNow - event.createdAt;
+        const age = eventNow - event.createdAt - ("delayMs" in event ? event.delayMs ?? 0 : 0);
         if (age < 0 || age > event.durationMs) continue;
 
-        if (event.type === "firefight") {
+        if (event.type === "projectile") {
           const progress = age / event.durationMs;
           const burstCount = Math.max(1, event.bursts ?? 1);
           const burstProgress = (progress * burstCount) % 1;
@@ -168,26 +195,92 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
           const tracerStartY = fromY + dy * (0.2 + burstProgress * 0.3);
           const tracerEndX = tracerStartX + dx * tracerLength;
           const tracerEndY = tracerStartY + dy * tracerLength;
-          const returnStartX = toX - dx * (0.18 + burstProgress * 0.28);
-          const returnStartY = toY - dy * (0.18 + burstProgress * 0.28);
-          const returnEndX = returnStartX - dx * (0.12 + pulse * 0.18);
-          const returnEndY = returnStartY - dy * (0.12 + pulse * 0.18);
+          const tracerColor =
+            event.role === "missile"
+              ? 0xf59e0b
+              : event.role === "airstrike"
+                ? 0x38bdf8
+                : event.role === "counter"
+                  ? 0xfb7185
+                  : 0xfef08a;
+          const beamColor =
+            event.role === "missile"
+              ? 0xfca5a5
+              : event.role === "airstrike"
+                ? 0x67e8f9
+                : event.role === "counter"
+                  ? 0xfda4af
+                  : 0xfca5a5;
 
-          combatLayer.moveTo(fromX, fromY);
-          combatLayer.lineTo(toX, toY);
-          combatLayer.stroke({ color: 0xfca5a5, alpha: 0.18 + pulse * 0.16, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03) });
           combatLayer.moveTo(tracerStartX, tracerStartY);
           combatLayer.lineTo(tracerEndX, tracerEndY);
-          combatLayer.stroke({ color: 0xfef08a, alpha: 0.42 + pulse * 0.4, width: Math.max(1.5, Math.min(tileWidth, tileHeight) * 0.07), cap: "round" });
-          combatLayer.moveTo(returnStartX, returnStartY);
-          combatLayer.lineTo(returnEndX, returnEndY);
-          combatLayer.stroke({ color: 0xfda4af, alpha: 0.26 + pulse * 0.28, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.055), cap: "round" });
+          combatLayer.stroke({ color: beamColor, alpha: 0.18 + pulse * 0.16, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.03) });
+          combatLayer.moveTo(tracerStartX, tracerStartY);
+          combatLayer.lineTo(tracerEndX, tracerEndY);
+          combatLayer.stroke({ color: tracerColor, alpha: 0.42 + pulse * 0.4, width: Math.max(1.5, Math.min(tileWidth, tileHeight) * 0.07), cap: "round" });
           combatLayer.circle(fromX, fromY, Math.min(tileWidth, tileHeight) * (0.05 + pulse * 0.04));
-          combatLayer.fill({ color: 0xf59e0b, alpha: 0.3 + pulse * 0.24 });
+          combatLayer.fill({ color: tracerColor, alpha: 0.24 + pulse * 0.18 });
           combatLayer.circle(toX, toY, Math.min(tileWidth, tileHeight) * (0.05 + pulse * 0.04));
-          combatLayer.fill({ color: 0xfb7185, alpha: 0.2 + pulse * 0.2 });
+          combatLayer.fill({ color: beamColor, alpha: 0.18 + pulse * 0.16 });
           combatLayer.circle((fromX + toX) / 2, (fromY + toY) / 2, Math.min(tileWidth, tileHeight) * (0.03 + pulse * 0.03));
           combatLayer.fill({ color: 0xffffff, alpha: 0.1 + pulse * 0.14 });
+          continue;
+        }
+
+        if (event.type === "damage") {
+          const progress = age / event.durationMs;
+          const centerX = (event.x + 0.5) * tileWidth;
+          const centerY = (event.y + 0.5) * tileHeight - progress * tileHeight * 0.42;
+          const alpha = 1 - progress;
+          const damageColor = event.role === "counter" ? 0xfda4af : 0xfef08a;
+          const strokeColor = event.role === "counter" ? 0x881337 : 0x78350f;
+          const text = `-${event.amount}`;
+          const fontSize = Math.max(12, Math.min(tileWidth, tileHeight) * 0.28);
+          const letterWidth = fontSize * 0.58;
+          const boxWidth = Math.max(fontSize * 1.8, text.length * letterWidth + 10);
+          const boxHeight = fontSize * 0.9 + 10;
+          const boxX = centerX - boxWidth / 2;
+          const boxY = centerY - boxHeight / 2;
+
+          explosionLayer.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+          explosionLayer.fill({ color: 0x020617, alpha: 0.45 * alpha });
+          explosionLayer.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+          explosionLayer.stroke({ color: damageColor, alpha: 0.6 * alpha, width: 1.5 });
+          const damageText = new Text({
+            text,
+            style: {
+              fill: damageColor,
+              fontFamily: "Georgia",
+              fontSize,
+              fontWeight: "700",
+              align: "center",
+              stroke: { color: strokeColor, width: 2 },
+            },
+          });
+          damageText.anchor.set(0.5);
+          damageText.x = centerX;
+          damageText.y = centerY;
+          damageText.alpha = alpha;
+          labelLayer.addChild(damageText);
+          continue;
+        }
+
+        if (event.type === "sonar-ring") {
+          const progress = age / event.durationMs;
+          const centerX = (event.x + 0.5) * tileWidth;
+          const centerY = (event.y + 0.5) * tileHeight;
+          const tileRadius = Math.min(tileWidth, tileHeight);
+          const maxRadius = tileRadius * event.radius;
+          const ringRadius = maxRadius * (0.16 + progress * 0.94);
+          const sonarColor = event.detected ? 0x67e8f9 : 0x93c5fd;
+          const fade = 1 - progress;
+
+          radarLayer.circle(centerX, centerY, ringRadius);
+          radarLayer.stroke({ color: sonarColor, alpha: 0.34 * fade, width: Math.max(1.5, tileRadius * 0.07) });
+          radarLayer.circle(centerX, centerY, ringRadius * 0.66);
+          radarLayer.stroke({ color: sonarColor, alpha: 0.18 * fade, width: Math.max(1, tileRadius * 0.04) });
+          radarLayer.circle(centerX, centerY, tileRadius * (0.18 + Math.sin(progress * Math.PI) * 0.08));
+          radarLayer.fill({ color: sonarColor, alpha: 0.12 * fade });
           continue;
         }
 
@@ -202,19 +295,35 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
         const sparkCount = event.size === "large" ? 10 : 6;
         const smokeRadius = baseRadius * (0.58 + progress * 1.5);
         const shockwaveRadius = baseRadius * (0.34 + progress * 1.72);
+        const coreColor =
+          event.role === "missile"
+            ? 0xfb923c
+            : event.role === "airstrike"
+              ? 0x38bdf8
+              : event.role === "counter"
+                ? 0xfb7185
+                : 0xf97316;
+        const outerColor =
+          event.role === "missile"
+            ? 0xfef08a
+            : event.role === "airstrike"
+              ? 0x67e8f9
+              : event.role === "counter"
+                ? 0xfda4af
+                : 0xfdba74;
 
         explosionLayer.circle(centerX, centerY, flareRadius);
-        explosionLayer.fill({ color: 0xef4444, alpha: 0.22 * fade });
+        explosionLayer.fill({ color: coreColor, alpha: 0.22 * fade });
         explosionLayer.circle(centerX, centerY, flareRadius * 0.84);
-        explosionLayer.fill({ color: 0xf97316, alpha: 0.4 * fade });
+        explosionLayer.fill({ color: coreColor, alpha: 0.4 * fade });
         explosionLayer.circle(centerX, centerY, flareRadius * 0.52);
-        explosionLayer.fill({ color: 0xfb923c, alpha: 0.58 * fade });
+        explosionLayer.fill({ color: outerColor, alpha: 0.58 * fade });
         explosionLayer.circle(centerX, centerY, flareRadius * 0.22);
         explosionLayer.fill({ color: 0xfffbeb, alpha: 0.28 * fade });
         explosionLayer.circle(centerX, centerY, outerRadius);
-        explosionLayer.stroke({ color: 0xfdba74, alpha: 0.4 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.045) });
+        explosionLayer.stroke({ color: outerColor, alpha: 0.4 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.045) });
         explosionLayer.circle(centerX, centerY, shockwaveRadius);
-        explosionLayer.stroke({ color: 0xfca5a5, alpha: 0.2 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.035) });
+        explosionLayer.stroke({ color: outerColor, alpha: 0.2 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.035) });
         explosionLayer.circle(centerX, centerY, smokeRadius);
         explosionLayer.stroke({ color: 0x111827, alpha: 0.26 * fade, width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.09) });
 
@@ -231,7 +340,7 @@ export function BattlefieldFxOverlay({ map, visible, units, selectedUnitId, poss
             centerY + Math.sin(angle) * (innerRadius + rayLength)
           );
           explosionLayer.stroke({
-            color: index % 2 === 0 ? 0xfdba74 : 0xfb7185,
+            color: index % 2 === 0 ? outerColor : coreColor,
             alpha: 0.32 * fade,
             width: Math.max(1, Math.min(tileWidth, tileHeight) * 0.034),
             cap: "round",
