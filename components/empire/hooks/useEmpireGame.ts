@@ -20,7 +20,6 @@ import {
   forceCompleteProductionForSide,
   forceWinner,
   canProduceUnitAtTile,
-  getBlockingUnitAt,
   getCityCount,
   getDemolishableImprovementTargets,
   getDroneSwarmPlaybackPreview,
@@ -49,7 +48,7 @@ import type { AiTurnPlan } from "@/lib/empire/ai/planner";
 import type { DeveloperPlacementType, Faction, GameState, GameType, TileImprovementType, Unit, UnitType } from "@/lib/empire/types";
 import type { Side } from "@/lib/empire/types";
 
-export type TileClickTarget = "tile" | "city" | "surface-unit" | "air-unit";
+export type TileClickTarget = "tile" | "site" | "surface-unit" | "air-unit";
 export type PendingCityRename = {
   x: number;
   y: number;
@@ -315,8 +314,9 @@ export function useEmpireGame() {
 
   const selectedCityOccupants = useMemo(() => {
     if (!selectedCity) return null;
-    const surface = getBlockingUnitAt(game.units, selectedCity.x, selectedCity.y, "land");
-    const air = getBlockingUnitAt(game.units, selectedCity.x, selectedCity.y, "air");
+    const unitsAtCity = getUnitsAt(game.units, selectedCity.x, selectedCity.y);
+    const surface = unitsAtCity.filter((unit) => getUnitStats(unit).domain !== "air");
+    const air = unitsAtCity.filter((unit) => getUnitStats(unit).domain === "air");
     return { surface, air };
   }, [game.units, selectedCity]);
 
@@ -578,7 +578,11 @@ export function useEmpireGame() {
         selectedUnitStats?.domain === "air" &&
         possibleMoveKeys.has(key(x, y)) &&
         (
-          (target === "city" && clickedTile.city && clickedTile.owner === "player") ||
+          (target === "site" &&
+            (
+              (clickedTile.city && clickedTile.owner === "player") ||
+              (clickedTile.improvement?.type === "airfield" && clickedTile.improvement.owner === "player")
+            )) ||
           ((target === "surface-unit" || target === "tile") && surfaceUnit?.owner === "player" && surfaceUnit.type === "carrier")
         )
     );
@@ -644,7 +648,7 @@ export function useEmpireGame() {
         return;
       }
 
-      if (troopTransportDeploymentTargets.some((tile) => tile.x === x && tile.y === y) && target !== "surface-unit" && target !== "air-unit") {
+      if (troopTransportDeploymentTargets.some((tile) => tile.x === x && tile.y === y) && target !== "surface-unit" && target !== "air-unit" && target !== "site") {
         setSelectedCity(null);
         applyGameUpdate((current) =>
           applyCommand(current, {
@@ -674,7 +678,7 @@ export function useEmpireGame() {
       return;
     }
 
-    if (target === "city" && clickedTile.city && clickedTile.owner === "player") {
+    if (target === "site" && isSelectableProductionSite(x, y)) {
       selectCity(x, y);
       return;
     }
@@ -961,11 +965,12 @@ export function useEmpireGame() {
     handleArrowMove,
     handleSentryUnit,
     handleWakeUnit,
-    handleDecommissionSelectedUnit,
-    handleTileClick,
-    handleEndTurn,
-    selectUnit,
-    carrierJamTargets: getCarrierJamTargets(game, selectedUnit),
+  handleDecommissionSelectedUnit,
+  handleTileClick,
+  handleEndTurn,
+  selectCity,
+  selectUnit,
+  carrierJamTargets: getCarrierJamTargets(game, selectedUnit),
     carrierRelayAttackTargets: getCarrierRelayAttackTargets(game, selectedUnit),
     specialOpsDeploymentTargets: getSpecialOpsDeploymentTargets(game, selectedUnit),
     specialOpsAirStrikeTargets: getSpecialOpsAirStrikeTargets(game, selectedUnit),

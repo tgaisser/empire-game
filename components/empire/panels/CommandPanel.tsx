@@ -5,9 +5,10 @@ import { Bomb, Castle, Compass, Shield, Truck, Wrench } from "lucide-react";
 import { getFactionUnitBadgeClass, getFactionUnitBadgeStyle, getFactionUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
+import { CITY_SURFACE_CAPACITY } from "@/lib/empire/data/rules";
 import { UNIT_TYPE_ORDER } from "@/lib/empire/catalog";
 import { getFactionLeaderName, getFactionOption, getSideDisplayOption } from "@/lib/empire/factions";
-import { getImprovementBuildCost, getTroopTransportRemainingCapacity, getUnitStats } from "@/lib/empire/game";
+import { getImprovementBuildCost, getImprovementLabel, getTroopTransportRemainingCapacity, getUnitStats } from "@/lib/empire/game";
 import { getManualImprovementReference, getManualUnitReference } from "@/lib/empire/manual";
 import type { Faction, Side, Tile, TileImprovementType, Unit, UnitDefinition, UnitType } from "@/lib/empire/types";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,7 @@ type CommandPanelProps = {
   selectedUnit: Unit | null;
   selectedUnitTile: Tile | null;
   selectedCity: Tile | null;
-  selectedCityOccupants: { surface: Unit | null; air: Unit | null } | null;
+  selectedCityOccupants: { surface: Unit[]; air: Unit[] } | null;
   selectedSiteBuildableUnitTypes: Set<UnitType>;
   selectedSeaSpawnTileCount: number;
   playerCredits: number;
@@ -128,15 +129,40 @@ export function CommandPanel({
 }: CommandPanelProps) {
   const mode = selectedCity ? "city" : selectedUnit ? "unit" : "overview";
   const selectedSiteOwner = selectedCity?.improvement?.owner ?? selectedCity?.improvementProject?.owner ?? selectedCity?.owner ?? null;
+  const selectedSiteType = selectedCity?.city
+    ? "city"
+    : selectedCity?.improvement?.type === "port" || selectedCity?.improvement?.type === "airfield"
+      ? selectedCity.improvement.type
+      : null;
+  const selectedSiteImprovementType = selectedSiteType === "city" ? null : selectedSiteType;
+  const selectedSiteTitle = selectedCity
+    ? selectedCity.city
+      ? selectedCity.cityName ?? `City at (${selectedCity.x + 1}, ${selectedCity.y + 1})`
+      : selectedSiteImprovementType
+        ? `${getImprovementLabel(selectedSiteImprovementType)} at (${selectedCity.x + 1}, ${selectedCity.y + 1})`
+        : `Site at (${selectedCity.x + 1}, ${selectedCity.y + 1})`
+    : null;
+  const selectedSitePanelLabel = selectedSiteType === "city" ? "City" : selectedSiteImprovementType ? getImprovementLabel(selectedSiteImprovementType) : "Site";
   const engineerDemolitionTargets = selectedUnit?.type === "engineer" ? demolishableImprovementTargets : [];
   const bomberDemolitionTarget = selectedUnit?.type === "bomber" ? demolishableImprovementTargets[0] ?? null : null;
   const selectedUnitManual = selectedUnit ? getManualUnitReference(selectedUnit.type) : null;
+  const citySurfaceFull = Boolean(selectedCity?.city && selectedCityOccupants && selectedCityOccupants.surface.length >= CITY_SURFACE_CAPACITY);
+  const citySurfaceSummary = selectedCityOccupants?.surface.length
+    ? `${selectedCityOccupants.surface.length}/${selectedCity?.city ? CITY_SURFACE_CAPACITY : 1} · ${selectedCityOccupants.surface
+        .map((unit) => unit.name ?? getUnitStats(unit).name)
+        .join(", ")}`
+    : "None";
+  const cityAirSummary = selectedCityOccupants?.air.length
+    ? `${selectedCityOccupants.air.length} · ${selectedCityOccupants.air.map((unit) => unit.name ?? getUnitStats(unit).name).join(", ")}`
+    : "None";
 
   return (
     <Card className="border-slate-800 bg-slate-900/90 rounded-3xl shadow-2xl">
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
-          {mode === "city" ? <Castle className="w-5 h-5" /> : mode === "unit" ? <Shield className="w-5 h-5" /> : <Compass className="w-5 h-5" />}
+          {mode === "city" ? (
+            selectedSiteType === "city" ? <Castle className="w-5 h-5" /> : selectedSiteImprovementType ? <ImprovementIcon improvementType={selectedSiteImprovementType} /> : <Castle className="w-5 h-5" />
+          ) : mode === "unit" ? <Shield className="w-5 h-5" /> : <Compass className="w-5 h-5" />}
           Context Panel
         </CardTitle>
       </CardHeader>
@@ -541,9 +567,10 @@ export function CommandPanel({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-base font-semibold text-slate-100">
-                    {selectedCity.cityName ?? `City at (${selectedCity.x + 1}, ${selectedCity.y + 1})`}
+                    {selectedSiteTitle}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-300">
+                    <span>Type: {selectedSitePanelLabel}</span>
                     <span>
                       Owner:{" "}
                       {selectedSiteOwner === "player"
@@ -567,15 +594,11 @@ export function CommandPanel({
               <div className="mt-3 grid gap-x-4 gap-y-1 text-xs text-slate-400 sm:grid-cols-2">
                 <div>
                   Air Units:{" "}
-                  {selectedCityOccupants?.air
-                    ? `${selectedCityOccupants.air.owner === "player" ? "Friendly" : "Enemy"} ${selectedCityOccupants.air.type}`
-                    : "None"}
+                  {cityAirSummary}
                 </div>
                 <div>
                   Surface Units:{" "}
-                  {selectedCityOccupants?.surface
-                    ? `${selectedCityOccupants.surface.owner === "player" ? "Friendly" : "Enemy"} ${selectedCityOccupants.surface.type}`
-                    : "None"}
+                  {citySurfaceSummary}
                 </div>
                 {selectedCity.improvement ? (
                   <div className="sm:col-span-2">
@@ -596,17 +619,10 @@ export function CommandPanel({
                 .filter((unitType) => selectedSiteBuildableUnitTypes.has(unitType))
                 .map((unitType) => [unitType, unitDefinitions[unitType]] as [UnitType, UnitDefinition])
                 .map(([unitType, unitDefinition]) => {
-                const slotBlocked =
-                  unitDefinition.domain === "air"
-                    ? !!selectedCityOccupants?.air
-                    : unitDefinition.domain === "land"
-                      ? !!selectedCityOccupants?.surface
-                      : false;
                 const disabled =
                   !!selectedCity.production ||
                   playerCredits < unitDefinition.cost ||
-                  selectedSiteOwner !== "player" ||
-                  slotBlocked;
+                  selectedSiteOwner !== "player";
                 const attackProfile = unitDefinition.attackDomains.length ? `${unitDefinition.attackDomains.join("/")} attack` : "Non-combat";
                 const unitManual = getManualUnitReference(unitType);
 
@@ -655,9 +671,16 @@ export function CommandPanel({
                 );
               })}
             </div>
-            {!selectedCity.production && (selectedCityOccupants?.surface || selectedCityOccupants?.air) && (
+            {!selectedCity.production && (selectedCityOccupants?.surface.length || selectedCityOccupants?.air.length) && (
               <div className="text-xs text-slate-400">
-                This site has occupied deployment slots. Air builds need a clear air slot, land builds need a clear ground slot, and naval builds launch into adjacent water instead.
+                {selectedCity.city
+                  ? "Garrisons stay inside the city. Land production only stops when the city surface stack is full, air builds still need spare air capacity, and naval builds launch into adjacent water."
+                  : "Units can sit on this site without hiding it. Use the site badge on the map to reopen this panel when the tile is crowded."}
+              </div>
+            )}
+            {!selectedCity.production && citySurfaceFull && (
+              <div className="text-xs text-slate-400">
+                This city is at its surface stack limit of {CITY_SURFACE_CAPACITY}. Move or lose a garrison before queueing another land unit.
               </div>
             )}
             {!selectedCity.production && selectedSiteBuildableUnitTypes.size === 0 && (

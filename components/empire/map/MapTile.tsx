@@ -499,11 +499,10 @@ export function MapTile({
   const visibleOccupants = visible
     ? getUnitsAt(units, tile.x, tile.y).filter((unit) => !isUnitConcealedFromSide(unit, "player"))
     : [];
+  const surfaceOccupants = visibleOccupants.filter((unit) => getUnitStats(unit).domain !== "air");
   const airOccupants = visibleOccupants.filter((unit) => getUnitStats(unit).domain === "air");
-  const surfaceOccupant =
-    visibleOccupants.find((unit) => getUnitStats(unit).domain !== "air") ?? null;
-  const airOccupant =
-    airOccupants[0] ?? null;
+  const surfaceOccupant = surfaceOccupants[0] ?? null;
+  const airOccupant = airOccupants[0] ?? null;
   const hasSharedUnitStack = Boolean(surfaceOccupant && airOccupant);
   const occupant = getPreferredDisplayUnitAt(visibleOccupants, tile.x, tile.y);
   const isSelected = selectedUnit?.x === tile.x && selectedUnit?.y === tile.y;
@@ -514,6 +513,7 @@ export function MapTile({
   const hasPendingOrderHighlight = highlightPendingOrder && highlightOrderSignal > 0;
   const tileLabel = isUnseen ? "Unexplored" : getTileLabel(displayTile);
   const improvementType = displayTile?.improvement?.type ?? displayTile?.improvementProject?.type ?? null;
+  const siteType = displayTile?.city ? "city" : displayTile?.improvement?.type === "port" || displayTile?.improvement?.type === "airfield" ? displayTile.improvement.type : null;
   const showImprovementTileOverlay =
     improvementType === "port" || improvementType === "airfield" || improvementType === "tunnel" || improvementType === "minefield" || improvementType === "outpost";
   const hasSpecialTileBackdrop = Boolean(displayTile?.city || displayTile?.improvement || displayTile?.improvementProject);
@@ -527,6 +527,7 @@ export function MapTile({
   const engineerOnProject = Boolean(
     surfaceOccupant?.type === "engineer" && displayTile?.improvementProject?.engineerUnitId === surfaceOccupant.id
   );
+  const showSiteChip = Boolean(siteType && (surfaceOccupant || airOccupant));
   const productionPulseClass =
     productionSiteOwner === "player"
       ? "bg-[#a3e635]/24"
@@ -591,15 +592,35 @@ export function MapTile({
         />
       ) : null}
       <div className="absolute inset-0 z-10 flex items-center justify-center">
-        {displayTile?.city && (
+        {showSiteChip ? (
           <span
             role="button"
             tabIndex={-1}
-            onClick={(event) => handleTargetClick(event, "city")}
-            onContextMenu={(event) => handleTargetContextMenu(event, "city")}
-            className={[
-              "flex h-[46%] w-[46%] min-h-5 min-w-5 max-h-9 max-w-9 items-center justify-center cursor-pointer",
-            ].join(" ")}
+            onClick={(event) => handleTargetClick(event, "site")}
+            onContextMenu={(event) => handleTargetContextMenu(event, "site")}
+            className="absolute left-1 top-1 z-20 flex h-[28%] w-[28%] min-h-4 min-w-4 max-h-7 max-w-7 items-center justify-center rounded-md border border-slate-950/40 bg-slate-950/72 shadow-md cursor-pointer"
+          >
+            <span
+              className={[
+                "absolute inset-[10%] rounded-md shadow-sm",
+                getFactionVisuals(displayTile?.improvement?.owner ?? displayTile?.owner ?? null).contrastPlateClass,
+              ].join(" ")}
+            />
+            {siteType === "city" ? (
+              <CityIcon className={`h-full w-full drop-shadow-sm ${ownerPrimaryColor(displayTile?.owner ?? null)}`} />
+            ) : (
+              <span className={`relative z-10 ${ownerPrimaryColor(displayTile?.improvement?.owner ?? displayTile?.owner ?? null)}`}>
+                <ImprovementIcon improvementType={siteType as "port" | "airfield"} />
+              </span>
+            )}
+          </span>
+        ) : displayTile?.city ? (
+          <span
+            role="button"
+            tabIndex={-1}
+            onClick={(event) => handleTargetClick(event, "site")}
+            onContextMenu={(event) => handleTargetContextMenu(event, "site")}
+            className="flex h-[46%] w-[46%] min-h-5 min-w-5 max-h-9 max-w-9 items-center justify-center cursor-pointer"
           >
             <span
               className={[
@@ -609,7 +630,7 @@ export function MapTile({
             />
             <CityIcon className={`h-full w-full drop-shadow-sm ${ownerPrimaryColor(displayTile.owner)}`} />
           </span>
-        )}
+        ) : null}
         {(displayTile?.improvement || displayTile?.improvementProject) &&
         (displayTile.improvement?.type ?? displayTile.improvementProject?.type) !== "bridge" &&
         !showImprovementTileOverlay && (
@@ -729,6 +750,11 @@ export function MapTile({
             {getRemainingMove(surfaceOccupant) > 0 ? (
               <span className="absolute -top-1 -left-1 rounded-full bg-slate-950/92 px-1 text-[9px] font-bold text-cyan-100 ring-1 ring-cyan-200/35">
                 {getRemainingMove(surfaceOccupant)}
+              </span>
+            ) : null}
+            {surfaceOccupants.length > 1 ? (
+              <span className="absolute -bottom-1 -right-1 rounded-full bg-slate-950/90 px-1 text-[9px] font-bold text-white">
+                {surfaceOccupants.length}
               </span>
             ) : null}
           </span>

@@ -18,16 +18,17 @@ import { EndgameOverlay } from "@/components/empire/panels/EndgameOverlay";
 import { FieldManualModal } from "@/components/empire/panels/FieldManualModal";
 import { NamePromptModal } from "@/components/empire/panels/NamePromptModal";
 import { StartGameModal } from "@/components/empire/panels/StartGameModal";
+import { TileContentsModal } from "@/components/empire/panels/TileContentsModal";
 import { TopCommandBar } from "@/components/empire/panels/TopCommandBar";
 import { UnitIntelModal } from "@/components/empire/panels/UnitIntelModal";
 import { createAiDiagnosticsReport } from "@/lib/empire/ai/diagnostics";
-import { getRemainingMove, getUnitStats, key } from "@/lib/empire/game";
+import { getRemainingMove, getUnitStats, getUnitsAt, key } from "@/lib/empire/game";
 import type { ManualRelatedLink } from "@/lib/empire/manual";
 import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
 import { getFactionLeaderName } from "@/lib/empire/factions";
 import { getPreferredPlayerName, isCustomPlayerName, resolvePlayerName, savePlayerProfile } from "@/lib/empire/playerProfile";
 import { clearAutoSave, downloadSaveFile, getAutoSaveSummary, loadAutoSave, uploadSaveFile } from "@/lib/empire/saveLoad";
-import type { DeveloperPlacementType, Faction, GameType, Side, UnitType } from "@/lib/empire/types";
+import type { DeveloperPlacementType, Faction, GameType, Side, Unit, UnitType } from "@/lib/empire/types";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default function EmpireGame() {
@@ -94,6 +95,7 @@ export default function EmpireGame() {
     handleDecommissionSelectedUnit,
     handleTileClick,
     handleEndTurn,
+    selectCity,
     selectUnit,
     carrierJamTargets,
     carrierRelayAttackTargets,
@@ -132,6 +134,7 @@ export default function EmpireGame() {
   const [showUnmovedHighlights, setShowUnmovedHighlights] = useState(false);
   const [aiDiagnosticsReport, setAiDiagnosticsReport] = useState<ReturnType<typeof createAiDiagnosticsReport> | null>(null);
   const [miniMapJumpTarget, setMiniMapJumpTarget] = useState<{ x: number; y: number; nonce: number } | null>(null);
+  const [tileContentsTarget, setTileContentsTarget] = useState<{ x: number; y: number } | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
   const unmovedCycleIndexRef = useRef(0);
   const aiPlaybackTimeoutRef = useRef<number | null>(null);
@@ -213,7 +216,7 @@ export default function EmpireGame() {
     ...devImprovementPlacementTargets.map((tile) => key(tile.x, tile.y)),
   ]);
 
-  function getClickedEnemyUnit(x: number, y: number, target?: "tile" | "city" | "surface-unit" | "air-unit") {
+  function getClickedEnemyUnit(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
     const visible = effectivePlayerVisible[y]?.[x];
     if (!visible) return null;
 
@@ -223,11 +226,11 @@ export default function EmpireGame() {
 
     if (target === "air-unit") return airUnit;
     if (target === "surface-unit") return surfaceUnit;
-    if (target === "city") return null;
+    if (target === "site") return null;
     return surfaceUnit ?? airUnit;
   }
 
-  function shouldOpenEnemyIntelOnClick(x: number, y: number, target?: "tile" | "city" | "surface-unit" | "air-unit") {
+  function shouldOpenEnemyIntelOnClick(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
     const clickedEnemyUnit = getClickedEnemyUnit(x, y, target);
     if (!clickedEnemyUnit) return null;
 
@@ -409,9 +412,44 @@ export default function EmpireGame() {
     toast.success("AI mirror simulations completed.");
   }
 
-  function handleMapTileClick(x: number, y: number, target?: "tile" | "city" | "surface-unit" | "air-unit") {
+  function shouldOpenTileContentsPicker(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
+    const clickedTile = game.map[y]?.[x] ?? null;
+    if (!clickedTile) return false;
+
+    const friendlyUnits = getUnitsAt(game.units, x, y).filter((unit) => unit.owner === "player");
+    const friendlySurfaceUnits = friendlyUnits.filter((unit) => getUnitStats(unit).domain !== "air");
+    const friendlyAirUnits = friendlyUnits.filter((unit) => getUnitStats(unit).domain === "air");
+    const friendlySite = Boolean(
+      (clickedTile.city && clickedTile.owner === "player") ||
+      (clickedTile.improvement && clickedTile.improvement.owner === "player" && (clickedTile.improvement.type === "port" || clickedTile.improvement.type === "airfield"))
+    );
+
+    if (target === "site") return false;
+    if (target === "surface-unit") return friendlySurfaceUnits.length > 1;
+    if (target === "air-unit") return friendlyAirUnits.length > 1;
+
+    const browsingThisTile =
+      !selectedUnit ||
+      (selectedUnit.x === x && selectedUnit.y === y) ||
+      (selectedCity?.x === x && selectedCity?.y === y);
+
+    return browsingThisTile && friendlyUnits.length + (friendlySite ? 1 : 0) > 1;
+  }
+
+  function handleTileContentsUnitSelect(unit: Unit) {
+    setTileContentsTarget(null);
+    selectUnit(unit);
+  }
+
+  function handleTileContentsSiteSelect(x: number, y: number) {
+    setTileContentsTarget(null);
+    selectCity(x, y);
+  }
+
+  function handleMapTileClick(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
     playTileClick(game.map[y]?.[x] ?? null);
     setIntelUnitId(null);
+    setTileContentsTarget(null);
     if (pendingDroneTarget) {
       handleSetDroneTarget(x, y);
       return;
@@ -442,7 +480,7 @@ export default function EmpireGame() {
       return;
     }
 
-    if (pendingSeaBuild && target !== "city" && target !== "surface-unit" && target !== "air-unit") {
+    if (pendingSeaBuild && target !== "site" && target !== "surface-unit" && target !== "air-unit") {
       const seaSpawnTile = selectedSeaSpawnTiles.find((tile) => tile.x === x && tile.y === y);
       if (seaSpawnTile) {
         recruitAtSelectedCity(pendingSeaBuild, x, y);
@@ -454,7 +492,7 @@ export default function EmpireGame() {
 
     if (transportLoadMode) {
       const loadTarget =
-        target !== "city" && target !== "air-unit"
+        target !== "site" && target !== "air-unit"
           ? troopTransportLoadTargets.find((unit) => unit.x === x && unit.y === y)
           : null;
       if (loadTarget) {
@@ -464,7 +502,7 @@ export default function EmpireGame() {
       return;
     }
 
-    if (pendingEngineerPlacement && target !== "city" && target !== "surface-unit" && target !== "air-unit") {
+    if (pendingEngineerPlacement && target !== "site" && target !== "surface-unit" && target !== "air-unit") {
       const placementTile = placementTargets.find((tile) => tile.x === x && tile.y === y);
       if (placementTile) {
         buildWithSelectedEngineer(pendingEngineerPlacement, x, y);
@@ -474,7 +512,7 @@ export default function EmpireGame() {
       setPendingEngineerPlacement(null);
     }
 
-    if (pendingSpecialOpsDeployment && target !== "city" && target !== "surface-unit" && target !== "air-unit") {
+    if (pendingSpecialOpsDeployment && target !== "site" && target !== "surface-unit" && target !== "air-unit") {
       const deploymentTile = specialOpsDeploymentTargets.find((tile) => tile.x === x && tile.y === y);
       if (deploymentTile) {
         handleUnloadSpecialOps(x, y);
@@ -483,7 +521,7 @@ export default function EmpireGame() {
       return;
     }
 
-    if (selectedUnit?.type === "engineer" && target !== "city" && target !== "surface-unit" && target !== "air-unit") {
+    if (selectedUnit?.type === "engineer" && target !== "site" && target !== "surface-unit" && target !== "air-unit") {
       const bridgeAction = bridgeEngineerActions.find((action) => action.x === x && action.y === y);
       if (bridgeAction) {
         setPendingBridgeAction({ x, y });
@@ -497,10 +535,15 @@ export default function EmpireGame() {
       return;
     }
 
+    if (shouldOpenTileContentsPicker(x, y, target)) {
+      setTileContentsTarget({ x, y });
+      return;
+    }
+
     handleTileClick(x, y, target);
   }
 
-  function handleMapTileRightClick(x: number, y: number, target?: "tile" | "city" | "surface-unit" | "air-unit") {
+  function handleMapTileRightClick(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
     const targetUnit = getClickedEnemyUnit(x, y, target);
     if (targetUnit) {
       setIntelUnitId(targetUnit.id);
@@ -526,6 +569,7 @@ export default function EmpireGame() {
         endTurnConfirmOpen ||
         endgameOpen ||
         startGameOpen ||
+        !!tileContentsTarget ||
         !!pendingCityRename ||
         !!pendingDroneTarget ||
         !!pendingUnitRename
@@ -546,7 +590,7 @@ export default function EmpireGame() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [battleLogOpen, devDrawerOpen, endTurnConfirmOpen, endgameOpen, fieldManualOpen, handleArrowMove, pendingCityRename, pendingDroneTarget, pendingUnitRename, startGameOpen]);
+  }, [battleLogOpen, devDrawerOpen, endTurnConfirmOpen, endgameOpen, fieldManualOpen, handleArrowMove, pendingCityRename, pendingDroneTarget, pendingUnitRename, startGameOpen, tileContentsTarget]);
 
   useEffect(() => {
     if (movementPlayback.length === 0) return;
@@ -979,6 +1023,19 @@ export default function EmpireGame() {
         aiFaction={game.aiFaction}
         onOpenFieldManual={handleOpenFieldManualForUnit}
         onClose={() => setIntelUnitId(null)}
+      />
+      <TileContentsModal
+        open={!!tileContentsTarget}
+        tile={tileContentsTarget ? game.map[tileContentsTarget.y]?.[tileContentsTarget.x] ?? null : null}
+        units={
+          tileContentsTarget
+            ? getUnitsAt(game.units, tileContentsTarget.x, tileContentsTarget.y).filter((unit) => unit.owner === "player")
+            : []
+        }
+        playerFaction={game.playerFaction}
+        onSelectSite={handleTileContentsSiteSelect}
+        onSelectUnit={handleTileContentsUnitSelect}
+        onClose={() => setTileContentsTarget(null)}
       />
       <NamePromptModal
         key={pendingCityRename ? `city-${pendingCityRename.x}-${pendingCityRename.y}-${pendingCityRename.oldName}` : "city-rename"}
