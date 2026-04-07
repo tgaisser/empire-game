@@ -2,12 +2,15 @@ import { chooseMoveTowardTarget } from "@/lib/empire/ai/navigation";
 import { scoreEnemyThreatAtPosition, scoreFriendlySupportAtPosition } from "@/lib/empire/ai/tactics";
 import {
   applyCommand,
+  getAmmoReloadQuote,
   getCarrierJamTargets,
+  getCruiseMissileTargets,
   getEngineerBuildOptions,
   getSpecialOpsAirStrikeTargets,
   getSpecialOpsDeploymentTargets,
   getTroopTransportDeploymentTargets,
   getTroopTransportLoadTargets,
+  getRemainingMove,
   getUnitStats,
   isFriendlyAirBase,
 } from "@/lib/empire/game";
@@ -28,6 +31,17 @@ function getKnownNeutralCityTargets(state: GameState) {
 
 function getMissionForUnit(plan: AiTurnPlan, unitId: number) {
   return plan.unitMissions.find((mission) => mission.unitId === unitId) ?? null;
+}
+
+function getVisibleEnemyUnits(state: GameState, side: "player" | "ai") {
+  const visible = side === "ai" ? state.aiVisible : state.playerVisible;
+  const detectedIds = new Set(side === "ai" ? state.aiDetectedUnitIds : state.playerDetectedUnitIds);
+
+  return state.units.filter((unit) => {
+    if (unit.owner === side) return false;
+    if (!visible[unit.y]?.[unit.x]) return false;
+    return detectedIds.has(unit.id);
+  });
 }
 
 function isHighValueTransportCargo(unit: Unit) {
@@ -217,6 +231,91 @@ function chooseCarrierJamAction(unit: Unit, state: GameState) {
   return { type: "jam_drone" as const, side: "ai" as const, unitId: unit.id, x: target.x, y: target.y };
 }
 
+function chooseCruiseMissileAction(unit: Unit, state: GameState, plan: AiTurnPlan) {
+  if (!["submarine", "ssbn"].includes(unit.type)) return null;
+  if (getRemainingMove(unit) <= 0) return null;
+
+  const targets = getCruiseMissileTargets(state, unit);
+  if (!targets.length) return null;
+
+  const mission = getMissionForUnit(plan, unit.id);
+  const target = [...targets]
+    .map((tile) => {
+      const visibleEnemy = state.units.find(
+        (candidate) => candidate.owner !== unit.owner && candidate.x === tile.x && candidate.y === tile.y && getUnitStats(candidate).domain === "land"
+      );
+      const siteValue =
+        (tile.city ? 52 : 0) +
+        (tile.production ? 18 : 0) +
+        (tile.improvement?.type === "airfield" ? 20 : 0) +
+        (tile.improvement?.type === "port" ? 18 : 0) +
+        (tile.improvement?.type === "outpost" ? 14 : 0) +
+        (tile.improvementProject ? 10 : 0);
+      const unitValue = visibleEnemy
+        ? (visibleEnemy.type === "tank" ? 18 : visibleEnemy.type === "engineer" || visibleEnemy.type === "special-ops" ? 22 : 12) + visibleEnemy.hp
+        : 0;
+      const missionBias = mission ? Math.max(0, 12 - distance(tile, { x: mission.targetX, y: mission.targetY }) * 2) : 0;
+      const productionBias = tile.production ? 12 : 0;
+      const coastalBias = tile.improvement?.type === "port" || tile.improvement?.type === "airfield" ? 8 : 0;
+      return {
+        tile,
+        score: siteValue + unitValue + missionBias + productionBias + coastalBias,
+      };
+    })
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (!target || target.score < 24) return null;
+  return { type: "launch_cruise_missile" as const, side: "ai" as const, unitId: unit.id, x: target.tile.x, y: target.tile.y };
+}
+
+function chooseSonarPingAction(unit: Unit, state: GameState, plan: AiTurnPlan) {
+  if (unit.type !== "destroyer" || !unit.sonarUpgraded) return null;
+  if (getRemainingMove(unit) <= 0) return null;
+
+  const mission = getMissionForUnit(plan, unit.id);
+  const visibleEnemies = getVisibleEnemyUnits(state, "ai");
+  const nearbyEnemySub = visibleEnemies.some(
+    (enemy) => (enemy.type === "submarine" || enemy.type === "ssbn") && distance(unit, enemy) <= 4
+  );
+  const nearbyEnemySea = visibleEnemies.some(
+    (enemy) => getUnitStats(enemy).domain === "sea" && distance(unit, enemy) <= 5
+  );
+  const screeningHighValueFriendly = state.units.some(
+    (friendly) =>
+      friendly.owner === unit.owner &&
+      ["troop-transport", "carrier", "ssbn"].includes(friendly.type) &&
+      distance(unit, friendly) <= 2
+  );
+  const missionCallsForScreen =
+    mission?.missionType === "escort-expedition" ||
+    mission?.missionType === "stage-assault" ||
+    mission?.missionType === "screen-fleet";
+
+  if (!nearbyEnemySub && !(missionCallsForScreen && (nearbyEnemySea || screeningHighValueFriendly))) {
+    return null;
+  }
+
+  return { type: "sonar_ping" as const, side: "ai" as const, unitId: unit.id };
+}
+
+function chooseReloadAction(unit: Unit, state: GameState, plan: AiTurnPlan) {
+  if (getRemainingMove(unit) <= 0) return null;
+  const quote = getAmmoReloadQuote(state, unit);
+  if (!quote || quote.cost <= 0 || state.credits.ai <= 0) return null;
+
+  const mission = getMissionForUnit(plan, unit.id);
+  const missingAmmo = quote.bombs + quote.torpedoes + quote.cruiseMissiles;
+  const strikeMission = Boolean(
+    mission &&
+      ["strike-target", "screen-fleet", "escort-expedition", "stage-assault", "advance-on-city", "capture-city"].includes(mission.missionType)
+  );
+
+  if (missingAmmo <= 0) return null;
+  if (!strikeMission && unit.type !== "bomber" && unit.type !== "ssbn" && unit.type !== "submarine") return null;
+
+  return { type: "reload_ammo" as const, side: "ai" as const, unitId: unit.id };
+}
+
 function chooseSpecialOpsAirStrikeAction(unit: Unit, state: GameState) {
   if (unit.type !== "special-ops") return null;
   const targets = getSpecialOpsAirStrikeTargets(state, unit);
@@ -242,6 +341,24 @@ export function executeAiUnitSpecialAction(state: GameState, unit: Unit, plan: A
       x: engineerAction.x,
       y: engineerAction.y,
     });
+    if (nextState !== state) return nextState;
+  }
+
+  const missileAction = chooseCruiseMissileAction(unit, state, plan);
+  if (missileAction) {
+    const nextState = applyCommand(state, missileAction);
+    if (nextState !== state) return nextState;
+  }
+
+  const sonarAction = chooseSonarPingAction(unit, state, plan);
+  if (sonarAction) {
+    const nextState = applyCommand(state, sonarAction);
+    if (nextState !== state) return nextState;
+  }
+
+  const reloadAction = chooseReloadAction(unit, state, plan);
+  if (reloadAction) {
+    const nextState = applyCommand(state, reloadAction);
     if (nextState !== state) return nextState;
   }
 

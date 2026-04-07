@@ -1,6 +1,7 @@
 import { DIRECTIONS, UNIT_STATS } from "@/lib/empire/config";
 import { AIR_SUPPORT_PER_CITY, CITY_SURFACE_CAPACITY } from "@/lib/empire/data/rules";
 import { assignAiUnitMissions, createAiThreatSummary, planAiOperations, planAiStrategicGoals } from "@/lib/empire/ai/strategy";
+import { getTerrainMoveCost } from "@/lib/empire/game";
 import type { GameState, Side, Tile, Unit, UnitDomain, UnitType } from "@/lib/empire/types";
 import type { AiOperation, AiStrategicGoal, AiThreatSummary, AiUnitMission } from "@/lib/empire/ai/strategy";
 
@@ -20,6 +21,9 @@ export type AiContext = {
   aiAirfieldCount: number;
   aiRadarCount: number;
   coastalCityCount: number;
+  knownEnemySubCount: number;
+  highValueMissileTargetCount: number;
+  isolatedAssaultUnitCount: number;
   sites: AiProductionSite[];
   threatSummary: AiThreatSummary;
 };
@@ -101,6 +105,91 @@ function hasAdjacentWater(state: GameState, x: number, y: number) {
   });
 }
 
+function createRouteProbeUnit(type: UnitType, x: number, y: number, owner: Side = "ai"): Unit {
+  return {
+    id: -1,
+    owner,
+    type,
+    x,
+    y,
+    hp: UNIT_STATS[type].maxHp,
+    moveSpent: 0,
+    fortified: false,
+    entrenched: false,
+    sentry: false,
+    concealed: false,
+    turnsAwayFromBase: 0,
+    bombsRemaining: null,
+    torpedoesRemaining: null,
+    cruiseMissilesRemaining: null,
+    droneTargetX: null,
+    droneTargetY: null,
+    carriedSpecialOps: null,
+    carriedTroops: null,
+  };
+}
+
+function hasLandRouteIgnoringUnits(state: GameState, start: Pick<Tile, "x" | "y"> | Pick<Unit, "x" | "y">, target: Pick<Tile, "x" | "y">, unitType: UnitType) {
+  const frontier = [{ x: start.x, y: start.y, cost: 0 }];
+  const bestCost = new Map<string, number>([[`${start.x},${start.y}`, 0]]);
+  const probe = createRouteProbeUnit(unitType, start.x, start.y);
+
+  while (frontier.length > 0) {
+    frontier.sort((a, b) => a.cost - b.cost);
+    const current = frontier.shift();
+    if (!current) break;
+    if (current.x === target.x && current.y === target.y) return true;
+
+    for (const [dx, dy] of DIRECTIONS) {
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+      if (nx < 0 || ny < 0 || nx >= state.mapWidth || ny >= state.mapHeight) continue;
+      const tile = state.map[ny][nx];
+      const moveCost = getTerrainMoveCost(state, probe, tile);
+      if (moveCost >= 999) continue;
+      const totalCost = current.cost + moveCost;
+      const tileKey = `${nx},${ny}`;
+      const previous = bestCost.get(tileKey);
+      if (previous !== undefined && previous <= totalCost) continue;
+      bestCost.set(tileKey, totalCost);
+      frontier.push({ x: nx, y: ny, cost: totalCost });
+    }
+  }
+
+  return false;
+}
+
+function getKnownStrategicObjectives(state: GameState) {
+  return state.aiIntel.flat().filter((tile): tile is Tile => {
+    if (!tile) return false;
+    if (tile.city && tile.owner !== "ai") return true;
+    return Boolean(tile.improvement && tile.improvement.owner === "player");
+  });
+}
+
+function countHighValueMissileTargets(state: GameState) {
+  return state.aiIntel.flat().filter((tile): tile is Tile => {
+    if (!tile || tile.terrain === "water") return false;
+    if (tile.owner !== "player" && tile.improvement?.owner !== "player" && tile.improvementProject?.owner !== "player") return false;
+    return Boolean(tile.city || tile.production || tile.improvement || tile.improvementProject);
+  }).length;
+}
+
+function countIsolatedAssaultUnits(state: GameState, aiUnits: Unit[]) {
+  const assaultUnits = aiUnits.filter((unit) => ["infantry", "tank", "scout", "engineer", "special-ops"].includes(unit.type));
+  if (assaultUnits.length === 0) return 0;
+
+  const knownObjectives = getKnownStrategicObjectives(state);
+  if (knownObjectives.length === 0) {
+    const navalPressureMap = state.gameType === "naval" || state.gameType === "archipelago" || state.gameType === "ocean";
+    return navalPressureMap ? assaultUnits.filter((unit) => hasAdjacentWater(state, unit.x, unit.y)).length : 0;
+  }
+
+  return assaultUnits.filter(
+    (unit) => !knownObjectives.some((objective) => hasLandRouteIgnoringUnits(state, unit, objective, unit.type))
+  ).length;
+}
+
 function getOccupancyLayer(domain: UnitDomain) {
   return domain === "air" ? "air" : "surface";
 }
@@ -162,6 +251,9 @@ export function createAiContext(state: GameState): AiContext {
   const aiAirfieldCount = state.map.flat().filter((tile) => tile.improvement?.type === "airfield" && tile.improvement.owner === "ai").length;
   const aiRadarCount = state.map.flat().filter((tile) => tile.improvement?.type === "radar" && tile.improvement.owner === "ai").length;
   const coastalCityCount = state.map.flat().filter((tile) => tile.city && tile.owner === "ai" && hasAdjacentWater(state, tile.x, tile.y)).length;
+  const knownEnemySubCount = knownEnemyUnits.filter((unit) => unit.type === "submarine" || unit.type === "ssbn").length;
+  const highValueMissileTargetCount = countHighValueMissileTargets(state);
+  const isolatedAssaultUnitCount = countIsolatedAssaultUnits(state, aiUnits);
 
   return {
     state,
@@ -177,6 +269,9 @@ export function createAiContext(state: GameState): AiContext {
     aiAirfieldCount,
     aiRadarCount,
     coastalCityCount,
+    knownEnemySubCount,
+    highValueMissileTargetCount,
+    isolatedAssaultUnitCount,
     sites,
     threatSummary,
   };
@@ -267,6 +362,9 @@ function scoreUnitForSite(
   const aiBombers = context.aiCountsByType.bomber;
   const aiFighters = context.aiCountsByType.fighter;
   const aiChoppers = context.aiCountsByType.chopper;
+  const knownEnemySubCount = context.knownEnemySubCount;
+  const highValueMissileTargetCount = context.highValueMissileTargetCount;
+  const isolatedAssaultUnitCount = context.isolatedAssaultUnitCount;
   const expeditionOperations = operations.filter((operation) => operation.requiresTransport);
   const navalOperations = operations.filter((operation) => operation.type === "naval-control");
   const stagedAssaultUnits = unitMissions.filter(
@@ -275,7 +373,7 @@ function scoreUnitForSite(
       ["infantry", "tank", "scout", "engineer", "special-ops"].includes(mission.unitType)
   ).length;
   const escortMissionCount = unitMissions.filter((mission) => mission.missionType === "escort-expedition").length;
-  const transportNeed = Math.max(0, Math.ceil(stagedAssaultUnits / 2) - aiTransports);
+  const transportNeed = Math.max(0, Math.max(Math.ceil(stagedAssaultUnits / 2), Math.ceil(isolatedAssaultUnitCount / 3)) - aiTransports);
   const escortShortfall = Math.max(0, expeditionOperations.length * 2 - escortMissionCount);
   const siteThreatScore =
     context.threatSummary.threatenedSites.find((threatenedSite) => threatenedSite.x === site.x && threatenedSite.y === site.y)?.threatScore ?? 0;
@@ -369,6 +467,10 @@ function scoreUnitForSite(
       score += 16;
       reasons.push("coastline lacks enough ports");
     }
+    if (isolatedAssaultUnitCount > 0 && context.aiPortCount < Math.max(1, context.coastalCityCount)) {
+      score += 18;
+      reasons.push("isolated ground forces need more embark points");
+    }
     if (context.aiRadarCount < Math.max(1, threatenedSiteCount) && enemyAir > 0) {
       score += 16;
       reasons.push("enemy air pressure justifies radar");
@@ -407,8 +509,7 @@ function scoreUnitForSite(
       score += 14;
       reasons.push("enemy naval contacts are known");
     }
-    const knownEnemySubs = context.knownEnemyUnits.filter((u) => u.type === "submarine" || u.type === "ssbn").length;
-    if (knownEnemySubs > 0) {
+    if (knownEnemySubCount > 0) {
       score += 12;
       reasons.push("enemy submarines detected — ASW capability needed");
     }
@@ -427,6 +528,10 @@ function scoreUnitForSite(
     if (escortShortfall > 0) {
       score += 20;
       reasons.push("active expeditions are under-escorted");
+    }
+    if (isolatedAssaultUnitCount > 0) {
+      score += 10;
+      reasons.push("island forces need escort coverage to break out");
     }
     if (navalOperations.length > 0) {
       score += 10;
@@ -450,6 +555,10 @@ function scoreUnitForSite(
     if (transportNeed > 0) {
       score += 28;
       reasons.push("staged assault units are waiting for lift");
+    }
+    if (isolatedAssaultUnitCount > 0) {
+      score += 22;
+      reasons.push("ground forces are stranded behind water");
     }
     if (expeditionOperations.length > aiTransports) {
       score += 18;
@@ -499,6 +608,10 @@ function scoreUnitForSite(
       score += 12;
       reasons.push("sea control pressure favors attack subs");
     }
+    if (highValueMissileTargetCount > 0) {
+      score += Math.min(18, highValueMissileTargetCount * 3);
+      reasons.push("visible coastal targets justify submarine strike reach");
+    }
     score -= aiTypeCount * 6;
   } else if (unitType === "ssbn") {
     score += 20;
@@ -509,6 +622,10 @@ function scoreUnitForSite(
     if (context.aiCountsByType.ssbn === 0 && context.aiCountsByType.submarine > 0) {
       score += 12;
       reasons.push("adding cruise missile capability to the fleet");
+    }
+    if (highValueMissileTargetCount > 0) {
+      score += 20 + Math.min(16, highValueMissileTargetCount * 2);
+      reasons.push("visible cities and infrastructure reward missile boats");
     }
     if (enemySea > aiSea) {
       score += 8;

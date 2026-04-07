@@ -5,7 +5,9 @@ import {
   countForces,
   createInitialState,
   getCityCount,
+  getCruiseMissileTargets,
   getEngineerBuildOptions,
+  getAmmoReloadQuote,
 } from "@/lib/empire/game";
 import type { GameState, Owner, Side, Tile, Unit, WorldSizeOption } from "@/lib/empire/types";
 
@@ -304,6 +306,51 @@ export function runAiDiagnosticsForState(state: GameState): AiDiagnosticResult[]
         : escortMissions.length >= escortOperations.length
           ? `${escortMissions.length} escort mission(s) cover ${escortOperations.length} escort-demanding operation(s).`
           : `${escortOperations.length} escort-demanding operation(s) only have ${escortMissions.length} escort mission(s).`
+      )
+  );
+
+  const missileUnits = aiUnits.filter((unit) => ["submarine", "ssbn"].includes(unit.type));
+  const missileReadyUnits = missileUnits.filter((unit) => getCruiseMissileTargets(state, unit).length > 0);
+  results.push(
+    createDiagnosticResult(
+      "missile-pressure",
+      "Missile pressure",
+      missileUnits.length === 0 || missileReadyUnits.length > 0 ? "pass" : "warn",
+      missileUnits.length === 0
+        ? "No AI missile submarines are currently afloat."
+        : missileReadyUnits.length > 0
+          ? `${missileReadyUnits.length} missile submarine(s) have visible launch targets.`
+          : `${missileUnits.length} missile-capable submarine(s) are afloat but no visible strike targets are available.`
+    )
+  );
+
+  const sonarDestroyers = aiUnits.filter((unit) => unit.type === "destroyer" && unit.sonarUpgraded);
+  const knownEnemySubs = plan.context.knownEnemySubCount;
+  results.push(
+    createDiagnosticResult(
+      "sonar-coverage",
+      "Sonar coverage",
+      knownEnemySubs === 0 || sonarDestroyers.length > 0 ? "pass" : "warn",
+      knownEnemySubs === 0
+        ? "No enemy submarine contacts are currently known."
+        : sonarDestroyers.length > 0
+          ? `${sonarDestroyers.length} sonar destroyer(s) are available against ${knownEnemySubs} known submarine contact(s).`
+          : `${knownEnemySubs} enemy submarine contact(s) are known, but no sonar-upgraded destroyer is available.`
+    )
+  );
+
+  const reloadCandidates = aiUnits.filter((unit) => {
+    const quote = getAmmoReloadQuote(state, unit);
+    return Boolean(quote && quote.cost > 0);
+  });
+  results.push(
+    createDiagnosticResult(
+      "ammo-readiness",
+      "Ammo readiness",
+      reloadCandidates.length <= 3 ? "pass" : "warn",
+      reloadCandidates.length === 0
+        ? "No AI strike units are currently waiting on a paid reload."
+        : `${reloadCandidates.length} AI unit(s) could reload ammunition immediately at support sites.`
     )
   );
 
