@@ -3014,7 +3014,7 @@ function wakeUnit(state: GameState, side: Side, unitId: number): GameState {
   return {
     ...state,
     units: state.units.map((u) =>
-      u.id === unitId ? { ...u, sentry: false } : u
+      u.id === unitId ? { ...u, sentry: false, fortified: false, entrenched: false, concealed: false, moveSpent: 0 } : u
     ),
   };
 }
