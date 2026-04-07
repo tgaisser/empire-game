@@ -75,6 +75,19 @@ Notes:
 - [AGENTS.md](AGENTS.md)  
   Local agent instructions, including the requirement to verify Next.js behavior against the installed docs.
 
+## AI Architecture
+
+The AI in `lib/empire/ai/` is intentionally split into layers so strategy changes do not get buried inside movement heuristics.
+
+- `strategy.ts` generates strategic goals, then converts them into explicit operations such as defense, expansion, recon, naval control, and amphibious assault.
+- `planner.ts` builds the turn plan from those operations, including unit missions and production decisions tied to force deficits.
+- `special.ts` handles mission-aware nonstandard actions like troop loading, unloading, special-ops insertion, jamming, and engineer construction.
+- `navigation.ts` and `tactics.ts` execute the plan, including staging behavior, escort movement, retreat logic, and combat move selection.
+- `engine.ts` runs the AI turn in execution order and logs the current priorities, operations, and missions.
+- `diagnostics.ts` is the safety net for planner quality checks and mirror simulations.
+
+The current AI is no longer purely target-reactive. It now supports staged operations, including cases where land forces are trapped behind water and need transports, escorts, and a coastal staging site before an assault can happen.
+
 ## Source Of Truth Guidance
 
 - `lib/empire/game.ts` is the gameplay execution source of truth.
