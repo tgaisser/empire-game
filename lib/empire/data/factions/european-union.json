@@ -1,6 +1,7 @@
 {
   "id": "european-union",
   "label": "European Union",
+  "leaderName": "Charlemagne",
   "cityListLabel": "European Union Capitals",
   "capitalCity": "Brussels",
   "accentClass": "from-[#003399]/36 via-[#ffcc00]/12 to-white/8",

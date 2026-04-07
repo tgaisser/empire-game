@@ -1,6 +1,7 @@
 {
   "id": "ukraine",
   "label": "Ukraine",
+  "leaderName": "Hetman Khmelnytsky",
   "cityListLabel": "Ukrainian Cities",
   "capitalCity": "Kyiv",
   "accentClass": "from-[#0057B7]/38 via-[#FFD700]/16 to-white/8",

@@ -1,6 +1,7 @@
 {
   "id": "great-britain",
   "label": "Great Britain",
+  "leaderName": "Prime Minister Churchill",
   "cityListLabel": "British Cities",
   "capitalCity": "London",
   "accentClass": "from-[#012169]/38 via-white/12 to-[#C8102E]/10",

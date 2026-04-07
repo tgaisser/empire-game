@@ -1,6 +1,7 @@
 {
   "id": "north-korea",
   "label": "North Korea",
+  "leaderName": "Kim Il Sung",
   "cityListLabel": "North Korean Cities",
   "capitalCity": "Pyongyang",
   "accentClass": "from-[#024FA2]/34 via-white/12 to-[#ED1C27]/10",

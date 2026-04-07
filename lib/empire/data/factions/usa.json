@@ -1,6 +1,7 @@
 {
   "id": "usa",
   "label": "USA",
+  "leaderName": "President Washington",
   "cityListLabel": "USA State Capitals",
   "capitalCity": "Washington, D.C.",
   "accentClass": "from-[#b31942]/42 via-[#0a3161]/18 to-white/8",

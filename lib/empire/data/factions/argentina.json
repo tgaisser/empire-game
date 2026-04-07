@@ -1,6 +1,7 @@
 {
   "id": "argentina",
   "label": "Argentina",
+  "leaderName": "General San Martin",
   "cityListLabel": "Argentine Cities",
   "capitalCity": "Buenos Aires",
   "accentClass": "from-[#6CB4EE]/36 via-white/14 to-[#F6B40E]/8",

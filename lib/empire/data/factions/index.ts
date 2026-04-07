@@ -20,6 +20,7 @@ import type { Faction } from "@/lib/empire/types";
 export type FactionDefinition = {
   id: Faction;
   label: string;
+  leaderName: string;
   cityListLabel: string;
   capitalCity: string;
   accentClass: string;

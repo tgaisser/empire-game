@@ -1,6 +1,7 @@
 {
   "id": "africa",
   "label": "Africa",
+  "leaderName": "King Tut",
   "cityListLabel": "African Capitals",
   "capitalCity": "Cairo",
   "accentClass": "from-[#dc2626]/34 via-[#0f8a43]/12 to-black/10",

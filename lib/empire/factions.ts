@@ -4,6 +4,7 @@ import type { Faction, Side } from "@/lib/empire/types";
 export type FactionOption = {
   id: Faction;
   label: string;
+  leaderName: string;
   cityListLabel: string;
   capitalCity: string;
   accentClass: string;
@@ -34,6 +35,7 @@ export type SideDisplayOption = {
 export const FACTION_OPTIONS: Array<FactionOption> = FACTIONS.map((faction) => ({
   id: faction.id,
   label: faction.label,
+  leaderName: faction.leaderName,
   cityListLabel: faction.cityListLabel,
   capitalCity: faction.capitalCity,
   accentClass: faction.accentClass,
@@ -86,6 +88,10 @@ export function getFactionDefinition(faction: Faction): FactionDefinition {
 
 export function getFactionCapitalCity(faction: Faction) {
   return FACTIONS_BY_ID[faction].capitalCity;
+}
+
+export function getFactionLeaderName(faction: Faction) {
+  return FACTIONS_BY_ID[faction].leaderName;
 }
 
 export function getSideDisplayOption(sideOrOwner: Side | null) {

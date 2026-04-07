@@ -180,6 +180,7 @@ export type GameState = {
   gameType: GameType;
   playerFaction: Faction;
   aiFaction: Faction;
+  playerName: string;
   mapWidth: number;
   mapHeight: number;
   map: Tile[][];

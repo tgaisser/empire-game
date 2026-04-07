@@ -1,6 +1,7 @@
 {
   "id": "asia",
   "label": "Asia",
+  "leaderName": "Genghis Khan",
   "cityListLabel": "Asian Capitals",
   "capitalCity": "Beijing",
   "accentClass": "from-[#facc15]/34 via-white/12 to-[#ef4444]/10",

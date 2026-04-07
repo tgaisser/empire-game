@@ -1,6 +1,7 @@
 {
   "id": "australia",
   "label": "Australia",
+  "leaderName": "Prime Minister Curtin",
   "cityListLabel": "Australian Cities",
   "capitalCity": "Canberra",
   "accentClass": "from-[#012169]/38 via-white/12 to-[#E4002B]/10",

@@ -455,7 +455,8 @@ export function useEmpireGame() {
     nextGameType: GameType = game.gameType,
     nextWorldSizeId: string = worldSizeId,
     nextPlayerFaction: Faction = game.playerFaction,
-    nextAiFaction: Faction = game.aiFaction
+    nextAiFaction: Faction = game.aiFaction,
+    nextPlayerName: string = game.playerName
   ) {
     const isGlobe = nextGameType === "globe";
     const worldSize = isGlobe
@@ -469,7 +470,8 @@ export function useEmpireGame() {
         worldSize.height,
         nextGameType,
         nextPlayerFaction,
-        nextAiFaction
+        nextAiFaction,
+        nextPlayerName
       )
     );
     setLastPlayerMoveSnapshot(null);

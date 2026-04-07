@@ -1,6 +1,7 @@
 {
   "id": "iran",
   "label": "Iran",
+  "leaderName": "Cyrus the Great",
   "cityListLabel": "Iranian Cities",
   "capitalCity": "Tehran",
   "accentClass": "from-[#239f40]/34 via-[#da0000]/10 to-white/10",

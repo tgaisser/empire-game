@@ -1,6 +1,7 @@
 {
   "id": "israel",
   "label": "Israel",
+  "leaderName": "King David",
   "cityListLabel": "Israeli Cities",
   "capitalCity": "Jerusalem",
   "accentClass": "from-[#005EB8]/34 via-white/10 to-sky-100/8",

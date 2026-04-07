@@ -1,6 +1,7 @@
 {
   "id": "japan",
   "label": "Japan",
+  "leaderName": "Emperor Meiji",
   "cityListLabel": "Japanese Cities",
   "capitalCity": "Tokyo",
   "accentClass": "from-white/26 via-[#bc002d]/16 to-white/8",

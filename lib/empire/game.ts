@@ -39,6 +39,7 @@ import type {
   UnitDomain,
   UnitType,
 } from "@/lib/empire/types";
+import { getFactionLeaderName } from "@/lib/empire/factions";
 import { createMap, findOpenAdjacentLand } from "@/lib/empire/world";
 
 export function key(x: number, y: number) {
@@ -172,6 +173,14 @@ function createUnit(id: number, owner: Side, type: UnitType, x: number, y: numbe
 
 function getLocationLabel(tile: Tile) {
   return tile.city && tile.cityName ? tile.cityName : `(${tile.x + 1}, ${tile.y + 1})`;
+}
+
+function getVictoryStatusMessage(state: GameState, winner: Side) {
+  const enemyLeaderName = getFactionLeaderName(state.aiFaction);
+  if (winner === "player") {
+    return `Victory! ${state.playerName} beat old ${enemyLeaderName}.`;
+  }
+  return `Defeat. ${enemyLeaderName} broke ${state.playerName}'s command.`;
 }
 
 export function getImprovementLabel(improvementType: TileImprovementType) {
@@ -858,8 +867,10 @@ export function createInitialState(
   height = MIN_MAP_H,
   gameType: GameType = "normal",
   playerFaction: Faction = "usa",
-  aiFaction: Faction = "asia"
+  aiFaction: Faction = "asia",
+  playerName = getFactionLeaderName(playerFaction)
 ): GameState {
+  const resolvedPlayerName = playerName.trim() || getFactionLeaderName(playerFaction);
   const map = createMap(seed, width, height, gameType, playerFaction, aiFaction);
   const mapWidth = map[0]?.length ?? MIN_MAP_W;
   const mapHeight = map.length || MIN_MAP_H;
@@ -888,6 +899,7 @@ export function createInitialState(
       gameType,
       playerFaction,
       aiFaction,
+      playerName: resolvedPlayerName,
       mapWidth,
     mapHeight,
     map,
@@ -897,7 +909,7 @@ export function createInitialState(
     credits: { player: STARTING_CREDITS, ai: STARTING_CREDITS },
     selectedUnitId: null,
     logs: [
-      "Welcome, commander.",
+      `Welcome, ${resolvedPlayerName}.`,
       "Capture cities, scout the map, and build a force strong enough to break the enemy capital.",
     ],
     nextUnitId: nextId,
@@ -1029,13 +1041,21 @@ export function renameUnit(state: GameState, unitId: number, name: string) {
   };
 }
 
+export function renamePlayer(state: GameState, name: string) {
+  const nextPlayerName = name.trim() || getFactionLeaderName(state.playerFaction);
+  return {
+    ...state,
+    playerName: nextPlayerName,
+  };
+}
+
 export function forceWinner(state: GameState, winner: Side) {
   const updatedState = refreshIntel(
     addLog(
       {
         ...state,
       },
-      winner === "player" ? "Developer override: victory triggered." : "Developer override: defeat triggered."
+      `Developer override: ${getVictoryStatusMessage(state, winner)}`
     )
   );
 
@@ -2920,10 +2940,8 @@ function endTurn(state: GameState, side: Side): GameState {
   return addLog(
     updated,
     updated.winner
-      ? updated.winner === "player"
-        ? "Victory! Enemy forces shattered."
-        : "Defeat. The enemy rules the map."
-      : `Turn ${updated.turn}. Your command, commander.`
+      ? getVictoryStatusMessage(updated, updated.winner)
+      : `Turn ${updated.turn}. Your command, ${updated.playerName}.`
   );
 }
 

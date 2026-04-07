@@ -1,6 +1,7 @@
+import { getFactionLeaderName } from "@/lib/empire/factions";
 import type { GameState } from "@/lib/empire/types";
 
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 const LOCAL_STORAGE_KEY = "empire-autosave";
 
 type SaveFile = {
@@ -9,8 +10,25 @@ type SaveFile = {
   turn: number;
   playerFaction: string;
   aiFaction: string;
+  playerName: string;
   state: GameState;
 };
+
+type SaveSummary = {
+  turn: number;
+  playerFaction: string;
+  aiFaction: string;
+  playerName: string;
+  savedAt: string;
+};
+
+function hydrateGameState(state: GameState): GameState {
+  return {
+    ...state,
+    playerName: state.playerName?.trim() || getFactionLeaderName(state.playerFaction),
+    movementPathsThisTurn: state.movementPathsThisTurn ?? [],
+  };
+}
 
 function createSaveFile(state: GameState): SaveFile {
   return {
@@ -19,7 +37,8 @@ function createSaveFile(state: GameState): SaveFile {
     turn: state.turn,
     playerFaction: state.playerFaction,
     aiFaction: state.aiFaction,
-    state,
+    playerName: state.playerName,
+    state: hydrateGameState(state),
   };
 }
 
@@ -39,21 +58,21 @@ export function loadAutoSave(): GameState | null {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) return null;
     const save: SaveFile = JSON.parse(raw);
-    if (save.version !== SAVE_VERSION || !save.state) return null;
-    if (!save.state.movementPathsThisTurn) save.state.movementPathsThisTurn = [];
-    return save.state;
+    if ((save.version !== 1 && save.version !== SAVE_VERSION) || !save.state) return null;
+    return hydrateGameState(save.state);
   } catch {
     return null;
   }
 }
 
-export function getAutoSaveSummary(): { turn: number; playerFaction: string; aiFaction: string; savedAt: string } | null {
+export function getAutoSaveSummary(): SaveSummary | null {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) return null;
     const save: SaveFile = JSON.parse(raw);
-    if (save.version !== SAVE_VERSION) return null;
-    return { turn: save.turn, playerFaction: save.playerFaction, aiFaction: save.aiFaction, savedAt: save.savedAt };
+    if (save.version !== 1 && save.version !== SAVE_VERSION) return null;
+    const playerName = save.playerName?.trim() || save.state?.playerName?.trim() || getFactionLeaderName(save.state.playerFaction);
+    return { turn: save.turn, playerFaction: save.playerFaction, aiFaction: save.aiFaction, playerName, savedAt: save.savedAt };
   } catch {
     return null;
   }
@@ -98,12 +117,11 @@ export function uploadSaveFile(): Promise<GameState | null> {
       reader.onload = () => {
         try {
           const save: SaveFile = JSON.parse(reader.result as string);
-          if (save.version !== SAVE_VERSION || !save.state) {
+          if ((save.version !== 1 && save.version !== SAVE_VERSION) || !save.state) {
             resolve(null);
             return;
           }
-          if (!save.state.movementPathsThisTurn) save.state.movementPathsThisTurn = [];
-          resolve(save.state);
+          resolve(hydrateGameState(save.state));
         } catch {
           resolve(null);
         }
