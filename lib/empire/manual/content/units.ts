@@ -149,9 +149,9 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     unitType: "submarine",
     summary: "Attack Sub built to ambush high-value ships and insert covert teams.",
     role: ["Threaten carriers, contest sea lanes, and deliver Special Ops covertly."],
-    strengths: ["Conceals while stationary and requires sonar counterplay.", "High piercing makes it dangerous to armored ships.", "Can insert Special Ops into coastal zones."],
-    weaknesses: ["Limited torpedo and missile supply.", "Destroyers with sonar are the dedicated counter."],
-    tips: ["Use Attack Subs as your primary anti-ship hunters and covert insertion platforms."],
+    strengths: ["Conceals while stationary and requires sonar counterplay.", "Six torpedoes let it stay on station through repeated naval fights.", "Can insert Special Ops into coastal zones and still threaten land with one missile."],
+    weaknesses: ["Only one cruise missile for land strikes.", "Destroyers with sonar are the dedicated counter."],
+    tips: ["Use Attack Subs as your primary anti-ship hunters and covert insertion platforms, then save the single cruise missile for a high-value coastal strike."],
     worksWellWith: [
       { kind: "unit", id: "special-ops", label: "Special Ops", note: "Attack Subs can deliver covert teams into inaccessible coastal zones." },
       { kind: "unit", id: "destroyer", label: "Destroyer", note: "Friendly destroyers help contest the sea lane while the Attack Sub hunts." },
@@ -164,11 +164,11 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
   },
   ssbn: {
     unitType: "ssbn",
-    summary: "Missile Sub carrying cruise missiles for deep land strikes.",
+    summary: "Missile Sub carrying a limited salvo of cruise missiles for deep land strikes.",
     role: ["Strike high-value land targets from concealed positions at sea."],
-    strengths: ["Large cruise missile load for sustained land bombardment.", "Conceals while stationary like other submarines."],
-    weaknesses: ["Slow and expensive.", "Only one defensive torpedo — vulnerable if detected.", "Destroyers with sonar are the dedicated counter."],
-    tips: ["Keep Missile Subs behind your fleet screen. Their value is in cruise missile strikes, not direct naval combat."],
+    strengths: ["Three-missile salvo is enough to disrupt multiple city or infrastructure targets.", "Conceals while stationary like other submarines."],
+    weaknesses: ["Slow and expensive.", "Only one defensive torpedo — vulnerable if detected.", "Repeated missile launches reduce movement on later turns until it lies low or returns to support.", "Destroyers with sonar are the dedicated counter."],
+    tips: ["Keep Missile Subs behind your fleet screen. Fire one missile per turn, then plan for the growing movement penalty and eventual return to port or city for rearm."],
     worksWellWith: [
       { kind: "unit", id: "destroyer", label: "Destroyer", note: "Destroyers screen Missile Subs from enemy ASW." },
       { kind: "unit", id: "submarine", label: "Attack Sub", note: "Attack Subs hunt the escorts while the Missile Sub strikes from safety." },

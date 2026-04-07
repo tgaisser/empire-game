@@ -15,6 +15,6 @@
   "attackDomains": ["sea"],
   "canBeDetectedBySonarOnly": true,
   "concealedWhileStationary": true,
-  "torpedoCapacity": 2,
+  "torpedoCapacity": 6,
   "cruiseMissileCapacity": 1
 }

@@ -218,12 +218,17 @@ Where:
 - Cruise missiles require a visible or recently detected land target
 - If the exact target is gone but a valid enemy target is in an adjacent tile, the missile may redirect there
 - If no valid target remains, the missile misses
+- Each missile launch consumes the submarine's full turn
 - SSN carries `1` cruise missile
-- SSBN carries many cruise missiles
+- SSBN carries `3` cruise missiles
+- SSBN missile launches build launch fatigue:
+- after the first launch, next-turn movement is reduced by `1`
+- after the second consecutive launch, next-turn movement is reduced by `2`
+- after the third consecutive launch, next-turn movement is reduced by `3` until the boat spends turns lying low or returns to support for rearm
 
 ### Torpedo Rules
 
-- SSN carries `2` torpedoes
+- SSN carries `6` torpedoes
 - SSBN carries `1` torpedo intended mainly as a defensive snapshot
 
 ## Site Defense And Capture Math

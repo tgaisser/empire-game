@@ -16,5 +16,5 @@
   "canBeDetectedBySonarOnly": true,
   "concealedWhileStationary": true,
   "torpedoCapacity": 1,
-  "cruiseMissileCapacity": 6
+  "cruiseMissileCapacity": 3
 }

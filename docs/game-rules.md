@@ -399,14 +399,14 @@ Static AA can exist at:
 
 - Fast attack submarine
 - Uses torpedoes as its main weapon
-- Carries multiple torpedoes
+- Carries `6` torpedoes
 - Carries `1` cruise missile
 - Can deploy Special Ops to coastal tiles
 
 #### SSBN
 
 - Missile-heavy boomer
-- Carries many cruise missiles
+- Carries `3` cruise missiles
 - Carries only `1` torpedo, intended mainly as a defensive snapshot
 - Lower mobility than SSN
 
@@ -445,6 +445,10 @@ After missile launch:
 - Cruise missiles require a visible or recently detected target.
 - If the target is missing, the missile may redirect to an adjacent tile.
 - If no valid target exists, the missile misses.
+- Launching a cruise missile consumes the submarine's full turn.
+- SSBN launch fatigue reduces next-turn movement by the number of missiles it has fired in its current firing cycle, up to `3`.
+- SSBN launch fatigue decays by `1` on turns where the boat does not fire and resets when it rearms at a support site.
+- Sea rearm currently happens from a friendly port or friendly city bordering the boat's water tile, and replacement missiles and torpedoes still cost credits.
 
 ### Submarine Homeport Limits
 

@@ -220,6 +220,10 @@ function canSeaUnitReloadAtTile(state: GameState, unit: Unit) {
   });
 }
 
+function getSsbnLaunchFatigue(unit: Unit) {
+  return unit.type === "ssbn" ? unit.ssbnLaunchFatigue ?? 0 : 0;
+}
+
 function getAmmoReloadQuoteForUnit(unit: Unit, state: GameState): AmmoReloadQuote {
   const definition = getUnitStats(unit);
   const bombsMissing = Math.max(0, (definition.bombCapacity ?? 0) - (unit.bombsRemaining ?? definition.bombCapacity ?? 0));
@@ -278,6 +282,10 @@ function applyAmmoReloadQuote(unit: Unit, state: GameState, availableCredits: nu
   if (cruiseMissilesLoaded > 0) {
     nextUnit.cruiseMissilesRemaining = (nextUnit.cruiseMissilesRemaining ?? 0) + cruiseMissilesLoaded;
   }
+  if (torpedoesLoaded > 0 || cruiseMissilesLoaded > 0) {
+    nextUnit.ssbnLaunchFatigue = 0;
+    nextUnit.launchedCruiseMissileThisTurn = false;
+  }
 
   return {
     nextUnit,
@@ -319,6 +327,8 @@ function createUnit(id: number, owner: Side, type: UnitType, x: number, y: numbe
     bombsRemaining: definition.bombCapacity ?? null,
     torpedoesRemaining: definition.torpedoCapacity ?? null,
     cruiseMissilesRemaining: definition.cruiseMissileCapacity ?? null,
+    ssbnLaunchFatigue: 0,
+    launchedCruiseMissileThisTurn: false,
     droneTargetX: null,
     droneTargetY: null,
     carriedSpecialOps: null,
@@ -712,7 +722,7 @@ export function getDemolishableImprovementTargets(state: GameState, unit: Unit |
 }
 
 export function getRemainingMove(unit: Unit) {
-  return Math.max(0, getUnitStats(unit).move - unit.moveSpent);
+  return Math.max(0, getUnitStats(unit).move - getSsbnLaunchFatigue(unit) - unit.moveSpent);
 }
 
 export function getSpecialOpsAirStrikeTargets(state: GameState, unit: Unit | null) {
@@ -2101,6 +2111,12 @@ function applyFortificationForSide(units: Unit[], side: Side) {
   return units.map((unit) => {
     if (unit.owner !== side) return unit;
     const unitStats = getUnitStats(unit);
+    const nextSsbnFatigue =
+      unit.type === "ssbn"
+        ? unit.launchedCruiseMissileThisTurn
+          ? unit.ssbnLaunchFatigue ?? 0
+          : Math.max(0, (unit.ssbnLaunchFatigue ?? 0) - 1)
+        : 0;
 
     if (unit.sentry) {
       return {
@@ -2109,6 +2125,8 @@ function applyFortificationForSide(units: Unit[], side: Side) {
         fortified: true,
         entrenched: unit.type === "infantry",
         moveSpent: unitStats.move,
+        ssbnLaunchFatigue: nextSsbnFatigue,
+        launchedCruiseMissileThisTurn: false,
         turnsAwayFromBase: unit.turnsAwayFromBase,
       };
     }
@@ -2120,6 +2138,8 @@ function applyFortificationForSide(units: Unit[], side: Side) {
       fortified: didNotMove,
       entrenched: didNotMove && unit.type === "infantry",
       moveSpent: 0,
+      ssbnLaunchFatigue: nextSsbnFatigue,
+      launchedCruiseMissileThisTurn: false,
       turnsAwayFromBase: unit.turnsAwayFromBase,
     };
   });
@@ -3010,6 +3030,8 @@ function launchCruiseMissile(state: GameState, side: Side, unitId: number, x: nu
           entrenched: false,
           concealed: false,
           cruiseMissilesRemaining: Math.max(0, missilesRemaining - 1),
+          ssbnLaunchFatigue: unit.type === "ssbn" ? Math.min(3, (currentUnit.ssbnLaunchFatigue ?? 0) + 1) : currentUnit.ssbnLaunchFatigue ?? 0,
+          launchedCruiseMissileThisTurn: true,
         }
       : currentUnit
   );
@@ -3173,7 +3195,15 @@ function reloadAmmo(state: GameState, side: Side, unitId: number): GameState {
         ...state,
         units: state.units.map((currentUnit) =>
           currentUnit.id === unit.id
-            ? { ...reloadResult.nextUnit, moveSpent: getUnitStats(currentUnit).move, fortified: false, entrenched: false, concealed: false }
+            ? {
+                ...reloadResult.nextUnit,
+                moveSpent: getUnitStats(currentUnit).move,
+                fortified: false,
+                entrenched: false,
+                concealed: false,
+                ssbnLaunchFatigue: 0,
+                launchedCruiseMissileThisTurn: false,
+              }
             : currentUnit
         ),
         credits: { ...state.credits, [side]: state.credits[side] - reloadResult.costSpent },
