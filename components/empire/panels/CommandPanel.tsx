@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from "react";
-import { Bomb, Castle, Compass, Shield, Truck, Wrench } from "lucide-react";
+import { Bomb, Castle, Compass, Eye, RefreshCw, Rocket, Shield, Truck, Wrench } from "lucide-react";
 import { getFactionUnitBadgeClass, getFactionUnitBadgeStyle, getFactionUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { getUnitCargoManifest } from "@/components/empire/shared/unitCargo";
@@ -55,11 +55,20 @@ type CommandPanelProps = {
   troopTransportDeploymentTargetCount: number;
   specialOpsDeploymentTargetCount: number;
   specialOpsAirStrikeTargetCount: number;
+  cruiseMissileTargetCount: number;
+  selectedUnitReloadQuote: { bombs: number; torpedoes: number; cruiseMissiles: number; cost: number } | null;
+  canSelectedUnitSonarPing: boolean;
   canSelectedBomberAttackHere: boolean;
+  targetMode: "move" | "attack" | "missile" | "inspect" | null;
   transportLoadMode: boolean;
   onBuild: (unitType: UnitType) => void;
   onBuildImprovement: (action: EngineerBuildAction) => void;
   onUpgradeUnit: (upgrade: "sonar" | "radar-relay") => void;
+  onBeginInspectTargeting: () => void;
+  onBeginMissileTargeting: () => void;
+  onSonarPing: () => void;
+  onReloadAmmo: () => void;
+  onCancelTargetMode: () => void;
   onBombsAway: () => void;
   onDemolishImprovement: (x?: number, y?: number) => void;
   onBeginTransportLoad: () => void;
@@ -108,11 +117,20 @@ export function CommandPanel({
   troopTransportDeploymentTargetCount,
   specialOpsDeploymentTargetCount,
   specialOpsAirStrikeTargetCount,
+  cruiseMissileTargetCount,
+  selectedUnitReloadQuote,
+  canSelectedUnitSonarPing,
   canSelectedBomberAttackHere,
+  targetMode,
   transportLoadMode,
   onBuild,
   onBuildImprovement,
   onUpgradeUnit,
+  onBeginInspectTargeting,
+  onBeginMissileTargeting,
+  onSonarPing,
+  onReloadAmmo,
+  onCancelTargetMode,
   onBombsAway,
   onDemolishImprovement,
   onBeginTransportLoad,
@@ -148,6 +166,25 @@ export function CommandPanel({
   const bomberDemolitionTarget = selectedUnit?.type === "bomber" ? demolishableImprovementTargets[0] ?? null : null;
   const selectedUnitManual = selectedUnit ? getManualUnitReference(selectedUnit.type) : null;
   const selectedUnitCargoManifest = getUnitCargoManifest(selectedUnit);
+  const selectedUnitBombCapacity = selectedUnit ? getUnitStats(selectedUnit).bombCapacity ?? 0 : 0;
+  const selectedUnitTorpedoCapacity = selectedUnit ? getUnitStats(selectedUnit).torpedoCapacity ?? 0 : 0;
+  const selectedUnitCruiseMissileCapacity = selectedUnit ? getUnitStats(selectedUnit).cruiseMissileCapacity ?? 0 : 0;
+  const selectedUnitBombsRemaining = selectedUnit ? selectedUnit.bombsRemaining ?? selectedUnitBombCapacity : 0;
+  const selectedUnitTorpedoesRemaining = selectedUnit ? selectedUnit.torpedoesRemaining ?? selectedUnitTorpedoCapacity : 0;
+  const selectedUnitCruiseMissilesRemaining = selectedUnit ? selectedUnit.cruiseMissilesRemaining ?? selectedUnitCruiseMissileCapacity : 0;
+  const selectedUnitAmmoMissing =
+    Math.max(0, selectedUnitBombCapacity - selectedUnitBombsRemaining) +
+    Math.max(0, selectedUnitTorpedoCapacity - selectedUnitTorpedoesRemaining) +
+    Math.max(0, selectedUnitCruiseMissileCapacity - selectedUnitCruiseMissilesRemaining);
+  const selectedUnitReloadSummary = selectedUnitReloadQuote
+    ? [
+        selectedUnitReloadQuote.bombs > 0 ? `${selectedUnitReloadQuote.bombs} bomb${selectedUnitReloadQuote.bombs === 1 ? "" : "s"}` : null,
+        selectedUnitReloadQuote.torpedoes > 0 ? `${selectedUnitReloadQuote.torpedoes} torpedo${selectedUnitReloadQuote.torpedoes === 1 ? "" : "es"}` : null,
+        selectedUnitReloadQuote.cruiseMissiles > 0 ? `${selectedUnitReloadQuote.cruiseMissiles} cruise missile${selectedUnitReloadQuote.cruiseMissiles === 1 ? "" : "s"}` : null,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(", ")
+    : "";
   const citySurfaceFull = Boolean(selectedCity?.city && selectedCityOccupants && selectedCityOccupants.surface.length >= CITY_SURFACE_CAPACITY);
   const citySurfaceSummary = selectedCityOccupants?.surface.length
     ? `${selectedCityOccupants.surface.length}/${selectedCity?.city ? CITY_SURFACE_CAPACITY : 1} · ${selectedCityOccupants.surface
@@ -290,6 +327,15 @@ export function CommandPanel({
                 {selectedUnit.type === "carrier" ? (
                   <div className="col-span-2">Radar relay {selectedUnit.radarRelayUpgraded ? "Installed" : "Not installed"}</div>
                 ) : null}
+                {selectedUnitBombCapacity > 0 ? (
+                  <div className="col-span-2">Bombs {selectedUnitBombsRemaining}/{selectedUnitBombCapacity}</div>
+                ) : null}
+                {selectedUnitTorpedoCapacity > 0 ? (
+                  <div className="col-span-2">Torpedoes {selectedUnitTorpedoesRemaining}/{selectedUnitTorpedoCapacity}</div>
+                ) : null}
+                {selectedUnitCruiseMissileCapacity > 0 ? (
+                  <div className="col-span-2">Cruise Missiles {selectedUnitCruiseMissilesRemaining}/{selectedUnitCruiseMissileCapacity}</div>
+                ) : null}
                 {selectedUnit.type === "drone-swarm" ? (
                   <div className="col-span-2">
                     Strike square{" "}
@@ -333,6 +379,68 @@ export function CommandPanel({
               </div>
             ) : null}
             <div className="grid gap-2">
+              {targetMode === "missile" || targetMode === "inspect" ? (
+                <div className="rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-3 text-xs text-cyan-100">
+                  {targetMode === "missile"
+                    ? "Missile targeting active. Click a visible enemy land unit or hostile land infrastructure to launch."
+                    : "Inspect targeting active. Click any visible enemy unit or known hostile site to open intel."}
+                </div>
+              ) : null}
+              <ActionTileButton
+                title={targetMode === "inspect" ? "Cancel Inspect Targeting" : "Inspect Target"}
+                detail="Click an enemy unit or hostile site for intel"
+                hint="This keeps selection on the current unit while you inspect an enemy contact."
+                onClick={targetMode === "inspect" ? onCancelTargetMode : onBeginInspectTargeting}
+                disabled={side !== "player" || !!winner}
+                icon={
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-cyan-100">
+                    <Eye className="h-5 w-5" />
+                  </span>
+                }
+              />
+              {selectedUnitCruiseMissileCapacity > 0 ? (
+                <ActionTileButton
+                  title={targetMode === "missile" ? "Cancel Missile Targeting" : "Launch Missile"}
+                  detail={`${selectedUnitCruiseMissilesRemaining}/${selectedUnitCruiseMissileCapacity} ready${cruiseMissileTargetCount > 0 ? ` • ${cruiseMissileTargetCount} visible target${cruiseMissileTargetCount === 1 ? "" : "s"}` : ""}`}
+                  hint="Missiles can strike visible enemy land units, cities, ports, airfields, and hostile infrastructure."
+                  onClick={targetMode === "missile" ? onCancelTargetMode : onBeginMissileTargeting}
+                  disabled={side !== "player" || !!winner || (targetMode !== "missile" && cruiseMissileTargetCount === 0)}
+                  icon={
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-amber-100">
+                      <Rocket className="h-5 w-5" />
+                    </span>
+                  }
+                />
+              ) : null}
+              {selectedUnit.type === "destroyer" && selectedUnit.sonarUpgraded ? (
+                <ActionTileButton
+                  title="Active Sonar Ping"
+                  detail="Reveal submarine contacts in range 4"
+                  hint="Active sonar spends the destroyer's turn and exposes short-lived submarine contacts for your side."
+                  onClick={onSonarPing}
+                  disabled={side !== "player" || !!winner || !canSelectedUnitSonarPing}
+                  icon={<UnitActionBadge unitType="destroyer" faction={playerFaction} />}
+                />
+              ) : null}
+              {selectedUnitReloadQuote && selectedUnitReloadQuote.cost > 0 ? (
+                <ActionTileButton
+                  title="Reload Ammunition"
+                  detail={`Cost ${selectedUnitReloadQuote.cost} • ${selectedUnitReloadSummary}`}
+                  hint="Friendly airfields reload bombs. Friendly ports and coastal cities reload torpedoes and cruise missiles."
+                  onClick={onReloadAmmo}
+                  disabled={side !== "player" || !!winner || playerCredits < selectedUnitReloadQuote.cost}
+                  icon={
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-950/80 text-emerald-100">
+                      <RefreshCw className="h-5 w-5" />
+                    </span>
+                  }
+                />
+              ) : null}
+              {selectedUnitAmmoMissing > 0 && (!selectedUnitReloadQuote || selectedUnitReloadQuote.cost === 0) ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-400">
+                  Ammunition is partially spent. Move to a friendly airfield, port, or coastal city to reload depending on the unit&apos;s loadout.
+                </div>
+              ) : null}
               {selectedUnit.type === "destroyer" && !selectedUnit.sonarUpgraded ? (
                 <ActionTileButton
                   title="Install Sonar"

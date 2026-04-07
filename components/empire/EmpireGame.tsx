@@ -19,6 +19,7 @@ import { FieldManualModal } from "@/components/empire/panels/FieldManualModal";
 import { NamePromptModal } from "@/components/empire/panels/NamePromptModal";
 import { StartGameModal } from "@/components/empire/panels/StartGameModal";
 import { TileContentsModal } from "@/components/empire/panels/TileContentsModal";
+import { TargetActionModal, type TargetActionChoice } from "@/components/empire/panels/TargetActionModal";
 import { TopCommandBar } from "@/components/empire/panels/TopCommandBar";
 import { SiteIntelModal } from "@/components/empire/panels/SiteIntelModal";
 import { UnitIntelModal } from "@/components/empire/panels/UnitIntelModal";
@@ -31,6 +32,15 @@ import { getPreferredPlayerName, isCustomPlayerName, resolvePlayerName, savePlay
 import { clearAutoSave, downloadSaveFile, getAutoSaveSummary, loadAutoSave, uploadSaveFile } from "@/lib/empire/saveLoad";
 import type { DeveloperPlacementType, Faction, GameType, Side, Unit, UnitType } from "@/lib/empire/types";
 import { Card, CardContent } from "@/components/ui/card";
+
+type PendingTargetAction = {
+  x: number;
+  y: number;
+  target: "tile" | "site" | "surface-unit" | "air-unit";
+  title: string;
+  subtitle: string;
+  actions: TargetActionChoice[];
+};
 
 export default function EmpireGame() {
   const { playDeployCampaign, playEndTurnConfirm, playFromLogDelta, playMovement, playTileClick, playUnitSelect } = useEmpireAudio();
@@ -47,6 +57,7 @@ export default function EmpireGame() {
     pendingUnitRename,
     selectedUnit,
     selectedUnitTile,
+    targetMode,
     selectedCity,
     selectedCityTile,
     selectedCityOccupants,
@@ -57,6 +68,9 @@ export default function EmpireGame() {
     demolishableImprovementTargets,
     troopTransportLoadTargets,
     troopTransportDeploymentTargets,
+    cruiseMissileTargets,
+    selectedUnitReloadQuote,
+    canSelectedUnitSonarPing,
     canSelectedBomberAttackHere,
     possibleMoves,
     playerCities,
@@ -80,8 +94,13 @@ export default function EmpireGame() {
     handleAddDeveloperUnit,
     handleGrantCredits,
     handleLoadSpecialOps,
+    beginAttackTargeting,
+    beginInspectTargeting,
+    beginMissileTargeting,
     handleBombSelectedUnit,
     handleDemolishWithSelectedUnit,
+    handleSonarPing,
+    handleReloadSelectedUnitAmmo,
     handleRenameCapturedCity,
     handleSetDroneTarget,
     handleRenameUnit,
@@ -94,6 +113,8 @@ export default function EmpireGame() {
     handleSentryUnit,
     handleWakeUnit,
     handleDecommissionSelectedUnit,
+    clearTargetMode,
+    executeTargetModeAction,
     handleTileClick,
     moveSelectedUnitTo,
     handleEndTurn,
@@ -138,6 +159,7 @@ export default function EmpireGame() {
   const [miniMapJumpTarget, setMiniMapJumpTarget] = useState<{ x: number; y: number; nonce: number } | null>(null);
   const [tileContentsTarget, setTileContentsTarget] = useState<{ x: number; y: number } | null>(null);
   const [siteIntelTarget, setSiteIntelTarget] = useState<{ x: number; y: number } | null>(null);
+  const [pendingTargetAction, setPendingTargetAction] = useState<PendingTargetAction | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
   const unmovedCycleIndexRef = useRef(0);
   const aiPlaybackTimeoutRef = useRef<number | null>(null);
@@ -215,6 +237,7 @@ export default function EmpireGame() {
     ...troopTransportDeploymentTargets.map((tile) => key(tile.x, tile.y)),
     ...(pendingSpecialOpsDeployment ? specialOpsDeploymentTargets.map((tile) => key(tile.x, tile.y)) : []),
     ...specialOpsAirStrikeTargets.map((tile) => key(tile.x, tile.y)),
+    ...(targetMode === "missile" ? cruiseMissileTargets.map((tile) => key(tile.x, tile.y)) : []),
     ...devPlacementTargets.map((tile) => key(tile.x, tile.y)),
     ...devImprovementPlacementTargets.map((tile) => key(tile.x, tile.y)),
   ]);
@@ -367,6 +390,133 @@ export default function EmpireGame() {
 
     if (target === "tile" || target === undefined) return site;
     return null;
+  }
+
+  function getTargetActionChoices(x: number, y: number, target: "tile" | "site" | "surface-unit" | "air-unit" = "tile") {
+    const clickedEnemyUnit = getClickedEnemyUnit(x, y, target);
+    const clickedSite = getInspectableSiteAt(x, y);
+    const clickedTile = game.map[y]?.[x] ?? null;
+    if (!clickedTile) return null;
+
+    const canDirectAttack = Boolean(
+      selectedUnit &&
+        (
+          (
+            selectedUnit.x === x &&
+            selectedUnit.y === y &&
+            getUnitStats(selectedUnit).attackRequiresSameTile &&
+            game.units.some(
+              (unit) =>
+                unit.x === x &&
+                unit.y === y &&
+                unit.owner !== selectedUnit.owner &&
+                getUnitStats(selectedUnit).attackDomains.includes(getUnitStats(unit).domain) &&
+                getUnitStats(unit).cannotBeAttacked !== true
+            )
+          ) ||
+          (selectedUnit.type === "special-ops" && specialOpsAirStrikeTargets.some((tile) => tile.x === x && tile.y === y)) ||
+          (selectedUnit.type === "carrier" && carrierJamTargets.some((tile) => tile.x === x && tile.y === y)) ||
+          (
+            possibleMoves.some((move) => move.x === x && move.y === y) &&
+            Boolean(
+              clickedEnemyUnit ||
+                (clickedSite && (clickedSite.tile.owner === "ai" || clickedSite.tile.improvement?.owner === "ai" || clickedSite.tile.improvementProject?.owner === "ai"))
+            )
+          )
+        )
+    );
+
+    const canLaunchMissile = cruiseMissileTargets.some((tile) => tile.x === x && tile.y === y);
+    const actions: TargetActionChoice[] = [];
+
+    if (canDirectAttack) {
+      actions.push({
+        id: "attack",
+        label:
+          selectedUnit?.type === "special-ops" && specialOpsAirStrikeTargets.some((tile) => tile.x === x && tile.y === y)
+            ? "Execute Air Strike"
+            : selectedUnit?.type === "carrier" && carrierJamTargets.some((tile) => tile.x === x && tile.y === y)
+              ? "Jam Drone Swarm"
+              : clickedSite && !clickedEnemyUnit
+                ? "Assault Site"
+                : "Attack Target",
+        detail:
+          clickedSite && !clickedEnemyUnit
+            ? "Commit the selected unit to seize or damage this site."
+            : "Resolve the selected unit's attack instead of only inspecting the contact.",
+      });
+    }
+
+    if (canLaunchMissile) {
+      actions.push({
+        id: "missile",
+        label: "Launch Cruise Missile",
+        detail: "Fire from the selected submarine without losing this contact to the intel panel.",
+      });
+    }
+
+    if (clickedEnemyUnit) {
+      actions.push({
+        id: "inspect-unit",
+        label: `Inspect ${getUnitStats(clickedEnemyUnit).name}`,
+        detail: "Open current intel for the enemy unit on this tile.",
+      });
+    }
+
+    if (clickedSite) {
+      const siteLabel = clickedSite.tile.city
+        ? clickedSite.tile.cityName ?? `City at (${x + 1}, ${y + 1})`
+        : clickedSite.tile.improvement?.type
+          ? `${clickedSite.tile.improvement.type} at (${x + 1}, ${y + 1})`
+          : `Site at (${x + 1}, ${y + 1})`;
+      actions.push({
+        id: "inspect-site",
+        label: `Inspect ${siteLabel}`,
+        detail: "Open site ownership and visibility-limited infrastructure intel.",
+      });
+    }
+
+    if (actions.length === 0) return null;
+
+    return {
+      x,
+      y,
+      target,
+      title: clickedSite?.tile.cityName ?? clickedEnemyUnit?.name ?? `Grid ${x + 1}, ${y + 1}`,
+      subtitle: `Choose how to handle (${x + 1}, ${y + 1}).`,
+      actions,
+    } satisfies PendingTargetAction;
+  }
+
+  function handleExecuteTargetChoice(choice: TargetActionChoice["id"], action: PendingTargetAction) {
+    setPendingTargetAction(null);
+
+    if (choice === "inspect-unit") {
+      const targetUnit = getClickedEnemyUnit(action.x, action.y, action.target);
+      if (targetUnit) {
+        setSiteIntelTarget(null);
+        setIntelUnitId(targetUnit.id);
+      }
+      return;
+    }
+
+    if (choice === "inspect-site") {
+      const targetSite = getInspectableSiteAt(action.x, action.y);
+      if (targetSite) {
+        setIntelUnitId(null);
+        setSiteIntelTarget({ x: targetSite.x, y: targetSite.y });
+      }
+      return;
+    }
+
+    if (choice === "missile") {
+      beginMissileTargeting();
+      executeTargetModeAction("missile", action.x, action.y);
+      return;
+    }
+
+    beginAttackTargeting();
+    executeTargetModeAction("attack", action.x, action.y);
   }
 
   function handleAttemptEndTurn() {
@@ -549,6 +699,7 @@ export default function EmpireGame() {
     setIntelUnitId(null);
     setTileContentsTarget(null);
     setSiteIntelTarget(null);
+    setPendingTargetAction(null);
     if (pendingDroneTarget) {
       handleSetDroneTarget(x, y);
       return;
@@ -628,6 +779,33 @@ export default function EmpireGame() {
       }
     }
 
+    if (targetMode === "inspect") {
+      const inspectUnit = getClickedEnemyUnit(x, y, target);
+      const inspectSite = getInspectableSiteAt(x, y);
+      if (inspectUnit) {
+        setIntelUnitId(inspectUnit.id);
+      } else if (inspectSite) {
+        setSiteIntelTarget({ x: inspectSite.x, y: inspectSite.y });
+      }
+      clearTargetMode();
+      return;
+    }
+
+    if (targetMode === "missile" || targetMode === "attack") {
+      executeTargetModeAction(targetMode, x, y);
+      return;
+    }
+
+    const targetActions = getTargetActionChoices(x, y, target ?? "tile");
+    if (targetActions && targetActions.actions.length > 1) {
+      setPendingTargetAction(targetActions);
+      return;
+    }
+    if (targetActions && targetActions.actions.length === 1) {
+      handleExecuteTargetChoice(targetActions.actions[0].id, targetActions);
+      return;
+    }
+
     const clickedEnemyUnit = shouldOpenEnemyIntelOnClick(x, y, target);
     if (clickedEnemyUnit) {
       setIntelUnitId(clickedEnemyUnit.id);
@@ -650,6 +828,7 @@ export default function EmpireGame() {
 
   function handleMapTileRightClick(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
     setTileContentsTarget(null);
+    setPendingTargetAction(null);
     const targetUnit = getClickedEnemyUnit(x, y, target);
     if (targetUnit) {
       setSiteIntelTarget(null);
@@ -684,6 +863,7 @@ export default function EmpireGame() {
         endgameOpen ||
         startGameOpen ||
         !!tileContentsTarget ||
+        !!pendingTargetAction ||
         !!pendingCityRename ||
         !!pendingDroneTarget ||
         !!pendingUnitRename
@@ -704,7 +884,7 @@ export default function EmpireGame() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [battleLogOpen, devDrawerOpen, endTurnConfirmOpen, endgameOpen, fieldManualOpen, handleArrowMove, pendingCityRename, pendingDroneTarget, pendingUnitRename, startGameOpen, tileContentsTarget]);
+  }, [battleLogOpen, devDrawerOpen, endTurnConfirmOpen, endgameOpen, fieldManualOpen, handleArrowMove, pendingCityRename, pendingDroneTarget, pendingTargetAction, pendingUnitRename, startGameOpen, tileContentsTarget]);
 
   useEffect(() => {
     if (movementPlayback.length === 0) return;
@@ -834,6 +1014,8 @@ export default function EmpireGame() {
     pendingSeaBuild ? `Choose naval launch tile for ${pendingSeaBuild}` : null,
     pendingSpecialOpsDeployment ? "Choose special ops landing tile" : null,
     transportLoadMode ? "Choose troop to embark" : null,
+    targetMode === "inspect" ? "Inspect targeting active" : null,
+    targetMode === "missile" ? "Cruise missile targeting active" : null,
     pendingDevPlacement ? `Developer placement: ${pendingDevPlacement.unitType}` : null,
     pendingDevImprovementPlacement ? `Developer placement: ${pendingDevImprovementPlacement.improvementType}` : null,
   ].filter((value): value is string => Boolean(value));
@@ -954,7 +1136,11 @@ export default function EmpireGame() {
                 troopTransportDeploymentTargetCount={troopTransportDeploymentTargets.length}
                 specialOpsAirStrikeTargetCount={specialOpsAirStrikeTargets.length}
                 specialOpsDeploymentTargetCount={specialOpsDeploymentTargets.length}
+                cruiseMissileTargetCount={cruiseMissileTargets.length}
+                selectedUnitReloadQuote={selectedUnitReloadQuote}
+                canSelectedUnitSonarPing={canSelectedUnitSonarPing}
                 canSelectedBomberAttackHere={canSelectedBomberAttackHere}
+                targetMode={targetMode}
                 transportLoadMode={transportLoadMode}
                 onBuild={(unitType) => {
                   if (unitDefinitions[unitType].domain === "sea" && selectedSeaSpawnTiles.length > 1) {
@@ -975,6 +1161,11 @@ export default function EmpireGame() {
                   setPendingEngineerPlacement(action.improvementType);
                 }}
                 onUpgradeUnit={handleUpgradeSelectedUnit}
+                onBeginInspectTargeting={beginInspectTargeting}
+                onBeginMissileTargeting={beginMissileTargeting}
+                onSonarPing={handleSonarPing}
+                onReloadAmmo={handleReloadSelectedUnitAmmo}
+                onCancelTargetMode={clearTargetMode}
                 onBombsAway={handleBombSelectedUnit}
                 onDemolishImprovement={handleDemolishWithSelectedUnit}
                 onBeginTransportLoad={() => setPendingTransportLoad(true)}
@@ -1147,6 +1338,18 @@ export default function EmpireGame() {
         playerFaction={game.playerFaction}
         aiFaction={game.aiFaction}
         onClose={() => setSiteIntelTarget(null)}
+      />
+      <TargetActionModal
+        open={!!pendingTargetAction}
+        title={pendingTargetAction?.title ?? ""}
+        subtitle={pendingTargetAction?.subtitle ?? ""}
+        actions={pendingTargetAction?.actions ?? []}
+        onChoose={(choice) => {
+          if (pendingTargetAction) {
+            handleExecuteTargetChoice(choice, pendingTargetAction);
+          }
+        }}
+        onClose={() => setPendingTargetAction(null)}
       />
       <TileContentsModal
         open={!!tileContentsTarget}

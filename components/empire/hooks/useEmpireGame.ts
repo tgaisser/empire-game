@@ -15,6 +15,7 @@ import {
   applyCommand,
   getCarrierJamTargets,
   getCarrierRelayAttackTargets,
+  getAmmoReloadQuote,
   countForces,
   createInitialState,
   forceCompleteProductionForSide,
@@ -27,6 +28,7 @@ import {
   getExplorationIncome,
   getExploredPercent,
   getReachableMoves,
+  getCruiseMissileTargets,
   getDeveloperPlacementTargets,
   getDeveloperImprovementPlacementTargets,
   getSeaSpawnTiles,
@@ -63,6 +65,7 @@ export type PendingUnitRename = {
   defaultName: string;
   unitType: UnitType;
 };
+export type TargetMode = "move" | "attack" | "missile" | "inspect" | null;
 export type MovementPlayback = {
   unitId: number;
   unitType: UnitType;
@@ -101,6 +104,7 @@ export function useEmpireGame() {
     )
   );
   const [selectedCity, setSelectedCity] = useState<{ x: number; y: number } | null>(null);
+  const [targetMode, setTargetMode] = useState<TargetMode>(null);
   const [developerSettings, setDeveloperSettings] = useState({
     playerFogEnabled: true,
     playerInstantBuild: false,
@@ -148,6 +152,33 @@ export function useEmpireGame() {
   const possibleMoveKeys = useMemo(
     () => new Set(possibleMoves.map((move) => key(move.x, move.y))),
     [possibleMoves]
+  );
+
+  const cruiseMissileTargets = useMemo(
+    () => getCruiseMissileTargets(game, selectedUnit),
+    [game, selectedUnit]
+  );
+
+  const cruiseMissileTargetKeys = useMemo(
+    () => new Set(cruiseMissileTargets.map((tile) => key(tile.x, tile.y))),
+    [cruiseMissileTargets]
+  );
+
+  const selectedUnitReloadQuote = useMemo(
+    () => getAmmoReloadQuote(game, selectedUnit),
+    [game, selectedUnit]
+  );
+
+  const canSelectedUnitSonarPing = useMemo(
+    () =>
+      Boolean(
+        selectedUnit &&
+          selectedUnit.owner === "player" &&
+          selectedUnit.type === "destroyer" &&
+          selectedUnit.sonarUpgraded &&
+          getUnitStats(selectedUnit).move - selectedUnit.moveSpent > 0
+      ),
+    [selectedUnit]
   );
 
   const aiDebugPlan = useMemo<AiTurnPlan>(() => planAiTurn(game), [game]);
@@ -478,6 +509,7 @@ export function useEmpireGame() {
     );
     setLastPlayerMoveSnapshot(null);
     setSelectedCity(null);
+    setTargetMode(null);
   }
 
   function loadGame(state: GameState) {
@@ -488,6 +520,7 @@ export function useEmpireGame() {
     setGame(state);
     setLastPlayerMoveSnapshot(null);
     setSelectedCity(null);
+    setTargetMode(null);
   }
 
   function applyGameUpdate(updater: (current: GameState) => GameState, options?: { captureLastPlayerMove?: boolean }) {
@@ -501,6 +534,7 @@ export function useEmpireGame() {
     if (game.side !== "player" || game.winner) return;
     if (unit.owner !== "player") return;
     setSelectedCity(null);
+    setTargetMode("move");
     if (unit.type === "drone-swarm" && unit.droneTargetX === null && unit.droneTargetY === null) {
       setPendingDroneTarget({ unitId: unit.id });
     } else {
@@ -512,6 +546,7 @@ export function useEmpireGame() {
   function selectCity(x: number, y: number) {
     setPendingDroneTarget(null);
     setSelectedCity({ x, y });
+    setTargetMode(null);
     setGame((current) => ({ ...current, selectedUnitId: null }));
   }
 
@@ -542,6 +577,92 @@ export function useEmpireGame() {
     );
   }
 
+  function executeTargetModeAction(mode: Exclude<TargetMode, "inspect" | null>, x: number, y: number) {
+    if (game.side !== "player" || game.winner || !selectedUnit) return false;
+    if (!effectivePlayerVisible[y]?.[x]) return false;
+
+    const clickedTile = game.map[y][x];
+    const clickedUnits = getUnitsAt(game.units, x, y);
+    const enemyPresent = clickedUnits.some((unit) => unit.owner !== "player");
+    const enemySitePresent =
+      (clickedTile.city && clickedTile.owner === "ai") ||
+      (clickedTile.improvement && clickedTile.improvement.owner === "ai") ||
+      (clickedTile.improvementProject && clickedTile.improvementProject.owner === "ai");
+
+    if (mode === "missile") {
+      if (!cruiseMissileTargetKeys.has(key(x, y))) return false;
+      setSelectedCity(null);
+      applyGameUpdate((current) =>
+        applyCommand(current, { type: "launch_cruise_missile", side: "player", unitId: selectedUnit.id, x, y })
+      );
+      setTargetMode("move");
+      return true;
+    }
+
+    if (
+      selectedUnit.x === x &&
+      selectedUnit.y === y &&
+      getUnitStats(selectedUnit).attackRequiresSameTile
+    ) {
+      const attackableEnemy = clickedUnits.find(
+        (unit) => unit.owner !== "player" && getUnitStats(selectedUnit).attackDomains.includes(getUnitStats(unit).domain)
+      );
+      if (attackableEnemy) {
+        setSelectedCity(null);
+        applyGameUpdate((current) =>
+          applyCommand(current, { type: "attack_tile", side: "player", unitId: selectedUnit.id, x, y })
+        );
+        setTargetMode("move");
+        return true;
+      }
+    }
+
+    if (
+      selectedUnit.type === "special-ops" &&
+      getSpecialOpsAirStrikeTargets(game, selectedUnit).some((tile) => tile.x === x && tile.y === y)
+    ) {
+      setSelectedCity(null);
+      applyGameUpdate((current) =>
+        applyCommand(current, { type: "special_ops_airstrike", side: "player", unitId: selectedUnit.id, x, y })
+      );
+      setTargetMode("move");
+      return true;
+    }
+
+    if (
+      selectedUnit.type === "carrier" &&
+      getCarrierJamTargets(game, selectedUnit).some((tile) => tile.x === x && tile.y === y)
+    ) {
+      setSelectedCity(null);
+      applyGameUpdate((current) =>
+        applyCommand(current, { type: "jam_drone", side: "player", unitId: selectedUnit.id, x, y })
+      );
+      setTargetMode("move");
+      return true;
+    }
+
+    if (mode === "attack" && possibleMoveKeys.has(key(x, y)) && (enemyPresent || enemySitePresent)) {
+      const chosenMove = possibleMoves.find((move) => move.x === x && move.y === y);
+      if (!chosenMove) return false;
+      setSelectedCity(null);
+      setMovementPlayback([
+        {
+          unitId: selectedUnit.id,
+          unitType: selectedUnit.type,
+          owner: "player",
+          path: [{ x: selectedUnit.x, y: selectedUnit.y }, ...chosenMove.path],
+        },
+      ]);
+      applyGameUpdate((current) =>
+        applyCommand(current, { type: "move_unit", side: "player", unitId: selectedUnit.id, x, y })
+      , { captureLastPlayerMove: true });
+      setTargetMode("move");
+      return true;
+    }
+
+    return false;
+  }
+
   function handleTileClick(x: number, y: number, target: TileClickTarget = "tile") {
     if (game.side !== "player" || game.winner) return;
     if (!effectivePlayerVisible[y]?.[x]) return;
@@ -570,6 +691,12 @@ export function useEmpireGame() {
       applyGameUpdate((current) =>
         applyCommand(current, { type: "move_unit", side: "player", unitId: selectedUnit.id, x, y })
       , { captureLastPlayerMove: true });
+      setTargetMode("move");
+    }
+
+    if (targetMode === "attack" || targetMode === "missile") {
+      executeTargetModeAction(targetMode, x, y);
+      return;
     }
 
     const selectedAirCanLandHere = Boolean(
@@ -730,6 +857,7 @@ export function useEmpireGame() {
     if (game.side !== "player" || game.winner) return;
     setPendingDroneTarget(null);
     setSelectedCity(null);
+    setTargetMode(null);
     const dronePlaybackPreview = getDroneSwarmPlaybackPreview(game, "player");
     setMovementPlayback(dronePlaybackPreview);
     applyGameUpdate((current) => applyCommand(current, { type: "end_turn", side: "player" }));
@@ -752,6 +880,7 @@ export function useEmpireGame() {
   function handleDecommissionSelectedUnit() {
     if (game.side !== "player" || game.winner || !selectedUnit) return;
     setSelectedCity(null);
+    setTargetMode(null);
     setMovementPlayback([]);
     applyGameUpdate((current) =>
       applyCommand(current, { type: "decommission_unit", side: "player", unitId: selectedUnit.id })
@@ -779,6 +908,7 @@ export function useEmpireGame() {
     applyGameUpdate((current) =>
       applyCommand(current, { type: "move_unit", side: "player", unitId: selectedUnit.id, x: targetX, y: targetY })
     , { captureLastPlayerMove: true });
+    setTargetMode("move");
     return true;
   }
 
@@ -797,6 +927,44 @@ export function useEmpireGame() {
   function handleUpgradeSelectedUnit(upgrade: "sonar" | "radar-relay") {
     if (!selectedUnit || game.side !== "player" || game.winner) return;
     applyGameUpdate((current) => applyCommand(current, { type: "upgrade_unit", side: "player", unitId: selectedUnit.id, upgrade }));
+  }
+
+  function beginAttackTargeting() {
+    if (!selectedUnit || game.side !== "player" || game.winner) return;
+    setSelectedCity(null);
+    setTargetMode("attack");
+  }
+
+  function beginMissileTargeting() {
+    if (!selectedUnit || cruiseMissileTargets.length === 0 || game.side !== "player" || game.winner) return;
+    setSelectedCity(null);
+    setTargetMode("missile");
+  }
+
+  function beginInspectTargeting() {
+    if (!selectedUnit || game.side !== "player" || game.winner) return;
+    setSelectedCity(null);
+    setTargetMode("inspect");
+  }
+
+  function clearTargetMode() {
+    setTargetMode(selectedUnit ? "move" : null);
+  }
+
+  function handleSonarPing() {
+    if (!selectedUnit || game.side !== "player" || game.winner) return;
+    applyGameUpdate((current) =>
+      applyCommand(current, { type: "sonar_ping", side: "player", unitId: selectedUnit.id })
+    );
+    setTargetMode("move");
+  }
+
+  function handleReloadSelectedUnitAmmo() {
+    if (!selectedUnit || game.side !== "player" || game.winner) return;
+    applyGameUpdate((current) =>
+      applyCommand(current, { type: "reload_ammo", side: "player", unitId: selectedUnit.id })
+    );
+    setTargetMode("move");
   }
 
   function handleLoadSpecialOps() {
@@ -873,6 +1041,7 @@ export function useEmpireGame() {
       return;
     }
     setSelectedCity(null);
+    setTargetMode("move");
     applyGameUpdate((current) =>
       applyCommand(current, { type: "set_drone_target", side: "player", unitId: pendingDroneTarget.unitId, x, y })
     );
@@ -883,6 +1052,7 @@ export function useEmpireGame() {
     if (!selectedUnit || selectedUnit.type !== "bomber") return;
     if ((selectedUnit.bombsRemaining ?? getUnitStats(selectedUnit).bombCapacity ?? 0) <= 0) return;
     setSelectedCity(null);
+    setTargetMode("move");
     applyGameUpdate((current) =>
       applyCommand(current, {
         type: "attack_tile",
@@ -914,6 +1084,7 @@ export function useEmpireGame() {
     if (game.side !== "player" || game.winner || !lastPlayerMoveSnapshot) return;
     setPendingDroneTarget(null);
     setSelectedCity(null);
+    setTargetMode(selectedUnit ? "move" : null);
     setMovementPlayback([]);
     setGame(lastPlayerMoveSnapshot.game);
     setLastPlayerMoveSnapshot(null);
@@ -936,6 +1107,7 @@ export function useEmpireGame() {
     pendingUnitRename,
     selectedUnit,
     selectedUnitTile,
+    targetMode,
     selectedCity,
     selectedCityTile,
     selectedCityOccupants,
@@ -946,6 +1118,9 @@ export function useEmpireGame() {
     demolishableImprovementTargets,
     troopTransportLoadTargets,
     troopTransportDeploymentTargets,
+    cruiseMissileTargets,
+    selectedUnitReloadQuote,
+    canSelectedUnitSonarPing,
     canSelectedBomberAttackHere,
     possibleMoves,
     playerCities: getCityCount(game.map, "player"),
@@ -970,8 +1145,13 @@ export function useEmpireGame() {
     handleAddDeveloperUnit,
     handleGrantCredits,
     handleLoadSpecialOps,
+    beginAttackTargeting,
+    beginInspectTargeting,
+    beginMissileTargeting,
     handleBombSelectedUnit,
     handleDemolishWithSelectedUnit,
+    handleSonarPing,
+    handleReloadSelectedUnitAmmo,
     handleRenameCapturedCity,
     handleSetDroneTarget,
     handleRenameUnit,
@@ -981,16 +1161,18 @@ export function useEmpireGame() {
     handleUpgradeSelectedUnit,
     handleUndoLastMove,
     dismissMovementPlayback,
+    clearTargetMode,
+    executeTargetModeAction,
     handleArrowMove,
     handleSentryUnit,
     handleWakeUnit,
-  handleDecommissionSelectedUnit,
+    handleDecommissionSelectedUnit,
     handleTileClick,
     moveSelectedUnitTo,
     handleEndTurn,
-  selectCity,
-  selectUnit,
-  carrierJamTargets: getCarrierJamTargets(game, selectedUnit),
+    selectCity,
+    selectUnit,
+    carrierJamTargets: getCarrierJamTargets(game, selectedUnit),
     carrierRelayAttackTargets: getCarrierRelayAttackTargets(game, selectedUnit),
     specialOpsDeploymentTargets: getSpecialOpsDeploymentTargets(game, selectedUnit),
     specialOpsAirStrikeTargets: getSpecialOpsAirStrikeTargets(game, selectedUnit),
