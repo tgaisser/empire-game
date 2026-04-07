@@ -39,6 +39,24 @@ function terrainClass(tile: Tile) {
   return "bg-[#6f7a4b]";
 }
 
+function getSiteChipLabel(siteType: "city" | "port" | "airfield") {
+  if (siteType === "city") return "CITY";
+  if (siteType === "port") return "PORT";
+  return "AIR";
+}
+
+function getSiteChipClass(siteType: "city" | "port" | "airfield") {
+  if (siteType === "city") return "border-slate-200/30 bg-slate-950/82 text-slate-100";
+  if (siteType === "port") return "border-sky-300/30 bg-sky-950/80 text-sky-100";
+  return "border-amber-300/30 bg-amber-950/78 text-amber-100";
+}
+
+function getOccupiedSiteOutlineClass(siteType: "city" | "port" | "airfield") {
+  if (siteType === "city") return "border-slate-200/28 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]";
+  if (siteType === "port") return "border-sky-300/34 shadow-[0_0_18px_rgba(56,189,248,0.18),inset_0_0_0_1px_rgba(125,211,252,0.14)]";
+  return "border-amber-300/36 shadow-[0_0_18px_rgba(251,191,36,0.16),inset_0_0_0_1px_rgba(253,224,71,0.14)]";
+}
+
 function TerrainPattern({ tile }: { tile: Tile }) {
   if (tile.terrain === "water") {
     return (
@@ -594,6 +612,14 @@ export function MapTile({
           aiFaction={aiFaction}
         />
       ) : null}
+      {showSiteChip ? (
+        <span
+          className={[
+            "pointer-events-none absolute inset-[3px] rounded-[0.8rem] border z-[9]",
+            getOccupiedSiteOutlineClass(siteType as "city" | "port" | "airfield"),
+          ].join(" ")}
+        />
+      ) : null}
       <div className="absolute inset-0 z-10 flex items-center justify-center">
         {showSiteChip ? (
           <span
@@ -601,21 +627,29 @@ export function MapTile({
             tabIndex={-1}
             onClick={(event) => handleTargetClick(event, "site")}
             onContextMenu={(event) => handleTargetContextMenu(event, "site")}
-            className="absolute left-1 top-1 z-20 flex h-[28%] w-[28%] min-h-4 min-w-4 max-h-7 max-w-7 items-center justify-center rounded-md border border-slate-950/40 bg-slate-950/72 shadow-md cursor-pointer"
+            className={[
+              "absolute left-1 top-1 z-20 inline-flex h-auto min-h-4 min-w-4 max-w-[78%] items-center gap-1 rounded-full border px-1.5 py-1 shadow-md cursor-pointer",
+              getSiteChipClass(siteType as "city" | "port" | "airfield"),
+            ].join(" ")}
           >
             <span
               className={[
-                "absolute inset-[10%] rounded-md shadow-sm",
+                "absolute inset-[1px] rounded-full shadow-sm",
                 getFactionVisuals(displayTile?.improvement?.owner ?? displayTile?.owner ?? null).contrastPlateClass,
               ].join(" ")}
             />
             {siteType === "city" ? (
-              <CityIcon className={`h-full w-full drop-shadow-sm ${ownerPrimaryColor(displayTile?.owner ?? null)}`} />
+              <span className="relative z-10 h-3.5 w-3.5 shrink-0">
+                <CityIcon className={`h-full w-full drop-shadow-sm ${ownerPrimaryColor(displayTile?.owner ?? null)}`} />
+              </span>
             ) : (
-              <span className={`relative z-10 ${ownerPrimaryColor(displayTile?.improvement?.owner ?? displayTile?.owner ?? null)}`}>
+              <span className={`relative z-10 h-3.5 w-3.5 shrink-0 ${ownerPrimaryColor(displayTile?.improvement?.owner ?? displayTile?.owner ?? null)}`}>
                 <ImprovementIcon improvementType={siteType as "port" | "airfield"} />
               </span>
             )}
+            <span className="relative z-10 text-[8px] font-black uppercase tracking-[0.18em]">
+              {getSiteChipLabel(siteType as "city" | "port" | "airfield")}
+            </span>
           </span>
         ) : displayTile?.city ? (
           <span
