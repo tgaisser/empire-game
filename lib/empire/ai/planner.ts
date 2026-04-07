@@ -1,4 +1,5 @@
 import { DIRECTIONS, UNIT_STATS } from "@/lib/empire/config";
+import { AIR_SUPPORT_PER_CITY } from "@/lib/empire/data/rules";
 import { assignAiUnitMissions, createAiThreatSummary, planAiStrategicGoals } from "@/lib/empire/ai/strategy";
 import type { GameState, Side, Tile, Unit, UnitDomain, UnitType } from "@/lib/empire/types";
 import type { AiStrategicGoal, AiThreatSummary, AiUnitMission } from "@/lib/empire/ai/strategy";
@@ -262,6 +263,11 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
   const reasons: string[] = [];
   let score = 0;
 
+  const airCap = AIR_SUPPORT_PER_CITY * context.aiCityCount;
+  if (definition.domain === "air" && aiAir >= airCap) {
+    return { unitType, score: -1000, reasons: ["aircraft cap reached"] };
+  }
+
   if (site.kind === "city" || site.kind === "coastal-city") score += definition.domain === "land" ? 8 : 0;
   if (site.kind === "port") score += definition.domain === "sea" ? 12 : 0;
   if (site.kind === "airfield") score += definition.domain === "air" ? 12 : 0;
@@ -337,6 +343,11 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     }
     score -= aiTypeCount * 10;
   } else if (unitType === "special-ops") {
+    if (aiSpecialOps >= context.aiCityCount) {
+      score -= 1000;
+      reasons.push("special ops production cap reached");
+      return { unitType, score, reasons };
+    }
     score += 18;
     if (knownEnemyCities > 0) {
       score += 16;
@@ -356,6 +367,11 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     if (enemySea > 0) {
       score += 14;
       reasons.push("enemy naval contacts are known");
+    }
+    const knownEnemySubs = context.knownEnemyUnits.filter((u) => u.type === "submarine").length;
+    if (knownEnemySubs > 0) {
+      score += 12;
+      reasons.push("enemy submarines detected — ASW capability needed");
     }
     if (enemyAir > 0) {
       score += 10;
@@ -407,7 +423,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     }
     score -= aiCarriers * 18;
   } else if (unitType === "submarine") {
-    score += 34;
+    score += 28;
     if (context.state.gameType === "archipelago" || context.state.gameType === "ocean") {
       score += 18;
       reasons.push("map rewards long-range sea strikes");
@@ -416,7 +432,11 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       score += 10;
       reasons.push("enemy fleet presence is growing");
     }
-    score -= aiTypeCount * 5;
+    if (aiDestroyers > 0) {
+      score += 8;
+      reasons.push("friendly destroyers support coordinated sea pressure");
+    }
+    score -= aiTypeCount * 6;
   } else if (unitType === "chopper") {
     score += 32;
     if (enemyLand > 0) {

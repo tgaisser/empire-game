@@ -155,7 +155,7 @@ export function planAiStrategicGoals(state: GameState, threatSummary: AiThreatSu
   const knownEnemyCities = knownTiles.filter((tile) => tile.city && tile.owner === "player");
   const knownNeutralCities = knownTiles.filter((tile) => tile.city && tile.owner === null);
   const aiUnits = state.units.filter((unit) => unit.owner === "ai");
-  const capturingUnits = aiUnits.filter((unit) => ["infantry", "tank", "scout"].includes(unit.type));
+  const capturingUnits = aiUnits.filter((unit) => ["infantry", "tank", "scout", "engineer", "special-ops"].includes(unit.type));
   const knownEnemyAirUnits = getDetectedEnemyUnits(state, "ai").filter((unit) => state.units.find((candidate) => candidate.id === unit.id)?.type && unit.type !== "infantry").filter((unit) => {
     return ["chopper", "fighter", "bomber", "drone-swarm"].includes(unit.type);
   });

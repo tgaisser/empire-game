@@ -33,7 +33,8 @@ function getFriendlyUnits(state: GameState, side: "player" | "ai") {
 function getStrategicUnitValue(unit: Unit) {
   if (unit.type === "carrier") return 34;
   if (unit.type === "troop-transport") return 26;
-  if (unit.type === "bomber" || unit.type === "submarine") return 22;
+  if (unit.type === "bomber") return 22;
+  if (unit.type === "submarine") return 20;
   if (unit.type === "engineer" || unit.type === "special-ops") return 18;
   if (unit.type === "fighter" || unit.type === "chopper") return 16;
   return 10;
@@ -53,7 +54,8 @@ function scoreEngagement(attacker: Unit, defender: Unit, tile: Tile) {
   const defenderStats = getUnitStats(defender);
   const antiAir = defenderStats.domain === "air" ? attackerStats.antiAirBonus ?? 0 : 0;
   const attackerPressure = attackerStats.atk + attackerStats.piercing + antiAir + attacker.hp * 0.55;
-  const defenderDurability = defenderStats.armor + defender.hp * 0.5 + (tile.city || defender.fortified ? 1.5 : 0);
+  const fortificationValue = defender.entrenched ? 3 : (tile.city || defender.fortified ? 1.5 : 0);
+  const defenderDurability = defenderStats.armor + defender.hp * 0.5 + fortificationValue;
   const retaliation =
     defenderStats.canAttack && canUnitAttackTarget(defender, attacker)
       ? defenderStats.atk * 0.65 + defenderStats.piercing * 0.3 + defender.hp * 0.35
