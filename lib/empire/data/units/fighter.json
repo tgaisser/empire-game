@@ -2,7 +2,7 @@
   "name": "Fighter",
   "shortLabel": "F",
   "move": 6,
-  "atk": 6,
+  "atk": 5,
   "armor": 1,
   "piercing": 3,
   "vision": 4,

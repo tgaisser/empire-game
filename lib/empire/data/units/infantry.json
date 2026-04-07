@@ -3,7 +3,7 @@
   "shortLabel": "I",
   "move": 2,
   "atk": 4,
-  "armor": 1,
+  "armor": 2,
   "piercing": 1,
   "vision": 1,
   "cost": 10,
@@ -13,5 +13,6 @@
   "canAttack": true,
   "canCapture": true,
   "attackDomains": ["land"],
-  "canDetectSpecialOps": true
+  "canDetectSpecialOps": true,
+  "antiAirBonus": 1
 }
