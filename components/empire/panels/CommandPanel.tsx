@@ -4,11 +4,12 @@ import type { ReactNode } from "react";
 import { Bomb, Castle, Compass, Shield, Truck, Wrench } from "lucide-react";
 import { getFactionUnitBadgeClass, getFactionUnitBadgeStyle, getFactionUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
+import { getUnitCargoManifest } from "@/components/empire/shared/unitCargo";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { CITY_SURFACE_CAPACITY } from "@/lib/empire/data/rules";
 import { UNIT_TYPE_ORDER } from "@/lib/empire/catalog";
 import { getFactionLeaderName, getFactionOption, getSideDisplayOption } from "@/lib/empire/factions";
-import { getImprovementBuildCost, getImprovementLabel, getTroopTransportRemainingCapacity, getUnitStats } from "@/lib/empire/game";
+import { getImprovementBuildCost, getImprovementLabel, getUnitStats } from "@/lib/empire/game";
 import { getManualImprovementReference, getManualUnitReference } from "@/lib/empire/manual";
 import type { Faction, Side, Tile, TileImprovementType, Unit, UnitDefinition, UnitType } from "@/lib/empire/types";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,7 @@ export function CommandPanel({
   const engineerDemolitionTargets = selectedUnit?.type === "engineer" ? demolishableImprovementTargets : [];
   const bomberDemolitionTarget = selectedUnit?.type === "bomber" ? demolishableImprovementTargets[0] ?? null : null;
   const selectedUnitManual = selectedUnit ? getManualUnitReference(selectedUnit.type) : null;
+  const selectedUnitCargoManifest = getUnitCargoManifest(selectedUnit);
   const citySurfaceFull = Boolean(selectedCity?.city && selectedCityOccupants && selectedCityOccupants.surface.length >= CITY_SURFACE_CAPACITY);
   const citySurfaceSummary = selectedCityOccupants?.surface.length
     ? `${selectedCityOccupants.surface.length}/${selectedCity?.city ? CITY_SURFACE_CAPACITY : 1} · ${selectedCityOccupants.surface
@@ -287,14 +289,6 @@ export function CommandPanel({
                       : "Awaiting assignment"}
                   </div>
                 ) : null}
-                {["chopper", "submarine"].includes(selectedUnit.type) && selectedUnit.carriedSpecialOps ? (
-                  <div className="col-span-2">Carrying Special Ops team</div>
-                ) : null}
-                {selectedUnit.type === "troop-transport" ? (
-                  <div className="col-span-2">
-                    Cargo {(selectedUnit.carriedTroops?.length ?? 0)} loaded, {getTroopTransportRemainingCapacity(selectedUnit)} capacity free
-                  </div>
-                ) : null}
                 <div className="col-span-2">
                   Status{" "}
                   {selectedUnit.concealed
@@ -313,6 +307,19 @@ export function CommandPanel({
                 <div className="mt-2 leading-6">{selectedUnitManual.summary}</div>
                 <div className="mt-2 text-xs leading-5 text-amber-100/80">
                   {selectedUnitManual.entry.tips[0] ?? selectedUnitManual.specialRules[0] ?? selectedUnitManual.capabilities[0]}
+                </div>
+              </div>
+            ) : null}
+            {selectedUnitCargoManifest ? (
+              <div className="rounded-2xl border border-cyan-800/40 bg-cyan-950/20 p-4 text-sm text-cyan-50">
+                <div className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/70">Cargo Manifest</div>
+                <div className="mt-2">{selectedUnitCargoManifest.summary}</div>
+                <div className="mt-3 space-y-2">
+                  {selectedUnitCargoManifest.lines.map((line) => (
+                    <div key={`${selectedUnit.id}-${line}`} className="rounded-2xl border border-cyan-400/15 bg-slate-950/40 px-3 py-2 text-xs text-cyan-100/90">
+                      {line}
+                    </div>
+                  ))}
                 </div>
               </div>
             ) : null}

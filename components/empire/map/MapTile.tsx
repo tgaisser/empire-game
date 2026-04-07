@@ -18,6 +18,7 @@ import {
   isUnitConcealedFromSide,
   getTileLabel,
 } from "@/lib/empire/game";
+import { getUnitCargoManifest } from "@/components/empire/shared/unitCargo";
 import type { Faction, ReachableMove, Tile, Unit } from "@/lib/empire/types";
 
 function CityIcon({ className }: { className: string }) {
@@ -527,6 +528,8 @@ export function MapTile({
   const engineerOnProject = Boolean(
     surfaceOccupant?.type === "engineer" && displayTile?.improvementProject?.engineerUnitId === surfaceOccupant.id
   );
+  const surfaceCargoManifest = getUnitCargoManifest(surfaceOccupant);
+  const airCargoManifest = getUnitCargoManifest(airOccupant);
   const showSiteChip = Boolean(siteType && (surfaceOccupant || airOccupant));
   const productionPulseClass =
     productionSiteOwner === "player"
@@ -757,6 +760,11 @@ export function MapTile({
                 {surfaceOccupants.length}
               </span>
             ) : null}
+            {surfaceCargoManifest ? (
+              <span className="absolute -bottom-1 -left-1 rounded-full border border-cyan-300/35 bg-cyan-950/92 px-1 text-[8px] font-black text-cyan-100">
+                {surfaceCargoManifest.badge}
+              </span>
+            ) : null}
           </span>
         )}
         {airOccupant && (
@@ -801,6 +809,11 @@ export function MapTile({
             {airOccupants.length > 1 ? (
               <span className="absolute -bottom-1 -right-1 rounded-full bg-slate-950/90 px-1 text-[9px] font-bold text-white">
                 {airOccupants.length}
+              </span>
+            ) : null}
+            {airCargoManifest ? (
+              <span className="absolute -bottom-1 -left-1 rounded-full border border-cyan-300/35 bg-cyan-950/92 px-1 text-[8px] font-black text-cyan-100">
+                {airCargoManifest.badge}
               </span>
             ) : null}
           </span>

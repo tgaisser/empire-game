@@ -2,6 +2,7 @@
 
 import { Castle, X } from "lucide-react";
 import { getImprovementLabel, getRemainingMove, getUnitStats } from "@/lib/empire/game";
+import { getUnitCargoManifest } from "@/components/empire/shared/unitCargo";
 import { getFactionUnitBadgeClass, getFactionUnitBadgeStyle, getFactionUnitIconClass } from "@/components/empire/shared/domainStyles";
 import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
@@ -79,6 +80,7 @@ export function TileContentsModal({
           <div className="space-y-2">
             {units.map((unit) => {
               const stats = getUnitStats(unit);
+              const cargoManifest = getUnitCargoManifest(unit);
               return (
                 <button
                   key={unit.id}
@@ -101,10 +103,28 @@ export function TileContentsModal({
                       <span className="block text-xs text-slate-300">
                         {stats.domain} unit · HP {unit.hp}/{stats.maxHp} · Move {getRemainingMove(unit)}/{stats.move}
                       </span>
+                      {cargoManifest ? (
+                        <span className="mt-2 block rounded-2xl border border-cyan-400/20 bg-cyan-950/30 px-3 py-2">
+                          <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200/80">Onboard</span>
+                          <span className="mt-1 block text-xs text-cyan-100">{cargoManifest.summary}</span>
+                          {cargoManifest.lines.map((line) => (
+                            <span key={`${unit.id}-${line}`} className="mt-1 block text-xs text-slate-300">
+                              {line}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
                     </span>
                   </span>
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    {unit.fortified ? (unit.entrenched ? "Entrenched" : "Fortified") : "Ready"}
+                  <span className="flex shrink-0 flex-col items-end gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      {unit.fortified ? (unit.entrenched ? "Entrenched" : "Fortified") : "Ready"}
+                    </span>
+                    {cargoManifest ? (
+                      <span className="rounded-full border border-cyan-400/25 bg-cyan-950/50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100">
+                        Cargo {cargoManifest.badge}
+                      </span>
+                    ) : null}
                   </span>
                 </button>
               );
