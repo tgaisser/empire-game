@@ -15,10 +15,11 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
         ],
       },
       {
-        title: "Fortification",
+        title: "Fortification And Entrenchment",
         body: [
           "Units that hold position fortify. City defenders benefit from the site as well as their own fortification status.",
-          "Some attackers ignore fortification, which makes them ideal for cracking prepared defenses.",
+          "Infantry that holds position also entrenches, gaining a stronger damage reduction than standard fortification.",
+          "Some attackers ignore fortification entirely, which makes them ideal for cracking prepared defenses.",
         ],
       },
     ],
@@ -61,10 +62,11 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
     summary: "Air units are constrained by legal landing sites, capacity, and endurance away from base.",
     sections: [
       {
-        title: "Landing",
+        title: "Landing And Capacity",
         body: [
           "Cities, airfields, and carriers do not all support the same aircraft. Check each unit's basing rules.",
           "If you do not build enough basing depth, your aircraft become range-limited regardless of their speed.",
+          "Total aircraft your side can field is capped at two per owned city. Losing cities can prevent new aircraft production.",
         ],
       },
       {

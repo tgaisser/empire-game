@@ -4,11 +4,11 @@ import type { UnitType } from "@/lib/empire/types";
 export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
   infantry: {
     unitType: "infantry",
-    summary: "Baseline line infantry for holding ground and taking cities.",
+    summary: "Baseline line infantry for holding ground, taking cities, and hardening positions.",
     role: ["Capture cities, screen support units, and absorb the first wave of land fighting."],
-    strengths: ["Cheap, reliable, and allowed to seize territory.", "Fits easily into transports and garrisons."],
+    strengths: ["Cheap, reliable, and allowed to seize territory.", "Fits easily into transports and garrisons.", "Entrenches when stationary, reducing incoming damage more than standard fortification.", "Light anti-air capability deters casual air harassment."],
     weaknesses: ["Slow compared to scouts and armor.", "Can be overpowered by tanks, bombers, and prepared Special Ops."],
-    tips: ["Use infantry to finish captures after stronger units crack the defense."],
+    tips: ["Use infantry to finish captures after stronger units crack the defense.", "Leave infantry in place to entrench when you expect an attack — entrenched infantry is significantly tougher."],
     worksWellWith: [
       { kind: "unit", id: "engineer", label: "Engineer", note: "Engineers keep infantry moving and productive by shaping terrain and revealing traps." },
       { kind: "unit", id: "tank", label: "Tank", note: "Tanks break the line and infantry holds the ground." },
@@ -78,8 +78,8 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     unitType: "special-ops",
     summary: "Stealth recon and infiltration unit for surgical raids, spotting, and precision disruption.",
     role: ["Reconnoiter, infiltrate, expose weak points, and support captures through covert positioning."],
-    strengths: ["Conceals while stationary.", "Can call air strikes and still fight when needed."],
-    weaknesses: ["No longer wins fights through raw stats alone.", "Needs insertion planning and support to reach full value."],
+    strengths: ["Conceals while stationary.", "Can call air strikes and still fight when needed.", "Follow-up attack if movement remains after engaging."],
+    weaknesses: ["No longer wins fights through raw stats alone.", "Needs insertion planning and support to reach full value.", "Production is capped by the number of cities you own."],
     tips: ["Use Special Ops as your stealth recon layer first and your surgical strike layer second."],
     worksWellWith: [
       { kind: "unit", id: "submarine", label: "Submarine", note: "Submarines can place Special Ops behind the front under concealment." },
@@ -96,7 +96,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     unitType: "destroyer",
     summary: "Multirole escort warship for anti-air, anti-sub, and fleet screening.",
     role: ["Protect capital ships and transports while contesting sea and nearby land targets."],
-    strengths: ["Targets sea, land, and air.", "Can detect and attack submarines once sonar-upgraded."],
+    strengths: ["Targets sea, land, and air.", "Can detect and attack submarines once sonar-upgraded.", "Sonar-upgraded destroyers deal bonus damage against submarines."],
     weaknesses: ["Less durable than carriers in drawn-out exchanges.", "Needs coordination to reach full screening value."],
     tips: ["Keep destroyers near carriers and troop transports instead of sending them alone."],
     worksWellWith: [
@@ -132,7 +132,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     summary: "Capital ship and moving air base that anchors long-range fleet operations.",
     role: ["Project air power forward, detect aircraft, and support naval formations."],
     strengths: ["Carries compatible aircraft.", "Provides detection and radar-relay support."],
-    weaknesses: ["Expensive and high-value.", "Submarines are an existential threat."],
+    weaknesses: ["Expensive and high-value.", "Submarines are a serious threat and can sink a carrier in a few torpedo attacks."],
     tips: ["A carrier without destroyer cover is a floating objective for the enemy."],
     worksWellWith: [
       { kind: "unit", id: "destroyer", label: "Destroyer", note: "Destroyers provide the anti-sub and anti-air screen carriers need." },
@@ -140,7 +140,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
       { kind: "unit", id: "chopper", label: "Chopper", note: "Choppers exploit carrier mobility to threaten coastlines and armor." },
     ],
     counteredBy: [
-      { kind: "unit", id: "submarine", label: "Submarine", note: "A submarine strike on a carrier is catastrophic, not merely efficient." },
+      { kind: "unit", id: "submarine", label: "Submarine", note: "A few successful torpedo attacks can sink a carrier, making submarines the primary capital-ship threat." },
       { kind: "unit", id: "drone-swarm", label: "Drone Swarm", note: "Drone pressure forces carriers to stay layered and alert." },
     ],
     related: [{ kind: "domain", id: "sea", label: "Sea Doctrine" }],
@@ -149,7 +149,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     unitType: "submarine",
     summary: "Stealth naval hunter built to ambush high-value ships and insert covert teams.",
     role: ["Threaten carriers, contest sea lanes, and deliver Special Ops covertly."],
-    strengths: ["Conceals while stationary and requires sonar counterplay.", "Extremely dangerous to carriers."],
+    strengths: ["Conceals while stationary and requires sonar counterplay.", "High piercing makes it dangerous to armored ships."],
     weaknesses: ["Limited target set.", "Destroyers with sonar are the dedicated counter."],
     tips: ["Use submarines to impose fear on sea lanes even before they fire."],
     worksWellWith: [

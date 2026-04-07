@@ -22,7 +22,7 @@ export const DOMAIN_ENTRIES: ManualDomainEntry[] = [
       {
         title: "Stealth And Sapping",
         body: [
-          "Spies and Special Ops conceal themselves while stationary. Engineers are your practical counter for hidden minefields, and some units can detect stealth units directly.",
+          "Special Ops conceal themselves while stationary. Engineers are your practical counter for hidden minefields, and some units can detect stealth units directly.",
           "Land warfare is where support units matter most: scouts for vision, engineers for access, and tanks or Special Ops for decisive assaults.",
           "Because cities, ports, and airfields all live on land, a successful land push often has economic impact even before it kills many units.",
         ],
@@ -50,7 +50,7 @@ export const DOMAIN_ENTRIES: ManualDomainEntry[] = [
         title: "Subsurface Warfare",
         body: [
           "Submarines are stealth predators. They are not revealed by ordinary vision; sonar-equipped destroyers are the key counter.",
-          "Carriers must respect submarine lanes because a submarine attack can erase the capital ship outright.",
+          "Carriers must respect submarine lanes because a few successful torpedo attacks can sink even the toughest capital ship.",
         ],
       },
       {
