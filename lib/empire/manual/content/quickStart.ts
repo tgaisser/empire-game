@@ -30,7 +30,7 @@ export const QUICK_START_CARDS: ManualQuickStartCard[] = [
     title: "Fog And Recon",
     body: [
       "Exploration matters. Vision reveals the map, and every 10 percent explored adds income.",
-      "Use scouts, spies, radar, carriers, and engineers to keep your intel fresh.",
+      "Use scouts, Special Ops, radar, carriers, and engineers to keep your intel fresh.",
     ],
   },
   {

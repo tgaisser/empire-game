@@ -8,7 +8,6 @@ import fighter from "@/lib/empire/data/units/fighter.json";
 import infantry from "@/lib/empire/data/units/infantry.json";
 import scout from "@/lib/empire/data/units/scout.json";
 import specialOps from "@/lib/empire/data/units/special-ops.json";
-import spy from "@/lib/empire/data/units/spy.json";
 import submarine from "@/lib/empire/data/units/submarine.json";
 import tank from "@/lib/empire/data/units/tank.json";
 import troopTransport from "@/lib/empire/data/units/troop-transport.json";
@@ -19,7 +18,6 @@ export const UNIT_STATS: Record<UnitType, UnitDefinition> = {
   scout,
   tank,
   engineer,
-  spy,
   "special-ops": specialOps,
   chopper,
   destroyer,

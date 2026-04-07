@@ -21,7 +21,7 @@ Each turn is about converting position into production, and production into cont
 
 The normal flow is:
 
-1. Reveal information with scouts, spies, radar, fleets, and air units.
+1. Reveal information with scouts, Special Ops, radar, fleets, and air units.
 2. Move units to improve position, attack, reinforce, or stage future attacks.
 3. Queue production and start engineer projects where the map supports them.
 4. End the turn. Stationary units fortify, income is paid, projects and production advance, and delayed systems resolve.
@@ -99,7 +99,6 @@ The game is explicitly domain-based.
 - Tanks cannot enter raw mountain tiles at all.
 - Bridges let land units cross water crossings at normal movement cost.
 - Tunnels let land units cross mountain tiles at normal movement cost.
-- Spies are a special case: they can cross water, and water costs their full move allowance for the step.
 - Special Ops have normal land movement by default, but updated rules allow them to cross up to `2` water tiles when the route starts and ends on a legal insertion or extraction point.
 
 ### Occupancy Rules
@@ -115,7 +114,7 @@ The game is explicitly domain-based.
 - Sentry units also fortify and consume the turn while remaining in place.
 - Fortified defenders reduce incoming damage unless the attacker ignores fortification.
 - Choppers are a major exception because they ignore fortification.
-- Concealment for spies, submarines, and stationary Special Ops is also refreshed through this same end-of-turn stationary logic.
+- Concealment for submarines and stationary Special Ops is also refreshed through this same end-of-turn stationary logic.
 
 ### Infantry Entrenchment
 
@@ -169,7 +168,7 @@ Cities and certain improvements have their own site-defense rules beyond normal 
 - Drone swarms self-destruct when they attack.
 - Bombers can attack surface targets without automatically consuming all remaining movement.
 - Special Ops can make a second combat pass in the same attack if they still had movement left after entering the fight.
-- Hidden spy-versus-spy contact is resolved specially: two spies eliminate each other if they cross paths while concealed.
+- Concealed Special Ops can still be exposed and eliminated when an enemy force enters their tile without proper detection support.
 
 ## Fog Of War And Detection
 
@@ -183,16 +182,16 @@ Vision is not the same as detection.
 
 ### Stealth Rules
 
-- Spies conceal while stationary.
 - Special Ops conceal while stationary.
 - Submarines conceal while stationary.
 - Concealed enemy units are not automatically revealed just because their tile is visible.
 
 ### Detection Counters
 
-- Most units cannot detect spies or concealed Special Ops unless their unit definition allows it.
+- Only infantry, scouts, engineers, and other Special Ops detect concealed Special Ops by default.
+- Tanks are intentionally excluded from this role so they do not become all-purpose answers.
 - Submarines are only detected by sonar-upgraded destroyers.
-- Radar detects air only. It does not reveal spies, Special Ops, submarines, or minefields.
+- Radar detects air only. It does not reveal Special Ops, submarines, or minefields.
 - Engineers are the key minefield counter.
 - Recently attacking submarines should generate a temporary detection event even if they are otherwise difficult to pin down.
 
@@ -407,7 +406,7 @@ The navy is designed around formations, threat projection, and risk management r
 
 - Troop transports cannot attack.
 - Transport capacity is `3`.
-- Infantry, engineers, spies, and Special Ops each use `1` capacity.
+- Infantry, engineers, and Special Ops each use `1` capacity.
 - Tanks use `3` capacity.
 - Troops can only embark if they are adjacent to the transport, still have movement left, and are standing on a friendly port site.
 - Friendly port sites include owned ports and owned coastal cities.
@@ -479,23 +478,17 @@ This rule reinforces SSBN identity as a strategic threat rather than a repeated 
 
 Cruise missiles should reward intel preparation, not blind firing.
 
-## Special Ops, Spies, And Drones
+## Special Ops And Drones
 
 These units are rule-heavy enough that they need explicit treatment.
-
-### Spies
-
-- Spies cannot capture.
-- Spies cannot attack.
-- Spies conceal while stationary.
-- Spies gain extended vision after their side's turn cycle refreshes them, raising spy vision from `3` to `5`.
-- Spies can cross water unusually, but doing so costs a full movement step.
 
 ### Special Ops
 
 - Special Ops are an infiltration, recon-support, and capture-support unit.
 - Special Ops can capture.
 - Special Ops conceal while stationary.
+- Special Ops now occupy the game's stealth recon role after the removal of spies.
+- Base Special Ops vision is `3`.
 - Special Ops can call an air strike against visible hostile units within range `3` if they still have movement remaining.
 - Special Ops can be loaded into submarines or choppers.
 - Submarine insertion places Special Ops onto adjacent land and keeps them concealed on deployment.

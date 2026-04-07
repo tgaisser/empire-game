@@ -36,7 +36,7 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
       {
         title: "Concealment",
         body: [
-          "Spies, Special Ops, and submarines can stay concealed when they hold still under the right conditions.",
+          "Special Ops and submarines can stay concealed when they hold still under the right conditions.",
           "Ordinary vision does not guarantee a reveal; certain counters are required.",
         ],
       },
@@ -50,7 +50,7 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
       },
     ],
     related: [
-      { kind: "unit", id: "spy", label: "Spy" },
+      { kind: "unit", id: "special-ops", label: "Special Ops" },
       { kind: "unit", id: "submarine", label: "Submarine" },
       { kind: "unit", id: "engineer", label: "Engineer" },
     ],
@@ -131,7 +131,7 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
     ],
     related: [
       { kind: "unit", id: "scout", label: "Scout" },
-      { kind: "unit", id: "spy", label: "Spy" },
+      { kind: "unit", id: "special-ops", label: "Special Ops" },
       { kind: "campaign", id: "archipelago", label: "Archipelago" },
     ],
   },

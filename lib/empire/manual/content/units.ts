@@ -33,7 +33,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     ],
     counteredBy: [
       { kind: "unit", id: "infantry", label: "Infantry" },
-      { kind: "unit", id: "spy", label: "Spy" },
+      { kind: "unit", id: "special-ops", label: "Special Ops" },
     ],
     related: [{ kind: "rule", id: "economy-and-exploration", label: "Economy And Exploration" }],
   },
@@ -74,34 +74,17 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     ],
     related: [{ kind: "rule", id: "stealth-and-detection", label: "Stealth And Detection" }],
   },
-  spy: {
-    unitType: "spy",
-    summary: "Stealth recon specialist with extended vision when operating patiently.",
-    role: ["Map the enemy, stay hidden, and create safe approach lanes for the rest of your force."],
-    strengths: ["Conceals while stationary.", "Excellent information value for a low cost."],
-    weaknesses: ["Almost no direct combat value.", "Can be exposed by proper counters."],
-    tips: ["Spies are best when parked in places the enemy assumes are safe."],
-    worksWellWith: [
-      { kind: "unit", id: "bomber", label: "Bomber" },
-      { kind: "unit", id: "special-ops", label: "Special Ops" },
-    ],
-    counteredBy: [
-      { kind: "unit", id: "engineer", label: "Engineer" },
-      { kind: "rule", id: "stealth-and-detection", label: "Stealth And Detection" },
-    ],
-    related: [{ kind: "domain", id: "land", label: "Land Doctrine" }],
-  },
   "special-ops": {
     unitType: "special-ops",
-    summary: "Elite raider for infiltration, close combat, and precision disruption.",
-    role: ["Crack defended points, infiltrate through covert delivery, and call in localized strikes."],
-    strengths: ["High attack for a land unit.", "Can conceal while stationary and can call air strikes."],
-    weaknesses: ["Limited staying power if left unsupported.", "Needs intel and insertion planning to reach full value."],
-    tips: ["Deliver Special Ops where the enemy is thin, then use them to collapse a key node."],
+    summary: "Stealth recon and infiltration unit for surgical raids, spotting, and precision disruption.",
+    role: ["Reconnoiter, infiltrate, expose weak points, and support captures through covert positioning."],
+    strengths: ["Conceals while stationary.", "Can call air strikes and still fight when needed."],
+    weaknesses: ["No longer wins fights through raw stats alone.", "Needs insertion planning and support to reach full value."],
+    tips: ["Use Special Ops as your stealth recon layer first and your surgical strike layer second."],
     worksWellWith: [
       { kind: "unit", id: "submarine", label: "Submarine", note: "Submarines can place Special Ops behind the front under concealment." },
       { kind: "unit", id: "chopper", label: "Chopper", note: "Choppers turn them into a fast raid package." },
-      { kind: "unit", id: "spy", label: "Spy", note: "Spies identify weak points before the raid starts." },
+      { kind: "unit", id: "scout", label: "Scout", note: "Scouts widen the picture while Special Ops penetrate the gap." },
     ],
     counteredBy: [
       { kind: "unit", id: "engineer", label: "Engineer" },
@@ -225,7 +208,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     worksWellWith: [
       { kind: "improvement", id: "airfield", label: "Airfield", note: "Bombers need a forward basing ladder to stay relevant." },
       { kind: "improvement", id: "radar", label: "Radar Upgrade", note: "Radar helps bombers avoid blind runs into enemy interceptors." },
-      { kind: "unit", id: "spy", label: "Spy", note: "Spies reveal the right targets before bombers commit." },
+      { kind: "unit", id: "special-ops", label: "Special Ops", note: "Special Ops can infiltrate forward and reveal the right targets before bombers commit." },
     ],
     counteredBy: [
       { kind: "unit", id: "fighter", label: "Fighter" },

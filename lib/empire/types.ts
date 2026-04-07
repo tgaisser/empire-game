@@ -26,7 +26,6 @@ export type UnitType =
   | "scout"
   | "tank"
   | "engineer"
-  | "spy"
   | "special-ops"
   | "chopper"
   | "destroyer"
@@ -36,7 +35,7 @@ export type UnitType =
   | "fighter"
   | "bomber"
   | "drone-swarm";
-export type TransportableTroopUnitType = "infantry" | "tank" | "engineer" | "spy" | "special-ops";
+export type TransportableTroopUnitType = "infantry" | "tank" | "engineer" | "special-ops";
 export type GameType = "normal" | "naval" | "archipelago" | "ocean" | "alpine" | "globe" | "pangea";
 export type TileImprovementType = "bridge" | "port" | "airfield" | "tunnel" | "radar" | "outpost" | "minefield";
 export type DeveloperPlacementType = TileImprovementType | "city";
@@ -88,7 +87,7 @@ export type UnitDefinition = {
   canCapture: boolean;
   attackDomains: UnitDomain[];
   ignoresFortification?: boolean;
-  canDetectSpies?: boolean;
+  canDetectSpecialOps?: boolean;
   concealedWhileStationary?: boolean;
   cannotBeAttacked?: boolean;
   maxTurnsAwayFromBase?: number;

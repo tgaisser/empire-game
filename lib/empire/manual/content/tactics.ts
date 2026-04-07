@@ -63,7 +63,7 @@ export const TACTIC_ENTRIES: ManualTacticEntry[] = [
   {
     id: "covert-insertion",
     title: "Covert Insertion",
-    summary: "Spies, submarines, choppers, and Special Ops let you attack the enemy system from inside it.",
+    summary: "Submarines, choppers, and Special Ops let you attack the enemy system from inside it.",
     sections: [
       {
         title: "Core Idea",
@@ -74,7 +74,6 @@ export const TACTIC_ENTRIES: ManualTacticEntry[] = [
       },
     ],
     related: [
-      { kind: "unit", id: "spy", label: "Spy" },
       { kind: "unit", id: "special-ops", label: "Special Ops" },
       { kind: "unit", id: "submarine", label: "Submarine" },
       { kind: "unit", id: "chopper", label: "Chopper" },

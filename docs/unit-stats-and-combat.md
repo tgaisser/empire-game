@@ -2,7 +2,9 @@
 
 This document consolidates the current unit values, improvement values, and implemented combat math into one reference. It exists because the repo currently spreads that information across unit JSON files, improvement data, and combat code.
 
-If this document disagrees with the implementation in `lib/empire/game.ts`, `lib/empire/data/units/*.json`, or `lib/empire/data/improvements.ts`, the code and data files win.
+This version is a balance-pass backup that applies the agreed stat changes from the latest design review. It is intended as the current working reference for the next implementation pass.
+
+If this document disagrees with the implementation in `lib/empire/game.ts`, `lib/empire/data/units/*.json`, or `lib/empire/data/improvements.ts`, the code and data files win until the code is updated to match this file.
 
 ## Source Of Truth
 
@@ -33,24 +35,23 @@ These values are not per-unit, but they materially affect combat and operations.
 
 ## Unit Stats
 
-These are the current base values loaded from the unit data files.
+These are the updated working values after the latest balance pass.
 
 | Unit | Domain | Move | Atk | Armor | Piercing | Vision | HP | Cost | Build | Notes |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Infantry | land | 2 | 4 | 1 | 1 | 1 | 10 | 10 | 1 | Can capture |
+| Infantry | land | 2 | 4 | 2 | 1 | 1 | 10 | 10 | 1 | Can capture; light AA `+1` |
 | Scout | land | 3 | 1 | 0 | 0 | 3 | 6 | 8 | 1 | Can capture |
 | Tank | land | 3 | 6 | 2 | 2 | 1 | 10 | 22 | 3 | Can capture; can attack air |
-| Engineer | land | 2 | 2 | 0 | 0 | 1 | 10 | 12 | 1 | Can capture; detects spies |
-| Spy | land | 3 | 0 | 0 | 0 | 3 | 1 | 9 | 1 | No attack; no capture; concealed while stationary |
-| Special Ops | land | 3 | 7 | 0 | 3 | 2 | 8 | 18 | 2 | Can capture; concealed while stationary |
+| Engineer | land | 2 | 2 | 0 | 0 | 1 | 10 | 12 | 1 | Can capture; detects concealed Special Ops |
+| Special Ops | land | 3 | 5 | 0 | 3 | 3 | 8 | 18 | 2 | Can capture; concealed while stationary; stealth recon |
 | Chopper | air | 4 | 5 | 1 | 5 | 3 | 8 | 18 | 2 | Ignores fortification; carrier-capable; transport `1` |
-| Fighter | air | 6 | 6 | 1 | 3 | 4 | 8 | 20 | 2 | Air-to-air only; carrier-capable |
+| Fighter | air | 6 | 5 | 1 | 3 | 4 | 8 | 20 | 2 | Air-to-air only; carrier-capable |
 | Bomber | air | 7 | 7 | 0 | 3 | 3 | 7 | 24 | 3 | Land/sea attack; bomb load `6`; airfield-only landing |
 | Drone Swarm | air | 5 | 8 | 0 | 2 | 0 | 2 | 14 | 2 | Self-destructs on attack; carrier-capable |
 | Destroyer | sea | 3 | 5 | 2 | 2 | 2 | 10 | 20 | 2 | Anti-air bonus `+4`; can attack land/sea/air |
 | Troop Transport | sea | 2 | 0 | 0 | 0 | 2 | 12 | 18 | 3 | No attack; transport capacity `3` |
 | Carrier | sea | 4 | 4 | 2 | 1 | 3 | 14 | 34 | 5 | Anti-air bonus `+3`; air detection `5`; radar relay `5` |
-| Submarine | sea | 4 | 10 | 1 | 8 | 1 | 7 | 24 | 3 | Sea attack only; sonar-only detection; concealed while stationary |
+| Submarine | sea | 4 | 8 | 1 | 5 | 1 | 7 | 24 | 3 | Sea attack only; sonar-only detection; concealed while stationary |
 
 ## Unit Abilities And Flags
 
@@ -59,8 +60,8 @@ These are the important non-numeric rules baked into the unit definitions.
 ### Capture And Attack Eligibility
 
 - Can capture: Infantry, Scout, Tank, Engineer, Special Ops
-- Cannot capture: Spy, all sea units, all air units
-- Cannot attack at all: Spy, Troop Transport
+- Cannot capture: all sea units, all air units
+- Cannot attack at all: Troop Transport
 - Fighter attack domains: air only
 - Bomber attack domains: land and sea
 - Destroyer attack domains: sea, land, and air
@@ -69,9 +70,9 @@ These are the important non-numeric rules baked into the unit definitions.
 
 ### Concealment And Detection
 
-- Concealed while stationary: Spy, Special Ops, Submarine
-- Detects spies / concealed Special Ops by default: Infantry, Scout, Tank, Engineer, Special Ops, Spy
-- Cannot detect spies: Chopper
+- Concealed while stationary: Special Ops, Submarine
+- Detects concealed Special Ops by default: Infantry, Scout, Engineer, Special Ops
+- Tanks do not detect concealed Special Ops by default
 - Submarines require sonar-upgraded destroyers for detection
 
 ### Air Basing
@@ -88,6 +89,12 @@ These are the important non-numeric rules baked into the unit definitions.
 - Carrier air detection range: `5`
 - Carrier radar relay range: `5`
 
+### Anti-Air Notes
+
+- Infantry has light AA value `+1`
+- Destroyer anti-air bonus is `+4`
+- Carrier anti-air bonus is `+3`
+
 ## Transport And Capacity Rules
 
 ### Troop Transport Capacity
@@ -95,7 +102,6 @@ These are the important non-numeric rules baked into the unit definitions.
 - Total capacity: `3`
 - Infantry capacity cost: `1`
 - Engineer capacity cost: `1`
-- Spy capacity cost: `1`
 - Special Ops capacity cost: `1`
 - Tank capacity cost: `3`
 
@@ -142,6 +148,7 @@ Where:
 - `attackerBaseAttack = attacker.atk + antiAirBonus` when the defender is an air unit
 - `effectiveDefenderArmor = max(0, defender.armor + defenderArmorBonus - attacker.piercing)`
 - `defenderFortificationReduction = 1` if defender is fortified and attacker does not ignore fortification, otherwise `0`
+- `defenderFortificationReduction = 2` for entrenched infantry when the entrenchment layer is applied
 
 ### Defender Retaliation Damage
 
@@ -166,7 +173,9 @@ Where:
 
 - Piercing reduces the target's armor directly.
 - Anti-air bonus is folded into base attack only against air targets.
-- Fortification is a flat `1` damage reduction, not a percentage.
+- Fortification is a flat damage reduction, not a percentage.
+- Standard fortification is `1`.
+- Entrenched infantry should use `2`.
 - Damage always clamps to a minimum of `1` when an attack is valid.
 
 ## Special Combat Rules
@@ -310,4 +319,16 @@ The new `docs/game-rules.md` includes some future-facing design intent that is n
 - Unit rebalancing mechanic
 - Infantry entrenchment as a distinct implemented stat layer beyond current fortification
 
-If any of those systems get implemented, this file should be updated with their exact values and formulas immediately.
+## Applied Balance Changes In This Working Backup
+
+This backup applies the full set of agreed balance changes from the latest review:
+
+- Infantry armor increases from `1` to `2`
+- Infantry receives light AA value `+1`
+- Entrenched infantry should use defensive reduction `2` instead of the normal fortification value of `1`
+- Special Ops attack reduces from `7` to `5`
+- Fighter attack reduces from `6` to `5`
+- Submarine attack reduces from `10` to `8`
+- Submarine piercing reduces from `8` to `5`
+
+If any of the future-facing systems above get implemented, or if these balance changes land in code, this file should be updated with their exact values and formulas immediately.

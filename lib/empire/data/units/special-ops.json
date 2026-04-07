@@ -2,10 +2,10 @@
   "name": "Special Ops",
   "shortLabel": "O",
   "move": 3,
-  "atk": 7,
+  "atk": 5,
   "armor": 0,
   "piercing": 3,
-  "vision": 2,
+  "vision": 3,
   "cost": 18,
   "buildTime": 2,
   "domain": "land",
@@ -13,7 +13,7 @@
   "canAttack": true,
   "canCapture": true,
   "attackDomains": ["land"],
-  "canDetectSpies": true,
+  "canDetectSpecialOps": true,
   "concealedWhileStationary": true,
   "canCallAirStrike": true
 }

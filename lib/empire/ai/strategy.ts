@@ -246,7 +246,7 @@ export function planAiStrategicGoals(state: GameState, threatSummary: AiThreatSu
 }
 
 export function classifyAiUnitRole(unit: Unit): AiUnitRole {
-  if (unit.type === "scout" || unit.type === "spy") return "scout";
+  if (unit.type === "scout") return "scout";
   if (unit.type === "fighter") return "interceptor";
   if (unit.type === "bomber" || unit.type === "drone-swarm") return "bombardment";
   if (unit.type === "destroyer") return "fleet-screen";

@@ -7,7 +7,6 @@ export const UNIT_TYPE_ORDER: UnitType[] = [
   "scout",
   "tank",
   "engineer",
-  "spy",
   "special-ops",
   "destroyer",
   "troop-transport",

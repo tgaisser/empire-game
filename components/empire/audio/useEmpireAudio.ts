@@ -61,17 +61,6 @@ const UNIT_SELECT_PROFILES: Record<UnitType, UnitSelectProfile> = {
     filterType: "lowpass",
     filterFrequency: 1800,
   },
-  spy: {
-    wave: "sine",
-    accentWave: "triangle",
-    accentRatio: 2,
-    noteFrequencies: [523.25, 659.25, 783.99],
-    stepSeconds: 0.036,
-    masterGain: 0.06,
-    filterType: "highpass",
-    filterFrequency: 800,
-    noiseGain: 0.012,
-  },
   "special-ops": {
     wave: "triangle",
     accentWave: "square",

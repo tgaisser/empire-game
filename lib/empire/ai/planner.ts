@@ -55,7 +55,7 @@ type CandidateBuild = {
   spawnY?: number;
 };
 
-const LAND_PRODUCTION_UNITS: UnitType[] = ["infantry", "scout", "tank", "engineer", "special-ops", "spy"];
+const LAND_PRODUCTION_UNITS: UnitType[] = ["infantry", "scout", "tank", "engineer", "special-ops"];
 const SEA_PRODUCTION_UNITS: UnitType[] = ["destroyer", "troop-transport", "carrier", "submarine"];
 const AIR_PRODUCTION_UNITS: UnitType[] = ["chopper", "fighter", "bomber", "drone-swarm"];
 
@@ -351,13 +351,6 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       reasons.push("midgame timing suits infiltration");
     }
     score -= aiSpecialOps * 8;
-  } else if (unitType === "spy") {
-    score += 8;
-    if (context.unexploredTileCount > (context.state.mapWidth * context.state.mapHeight) / 2) {
-      score += 10;
-      reasons.push("intel coverage is weak");
-    }
-    score -= aiTypeCount * 10;
   } else if (unitType === "destroyer") {
     score += 46;
     if (enemySea > 0) {

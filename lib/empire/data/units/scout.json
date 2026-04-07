@@ -13,5 +13,5 @@
   "canAttack": true,
   "canCapture": true,
   "attackDomains": ["land"],
-  "canDetectSpies": true
+  "canDetectSpecialOps": true
 }

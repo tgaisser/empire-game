@@ -95,8 +95,7 @@ export function getDetectedEnemyUnitIdSet(state: GameState, side: Side) {
 
 function canUnitDetectTarget(observer: Unit, target: Unit) {
   const observerStats = getUnitStats(observer);
-  if (target.type === "spy" && observerStats.canDetectSpies === false) return false;
-  if (target.type === "special-ops" && observerStats.canDetectSpies === false) return false;
+  if (target.type === "special-ops") return Boolean(observerStats.canDetectSpecialOps);
   if (target.type === "submarine") return Boolean(observer.type === "destroyer" && observer.sonarUpgraded);
   return true;
 }
@@ -120,7 +119,7 @@ export function canUnitAttackTarget(attacker: Unit, defender: Unit) {
 }
 
 function isTransportableTroopType(unitType: UnitType): unitType is TransportableTroopUnitType {
-  return ["infantry", "tank", "engineer", "spy", "special-ops"].includes(unitType);
+  return ["infantry", "tank", "engineer", "special-ops"].includes(unitType);
 }
 
 function getTroopTransportCargoSpaceRequired(unitType: TransportableTroopUnitType) {
@@ -190,14 +189,7 @@ export function getTileLabel(tile: Tile) {
 }
 
 export function getUnitStats(unit: Unit) {
-  const baseStats = UNIT_STATS[unit.type] ?? UNIT_STATS.infantry;
-  if (unit.type === "spy") {
-    return {
-      ...baseStats,
-      vision: unit.extendedVision ? 5 : 3,
-    };
-  }
-  return baseStats;
+  return UNIT_STATS[unit.type] ?? UNIT_STATS.infantry;
 }
 
 export function getUnitDefinition(unitType: UnitType) {
@@ -743,7 +735,6 @@ export function getTerrainMoveCost(state: GameState, unit: Unit, tile: Tile) {
   if (tile.improvement?.type === "bridge" && definition.domain === "land") return 1;
   if (tile.improvement?.type === "tunnel" && tile.terrain === "mountain" && definition.domain === "land") return 1;
   if (unit.type === "tank" && tile.terrain === "mountain") return 999;
-  if (unit.type === "spy" && tile.terrain === "water") return definition.move;
   if (tile.terrain === "water") return 999;
 
   if (tile.terrain === "mountain" && definition.domain === "land") return 2;
@@ -1764,10 +1755,6 @@ function applyFortificationForSide(units: Unit[], side: Side) {
   });
 }
 
-function extendSpyVisionForSide(units: Unit[], side: Side) {
-  return units.map((unit) => (unit.owner === side && unit.type === "spy" ? { ...unit, extendedVision: true } : unit));
-}
-
 function processAirbaseReturn(state: GameState, side: Side) {
   const logs: string[] = [];
   const nextUnits = state.units
@@ -2174,24 +2161,12 @@ function buildImprovement(
 }
 
 function resolveHiddenWraithEncounter(attacker: Unit, defender: Unit, side: Side, tile: Tile) {
-  const bothWraiths = attacker.type === "spy" && defender.type === "spy";
-
-  if (bothWraiths) {
-    return {
-      attackerSurvives: false,
-      logMessage:
-        side === "player"
-          ? `Two spies crossed paths at ${getLocationLabel(tile)} and both disappeared into the dark.`
-          : `Two hidden contacts collided near ${getLocationLabel(tile)} and vanished.`,
-    };
-  }
-
   return {
     attackerSurvives: true,
     logMessage:
       side === "player"
-        ? `Your ${getUnitStats(attacker).name.toLowerCase()} exposed and eliminated a hidden spy at ${getLocationLabel(tile)}.`
-        : `Enemy forces exposed and eliminated a hidden contact near ${getLocationLabel(tile)}.`,
+        ? `Your ${getUnitStats(attacker).name.toLowerCase()} exposed and eliminated a concealed special ops team at ${getLocationLabel(tile)}.`
+        : `Enemy forces exposed and eliminated a concealed special operations team near ${getLocationLabel(tile)}.`,
   };
 }
 
@@ -2865,7 +2840,7 @@ function beginTurn(state: GameState, side: Side): GameState {
     {
       ...state,
       credits: { ...state.credits, ai: state.credits.ai + income },
-      units: extendSpyVisionForSide(state.units, side),
+      units: state.units,
     },
     `Enemy turn. Enemy treasury +${income} (${cityIncome} city income, ${explorationIncome} exploration${busyCities ? `, ${busyCities} busy` : ""}).`
   );
@@ -2918,7 +2893,7 @@ function endTurn(state: GameState, side: Side): GameState {
   const productionResult = processCityProduction({ ...state, units: fortifiedUnits, map: projectResult.map }, "ai");
   let updated = {
     ...state,
-    units: extendSpyVisionForSide(productionResult.units, "player"),
+    units: productionResult.units,
     map: productionResult.map,
     nextUnitId: productionResult.nextUnitId,
     side: "player" as Side,

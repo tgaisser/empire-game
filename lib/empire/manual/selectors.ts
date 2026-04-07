@@ -65,7 +65,7 @@ function buildUnitCapabilities(unitType: UnitType) {
 
   if (unit.canLandOnCarrier) capabilities.push("Can recover to carriers.");
   if (unit.canOnlyLandOnAirfield) capabilities.push("Requires an airfield to land.");
-  if (unit.canDetectSpies) capabilities.push("Can detect stealth land operatives.");
+  if (unit.canDetectSpecialOps) capabilities.push("Can detect concealed Special Ops.");
   if (unit.canAttackSubmarines) capabilities.push("Can attack submarines.");
   if (unit.canCallAirStrike) capabilities.push("Can call air strikes.");
   if (unit.ignoresFortification) capabilities.push("Ignores fortification when attacking.");
@@ -79,7 +79,6 @@ function buildUnitSpecialRules(unitType: UnitType) {
   const unit = UNIT_STATS[unitType];
   const rules: string[] = [];
 
-  if (unitType === "spy") rules.push("Extends to long-range vision when operating in its recon posture.");
   if (unit.concealedWhileStationary) rules.push("Conceals while stationary.");
   if (unit.canBeDetectedBySonarOnly) rules.push("Requires sonar-specific detection to reveal reliably.");
   if (unit.transportCapacity && unitType === "troop-transport") {
