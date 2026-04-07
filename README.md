@@ -88,6 +88,16 @@ The AI in `lib/empire/ai/` is intentionally split into layers so strategy change
 
 The current AI is no longer purely target-reactive. It now supports staged operations, including cases where land forces are trapped behind water and need transports, escorts, and a coastal staging site before an assault can happen.
 
+## Combat And Command Events
+
+The game engine now emits structured combat and sensor events from `lib/empire/game.ts` instead of relying only on human-readable log strings.
+
+- `combatEvents` records visible attacks, missile strikes, and sonar pings in execution order.
+- `sonarContacts` stores short-lived active-sonar detections so submarines can be revealed without turning standard fog-of-war into permanent x-ray vision.
+- unit ammo state matters operationally: bombs, torpedoes, and cruise missiles can be spent and later reloaded at legal support sites for credits.
+
+UI and audio systems that need battle playback or sound cues should prefer those event streams over parsing text logs.
+
 ## Source Of Truth Guidance
 
 - `lib/empire/game.ts` is the gameplay execution source of truth.

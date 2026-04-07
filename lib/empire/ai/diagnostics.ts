@@ -108,6 +108,23 @@ function swapStatePerspective(state: GameState): GameState {
     playerDetectedUnitIds: [...state.aiDetectedUnitIds],
     aiDetectedUnitIds: [...state.playerDetectedUnitIds],
     logs: [...state.logs],
+    nextCombatEventId: state.nextCombatEventId,
+    combatEvents: state.combatEvents.map((event) =>
+      event.type === "combat"
+        ? {
+            ...event,
+            attackerSide: swapSide(event.attackerSide),
+            visibleToPlayer: event.visibleToAi,
+            visibleToAi: event.visibleToPlayer,
+          }
+        : {
+            ...event,
+            side: swapSide(event.side),
+            visibleToPlayer: event.visibleToAi,
+            visibleToAi: event.visibleToPlayer,
+          }
+    ),
+    sonarContacts: state.sonarContacts.map((contact) => ({ ...contact, side: swapSide(contact.side) })),
   };
 }
 

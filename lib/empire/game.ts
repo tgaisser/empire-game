@@ -10,12 +10,16 @@ import {
 } from "@/lib/empire/config";
 import { getImprovementDefinition } from "@/lib/empire/data/improvements";
 import {
+  ACTIVE_SONAR_CONTACT_TURNS,
+  ACTIVE_SONAR_RANGE,
   CARRIER_AIR_CAPACITY,
   CITY_SURFACE_CAPACITY,
   AIR_SUPPORT_PER_CITY,
   ASW_DESTROYER_SUB_ATTACK_BONUS,
+  BOMB_RELOAD_COST,
   CARRIER_JAM_MAX_DAMAGE,
   CARRIER_JAM_RANGE,
+  CRUISE_MISSILE_RELOAD_COST,
   DESTROYER_ESCORT_ARMOR_BONUS,
   DESTROYER_ESCORT_RANGE,
   EXPLORATION_INCOME_STEP,
@@ -25,8 +29,10 @@ import {
   OUTPOST_MAX_HP,
   RADAR_DETECTION_RANGE,
   STATIC_SITE_VISION_RANGE,
+  TORPEDO_RELOAD_COST,
 } from "@/lib/empire/data/rules";
 import type {
+  CombatEventRecord,
   Command,
   DeveloperPlacementType,
   Faction,
@@ -41,6 +47,7 @@ import type {
   Unit,
   UnitDomain,
   UnitType,
+  SonarContact,
 } from "@/lib/empire/types";
 import { getFactionLeaderName } from "@/lib/empire/factions";
 import { createMap, findOpenAdjacentLand } from "@/lib/empire/world";
@@ -62,6 +69,23 @@ function distance(a: Pick<Tile, "x" | "y"> | Pick<Unit, "x" | "y">, b: Pick<Tile
 }
 
 type TargetPoint = Pick<Tile, "x" | "y"> | Pick<Unit, "x" | "y">;
+type PendingCombatEvent =
+  | Omit<Extract<CombatEventRecord, { type: "combat" }>, "id" | "turn">
+  | Omit<Extract<CombatEventRecord, { type: "sonar-ping" }>, "id" | "turn">;
+type AmmoReloadQuote = {
+  bombs: number;
+  torpedoes: number;
+  cruiseMissiles: number;
+  cost: number;
+};
+type MissileTargetDescriptor = {
+  x: number;
+  y: number;
+  unitId?: number;
+  site: boolean;
+};
+
+const MAX_COMBAT_EVENTS = 64;
 
 function createVisionMask(width: number, height: number) {
   return Array.from({ length: height }, () => Array.from({ length: width }, () => false));
@@ -78,6 +102,43 @@ function cloneTile(tile: Tile): Tile {
     improvementProject: tile.improvementProject ? { ...tile.improvementProject } : null,
     production: tile.production ? { ...tile.production } : null,
   };
+}
+
+function appendCombatEvents(state: GameState, events: PendingCombatEvent[]) {
+  if (events.length === 0) return state;
+
+  let nextCombatEventId = state.nextCombatEventId;
+  const committedEvents: CombatEventRecord[] = events.map((event) => ({
+    ...event,
+    id: `combat-${nextCombatEventId++}`,
+    turn: state.turn,
+  } as CombatEventRecord));
+
+  return {
+    ...state,
+    nextCombatEventId,
+    combatEvents: [...state.combatEvents, ...committedEvents].slice(-MAX_COMBAT_EVENTS),
+  };
+}
+
+function getTileVisibilityForSide(state: GameState, side: Side, x: number, y: number) {
+  const visible = side === "player" ? state.playerVisible : state.aiVisible;
+  return Boolean(visible[y]?.[x]);
+}
+
+function getCombatEventVisibility(state: GameState, fromX: number, fromY: number, targetX: number, targetY: number) {
+  return {
+    visibleToPlayer:
+      getTileVisibilityForSide(state, "player", fromX, fromY) || getTileVisibilityForSide(state, "player", targetX, targetY),
+    visibleToAi:
+      getTileVisibilityForSide(state, "ai", fromX, fromY) || getTileVisibilityForSide(state, "ai", targetX, targetY),
+  };
+}
+
+function ageSonarContactsForSide(contacts: SonarContact[], side: Side) {
+  return contacts
+    .map((contact) => (contact.side === side ? { ...contact, turnsRemaining: contact.turnsRemaining - 1 } : contact))
+    .filter((contact) => contact.turnsRemaining > 0);
 }
 
 function revealAround(mask: boolean[][], centerX: number, centerY: number, radius: number) {
@@ -141,6 +202,90 @@ function getTroopTransportUsedCapacity(cargo: TroopTransportCargo[] | null | und
 export function getTroopTransportRemainingCapacity(unit: Unit | null) {
   if (!unit || unit.type !== "troop-transport") return 0;
   return Math.max(0, (getUnitStats(unit).transportCapacity ?? 0) - getTroopTransportUsedCapacity(unit.carriedTroops));
+}
+
+function consumesTorpedoOnAttack(attacker: Unit, defender: Unit) {
+  return isSubmarine(attacker.type) && getUnitStats(defender).domain === "sea";
+}
+
+function canSeaUnitReloadAtTile(state: GameState, unit: Unit) {
+  if (getUnitStats(unit).domain !== "sea") return false;
+  return DIRECTIONS.some(([dx, dy]) => {
+    const nx = unit.x + dx;
+    const ny = unit.y + dy;
+    const tile = state.map[ny]?.[nx];
+    if (!tile) return false;
+    if (tile.city && tile.owner === unit.owner) return true;
+    return tile.improvement?.owner === unit.owner && tile.improvement.type === "port";
+  });
+}
+
+function getAmmoReloadQuoteForUnit(unit: Unit, state: GameState): AmmoReloadQuote {
+  const definition = getUnitStats(unit);
+  const bombsMissing = Math.max(0, (definition.bombCapacity ?? 0) - (unit.bombsRemaining ?? definition.bombCapacity ?? 0));
+  const torpedoesMissing = Math.max(0, (definition.torpedoCapacity ?? 0) - (unit.torpedoesRemaining ?? definition.torpedoCapacity ?? 0));
+  const cruiseMissilesMissing = Math.max(0, (definition.cruiseMissileCapacity ?? 0) - (unit.cruiseMissilesRemaining ?? definition.cruiseMissileCapacity ?? 0));
+  const canReloadBombs = Boolean(definition.bombCapacity && isFriendlyAirBase(state.map[unit.y]?.[unit.x] ?? null, unit.owner, state, unit.type, unit.x, unit.y));
+  const canReloadSeaAmmo = canSeaUnitReloadAtTile(state, unit);
+
+  return {
+    bombs: canReloadBombs ? bombsMissing : 0,
+    torpedoes: canReloadSeaAmmo ? torpedoesMissing : 0,
+    cruiseMissiles: canReloadSeaAmmo ? cruiseMissilesMissing : 0,
+    cost:
+      (canReloadBombs ? bombsMissing * BOMB_RELOAD_COST : 0) +
+      (canReloadSeaAmmo ? torpedoesMissing * TORPEDO_RELOAD_COST : 0) +
+      (canReloadSeaAmmo ? cruiseMissilesMissing * CRUISE_MISSILE_RELOAD_COST : 0),
+  };
+}
+
+export function getAmmoReloadQuote(state: GameState, unit: Unit | null) {
+  if (!unit) return null;
+  return getAmmoReloadQuoteForUnit(unit, state);
+}
+
+function applyAmmoReloadQuote(unit: Unit, state: GameState, availableCredits: number) {
+  const quote = getAmmoReloadQuoteForUnit(unit, state);
+  if (quote.cost <= 0 || availableCredits <= 0) return null;
+
+  let creditsRemaining = availableCredits;
+  let bombsLoaded = 0;
+  let torpedoesLoaded = 0;
+  let cruiseMissilesLoaded = 0;
+  const nextUnit: Unit = { ...unit };
+
+  while (bombsLoaded < quote.bombs && creditsRemaining >= BOMB_RELOAD_COST) {
+    bombsLoaded += 1;
+    creditsRemaining -= BOMB_RELOAD_COST;
+  }
+  while (torpedoesLoaded < quote.torpedoes && creditsRemaining >= TORPEDO_RELOAD_COST) {
+    torpedoesLoaded += 1;
+    creditsRemaining -= TORPEDO_RELOAD_COST;
+  }
+  while (cruiseMissilesLoaded < quote.cruiseMissiles && creditsRemaining >= CRUISE_MISSILE_RELOAD_COST) {
+    cruiseMissilesLoaded += 1;
+    creditsRemaining -= CRUISE_MISSILE_RELOAD_COST;
+  }
+
+  if (bombsLoaded === 0 && torpedoesLoaded === 0 && cruiseMissilesLoaded === 0) return null;
+
+  if (bombsLoaded > 0) {
+    nextUnit.bombsRemaining = (nextUnit.bombsRemaining ?? 0) + bombsLoaded;
+  }
+  if (torpedoesLoaded > 0) {
+    nextUnit.torpedoesRemaining = (nextUnit.torpedoesRemaining ?? 0) + torpedoesLoaded;
+  }
+  if (cruiseMissilesLoaded > 0) {
+    nextUnit.cruiseMissilesRemaining = (nextUnit.cruiseMissilesRemaining ?? 0) + cruiseMissilesLoaded;
+  }
+
+  return {
+    nextUnit,
+    bombsLoaded,
+    torpedoesLoaded,
+    cruiseMissilesLoaded,
+    costSpent: availableCredits - creditsRemaining,
+  };
 }
 
 function canTroopTransportCarry(transport: Unit, troop: Unit) {
@@ -747,6 +892,86 @@ export function getCarrierJamTargets(state: GameState, unit: Unit | null) {
     });
 }
 
+function getSideVision(state: GameState, side: Side) {
+  return side === "player" ? state.playerVisible : state.aiVisible;
+}
+
+function getSideIntel(state: GameState, side: Side) {
+  return side === "player" ? state.playerIntel : state.aiIntel;
+}
+
+function isCruiseMissileTargetableLandTile(tile: Tile | null) {
+  if (!tile || tile.terrain === "water") return false;
+  return Boolean(tile.city || tile.improvement || tile.improvementProject);
+}
+
+function getVisibleEnemyLandUnitOnTile(state: GameState, side: Side, x: number, y: number) {
+  const visible = getSideVision(state, side);
+  const detectedEnemyUnitIds = getDetectedEnemyUnitIdSet(state, side);
+  if (!visible[y]?.[x]) return null;
+  return (
+    state.units.find((unit) => {
+      if (unit.owner === side || unit.x !== x || unit.y !== y) return false;
+      if (!detectedEnemyUnitIds.has(unit.id)) return false;
+      return getUnitStats(unit).domain === "land";
+    }) ?? null
+  );
+}
+
+function getCruiseMissileDescriptorAt(state: GameState, side: Side, x: number, y: number): MissileTargetDescriptor | null {
+  const tile = state.map[y]?.[x] ?? null;
+  const intelTile = getSideIntel(state, side)[y]?.[x] ?? null;
+  if (!tile || tile.terrain === "water") return null;
+
+  const visibleUnit = getVisibleEnemyLandUnitOnTile(state, side, x, y);
+  if (visibleUnit) {
+    return { x, y, unitId: visibleUnit.id, site: false };
+  }
+
+  if (isCruiseMissileTargetableLandTile(tile) && tile.owner && tile.owner !== side) {
+    return { x, y, site: true };
+  }
+
+  if (isCruiseMissileTargetableLandTile(intelTile) && (intelTile?.owner ?? null) && intelTile!.owner !== side) {
+    return { x, y, site: true };
+  }
+
+  return null;
+}
+
+function getActualCruiseMissileImpactDescriptorAt(state: GameState, side: Side, x: number, y: number): MissileTargetDescriptor | null {
+  const tile = state.map[y]?.[x] ?? null;
+  if (!tile || tile.terrain === "water") return null;
+
+  const visibleUnit = state.units.find((unit) => unit.owner !== side && unit.x === x && unit.y === y && getUnitStats(unit).domain === "land");
+  if (visibleUnit) {
+    return { x, y, unitId: visibleUnit.id, site: false };
+  }
+
+  if (isCruiseMissileTargetableLandTile(tile) && tile.owner && tile.owner !== side) {
+    return { x, y, site: true };
+  }
+
+  return null;
+}
+
+export function getCruiseMissileTargets(state: GameState, unit: Unit | null) {
+  if (!unit || !isSubmarine(unit.type)) return [] as Tile[];
+  const definition = getUnitStats(unit);
+  const missilesRemaining = unit.cruiseMissilesRemaining ?? definition.cruiseMissileCapacity ?? 0;
+  if (missilesRemaining <= 0) return [] as Tile[];
+
+  const targets: Tile[] = [];
+  for (let y = 0; y < state.mapHeight; y += 1) {
+    for (let x = 0; x < state.mapWidth; x += 1) {
+      if (!getCruiseMissileDescriptorAt(state, unit.owner, x, y)) continue;
+      const tile = state.map[y]?.[x];
+      if (tile) targets.push(tile);
+    }
+  }
+  return targets;
+}
+
 function getVisibleUnitAtForSide(state: GameState, x: number, y: number, side: Side, moverDomain?: UnitDomain) {
   const detectedEnemyUnitIds = getDetectedEnemyUnitIdSet(state, side);
   const occupancyLayer = moverDomain ? getOccupancyLayer(moverDomain) : null;
@@ -879,6 +1104,18 @@ function refreshSideIntel(state: GameState, side: Side) {
     }
   }
 
+  for (const contact of state.sonarContacts) {
+    if (contact.side !== side) continue;
+    for (const enemyUnit of enemyUnits) {
+      if (!isSubmarine(enemyUnit.type)) continue;
+      if (distance(contact, enemyUnit) > contact.radius) continue;
+      if (inBounds(enemyUnit.x, enemyUnit.y, state.mapWidth, state.mapHeight)) {
+        visible[enemyUnit.y][enemyUnit.x] = true;
+      }
+      detectedEnemyUnitIds.add(enemyUnit.id);
+    }
+  }
+
   const friendlyEngineers = state.units.filter((unit) => unit.owner === side && unit.type === "engineer");
 
   for (let y = 0; y < state.mapHeight; y += 1) {
@@ -977,6 +1214,9 @@ export function createInitialState(
     playerDetectedUnitIds: [],
     aiDetectedUnitIds: [],
     movementPathsThisTurn: [],
+    nextCombatEventId: 1,
+    combatEvents: [],
+    sonarContacts: [],
   };
 
   return refreshIntel(initialState);
@@ -1506,6 +1746,28 @@ function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderForti
   };
 }
 
+function resolveOneWayStrike(attacker: Unit, defender: Unit, options?: { defenderFortified?: boolean; defenderEntrenched?: boolean; defenderArmorBonus?: number }) {
+  const attackerStats = getUnitStats(attacker);
+  const defenderStats = getUnitStats(defender);
+  const defenderDamageReduction = options?.defenderFortified && !attackerStats.ignoresFortification
+    ? (options?.defenderEntrenched ? 2 : 1)
+    : 0;
+  const effectiveDefenderArmor = Math.max(0, defenderStats.armor + (options?.defenderArmorBonus ?? 0) - attackerStats.piercing);
+  let defenderDamage = clamp(attackerStats.atk + attackerStats.piercing + Math.floor(Math.random() * 3) - effectiveDefenderArmor - defenderDamageReduction, 2, 10);
+
+  if (defender.type === "drone-swarm" && attackerStats.domain !== "air") {
+    defenderDamage = Math.min(defenderDamage, 2);
+  }
+
+  return {
+    defenderHp: defender.hp - defenderDamage,
+    attackerHp: attacker.hp,
+    defenderDamage,
+    attackerDamage: 0,
+    usedFollowUp: false,
+  };
+}
+
 function resolveSpecialOpsCombat(
   attacker: Unit,
   defender: Unit,
@@ -1626,18 +1888,29 @@ function resolveTileAttack(state: GameState, side: Side, attacker: Unit, x: numb
     survivingAttacker &&
     attackerStats.attackConsumesRemainingMove === false &&
     getRemainingMove(survivingAttacker) > 0;
+  const visibility = getCombatEventVisibility(state, attacker.x, attacker.y, x, y);
+  let nextState: GameState = {
+    ...state,
+    units: nextUnits,
+    map: nextMap,
+    selectedUnitId: side === "player" ? (keepSelected ? attacker.id : null) : state.selectedUnitId,
+  };
+  nextState = appendCombatEvents(nextState, [{
+    type: "combat",
+    style: "strike",
+    attackerSide: side,
+    attackerUnitId: attacker.id,
+    fromX: attacker.x,
+    fromY: attacker.y,
+    targetX: x,
+    targetY: y,
+    defenderDamage: combat.defenderDamage,
+    attackerDamage: combat.attackerDamage,
+    counterAttack: combat.attackerDamage > 0,
+    ...visibility,
+  }]);
 
-  return finalizeState(
-    addLog(
-      {
-        ...state,
-        units: nextUnits,
-        map: nextMap,
-        selectedUnitId: side === "player" ? (keepSelected ? attacker.id : null) : state.selectedUnitId,
-      },
-      logMessage
-    )
-  );
+  return finalizeState(addLog(nextState, logMessage));
 }
 
 function getDroneStrikeOccupantAt(state: GameState, x: number, y: number, attacker: Unit) {
@@ -1852,26 +2125,43 @@ function applyFortificationForSide(units: Unit[], side: Side) {
   });
 }
 
-function processAirbaseReturn(state: GameState, side: Side) {
+function processUnitResupply(state: GameState, side: Side) {
   const logs: string[] = [];
-  const nextUnits = state.units
-    .map((unit) => {
-      if (unit.owner !== side) return unit;
-      const definition = getUnitStats(unit);
-      if (!definition.maxTurnsAwayFromBase) return unit;
+  let creditsRemaining = state.credits[side];
+  const nextUnits = state.units.map((unit) => {
+    if (unit.owner !== side) return unit;
+    const definition = getUnitStats(unit);
+    const tile = state.map[unit.y]?.[unit.x] ?? null;
+    const onFriendlyBase = definition.maxTurnsAwayFromBase
+      ? isFriendlyAirBase(tile, side, state, unit.type, unit.x, unit.y)
+      : false;
+    const turnsAwayFromBase = onFriendlyBase ? 0 : unit.turnsAwayFromBase;
+    let nextUnit = turnsAwayFromBase !== unit.turnsAwayFromBase ? { ...unit, turnsAwayFromBase } : unit;
 
-      const tile = state.map[unit.y]?.[unit.x] ?? null;
-      const onFriendlyBase = isFriendlyAirBase(tile, side, state, unit.type, unit.x, unit.y);
+    const reloadResult = applyAmmoReloadQuote(nextUnit, state, creditsRemaining);
+    if (!reloadResult) return nextUnit;
 
-      return {
-        ...unit,
-        turnsAwayFromBase: onFriendlyBase ? 0 : unit.turnsAwayFromBase,
-        bombsRemaining: onFriendlyBase && definition.bombCapacity ? definition.bombCapacity : unit.bombsRemaining,
-      };
-    })
-    .filter((unit): unit is Unit => Boolean(unit));
+    creditsRemaining -= reloadResult.costSpent;
+    nextUnit = reloadResult.nextUnit;
 
-  return { units: nextUnits, logs };
+    const reloadedParts = [
+      reloadResult.bombsLoaded > 0 ? `${reloadResult.bombsLoaded} bomb${reloadResult.bombsLoaded === 1 ? "" : "s"}` : null,
+      reloadResult.torpedoesLoaded > 0 ? `${reloadResult.torpedoesLoaded} torpedo${reloadResult.torpedoesLoaded === 1 ? "" : "es"}` : null,
+      reloadResult.cruiseMissilesLoaded > 0 ? `${reloadResult.cruiseMissilesLoaded} cruise missile${reloadResult.cruiseMissilesLoaded === 1 ? "" : "s"}` : null,
+    ].filter((part): part is string => Boolean(part));
+
+    if (reloadedParts.length > 0) {
+      logs.push(
+        side === "player"
+          ? `${getUnitStats(unit).name} reloaded ${reloadedParts.join(", ")} for ${reloadResult.costSpent} credits.`
+          : `Enemy ${getUnitStats(unit).name.toLowerCase()} rearmed at a support site.`
+      );
+    }
+
+    return nextUnit;
+  });
+
+  return { units: nextUnits, logs, creditsRemaining };
 }
 
 function processImprovementProjects(state: GameState, side: Side) {
@@ -2343,6 +2633,13 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
     unitStats.attackRequiresSameTile
       ? null
       : getAttackableVisibleUnitAtForSide(state, x, y, side, unit) ?? getAttackableUnitAt(state, x, y, side, unit);
+  if (
+    attackableOccupant &&
+    consumesTorpedoOnAttack(unit, attackableOccupant) &&
+    (unit.torpedoesRemaining ?? unitStats.torpedoCapacity ?? 0) <= 0
+  ) {
+    return state;
+  }
   const hiddenOccupant =
     state.units.find(
       (currentUnit) =>
@@ -2353,6 +2650,7 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
     ) ?? null;
   let nextUnits = [...state.units];
   const nextMap = state.map.map((row) => row.map((cell) => ({ ...cell })));
+  const pendingEvents: PendingCombatEvent[] = [];
   let logMessage =
     side === "player"
       ? `${unitStats.name} moved to ${getLocationLabel(tile)} spending ${chosenMove.cost} movement.`
@@ -2406,6 +2704,20 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
             bomberBombRun ? `Bombing run at ${getLocationLabel(tile)}` : `Battle at ${getLocationLabel(tile)}`
           }: enemy took ${combat.defenderDamage}, you took ${combat.attackerDamage}.${combat.usedFollowUp ? " Special Ops struck twice." : ""}`
         : `Enemy attacked near ${getLocationLabel(tile)}.`;
+    pendingEvents.push({
+      type: "combat",
+      style: bomberBombRun ? "strike" : "firefight",
+      attackerSide: side,
+      attackerUnitId: unit.id,
+      fromX: bomberBombRun ? unit.x : attackOriginX,
+      fromY: bomberBombRun ? unit.y : attackOriginY,
+      targetX: x,
+      targetY: y,
+      defenderDamage: combat.defenderDamage,
+      attackerDamage: combat.attackerDamage,
+      counterAttack: combat.attackerDamage > 0,
+      ...getCombatEventVisibility(state, bomberBombRun ? unit.x : attackOriginX, bomberBombRun ? unit.y : attackOriginY, x, y),
+    });
 
     nextUnits = nextUnits
       .map((currentUnit) => {
@@ -2420,6 +2732,10 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
             fortified: false, entrenched: false,
             concealed: false,
             extendedVision: false,
+            torpedoesRemaining:
+              consumesTorpedoOnAttack(unit, attackableOccupant)
+                ? Math.max(0, (currentUnit.torpedoesRemaining ?? unitStats.torpedoCapacity ?? 0) - 1)
+                : currentUnit.torpedoesRemaining,
           };
         }
         return currentUnit;
@@ -2479,6 +2795,20 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
           side === "player"
             ? `You destroyed the outpost at ${getLocationLabel(tile)} after dealing ${assault.damage} damage.`
             : `Enemy destroyed an outpost near ${getLocationLabel(tile)}.`;
+        pendingEvents.push({
+          type: "combat",
+          style: "strike",
+          attackerSide: side,
+          attackerUnitId: unit.id,
+          fromX: unit.x,
+          fromY: unit.y,
+          targetX: x,
+          targetY: y,
+          defenderDamage: assault.damage,
+          attackerDamage: 0,
+          counterAttack: false,
+          ...getCombatEventVisibility(state, unit.x, unit.y, x, y),
+        });
         if (capture.destroyedImprovement) {
           logMessage += getCaptureLogSuffix(nextMap[y][x], side, capture);
         }
@@ -2490,6 +2820,20 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
           side === "player"
             ? `You hit the outpost at ${getLocationLabel(tile)} for ${assault.damage} damage. ${assault.remainingHp} structure left.`
             : `Enemy forces damaged an outpost near ${getLocationLabel(tile)}.`;
+        pendingEvents.push({
+          type: "combat",
+          style: "strike",
+          attackerSide: side,
+          attackerUnitId: unit.id,
+          fromX: unit.x,
+          fromY: unit.y,
+          targetX: x,
+          targetY: y,
+          defenderDamage: assault.damage,
+          attackerDamage: 0,
+          counterAttack: false,
+          ...getCombatEventVisibility(state, unit.x, unit.y, x, y),
+        });
       }
     } else if (contestedSite && !resolveSiteCaptureDefense(state, unit, tile)) {
       nextUnits = nextUnits.map((currentUnit) =>
@@ -2501,6 +2845,20 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
         side === "player"
           ? `${tile.city ? "City" : "Site"} defenses at ${getLocationLabel(tile)} held against your assault.`
           : `Enemy assault on ${getLocationLabel(tile)} was repelled by local defenses.`;
+      pendingEvents.push({
+        type: "combat",
+        style: "firefight",
+        attackerSide: side,
+        attackerUnitId: unit.id,
+        fromX: unit.x,
+        fromY: unit.y,
+        targetX: x,
+        targetY: y,
+        defenderDamage: 0,
+        attackerDamage: 0,
+        counterAttack: false,
+        ...getCombatEventVisibility(state, unit.x, unit.y, x, y),
+      });
     } else {
       nextUnits = nextUnits.map((currentUnit) =>
         currentUnit.id === unit.id ? { ...currentUnit, x, y, moveSpent: moveSpentAfterStep, fortified: false, entrenched: false, concealed: false, extendedVision: false } : currentUnit
@@ -2558,19 +2916,15 @@ function moveUnit(state: GameState, side: Side, unitId: number, x: number, y: nu
   const pathEntry = chosenMove.path.length > 1
     ? [{ side, path: chosenMove.path, vision: getUnitStats(unit).vision }]
     : [];
-
-  return finalizeState(
-    addLog(
-      {
-        ...state,
-        units: nextUnits,
-        map: nextMap,
-        selectedUnitId: side === "player" ? (keepSelected ? unit.id : null) : state.selectedUnitId,
-        movementPathsThisTurn: [...state.movementPathsThisTurn, ...pathEntry],
-      },
-      logMessage
-    )
-  );
+  let nextState: GameState = {
+    ...state,
+    units: nextUnits,
+    map: nextMap,
+    selectedUnitId: side === "player" ? (keepSelected ? unit.id : null) : state.selectedUnitId,
+    movementPathsThisTurn: [...state.movementPathsThisTurn, ...pathEntry],
+  };
+  nextState = appendCombatEvents(nextState, pendingEvents);
+  return finalizeState(addLog(nextState, logMessage));
 }
 
 function attackTile(state: GameState, side: Side, unitId: number, x: number, y: number): GameState {
@@ -2581,6 +2935,255 @@ function attackTile(state: GameState, side: Side, unitId: number, x: number, y: 
   if (unit.x !== x || unit.y !== y) return state;
   if (!unitStats.canAttack) return state;
   return resolveTileAttack(state, side, unit, x, y);
+}
+
+function resolveCruiseMissileSiteDamage(nextMap: Tile[][], tile: Tile, strikeDamage: number) {
+  let summary = "";
+
+  if (tile.improvement?.type === "outpost") {
+    const remainingHp = Math.max(0, (tile.improvement.hp ?? OUTPOST_MAX_HP) - strikeDamage);
+    nextMap[tile.y][tile.x].improvement = remainingHp > 0
+      ? { ...nextMap[tile.y][tile.x].improvement!, hp: remainingHp }
+      : null;
+    if (remainingHp <= 0) {
+      nextMap[tile.y][tile.x].owner = tile.city ? tile.owner : null;
+      summary = " Outpost destroyed.";
+    } else {
+      summary = ` Outpost reduced to ${remainingHp} structure.`;
+    }
+  } else if (tile.city) {
+    if (nextMap[tile.y][tile.x].production) {
+      nextMap[tile.y][tile.x].production = null;
+      summary = " City production disrupted.";
+    } else if (nextMap[tile.y][tile.x].improvementProject) {
+      nextMap[tile.y][tile.x].improvementProject = null;
+      summary = " Construction disrupted.";
+    } else {
+      summary = " City infrastructure shaken.";
+    }
+  } else if (tile.improvement || tile.improvementProject) {
+    nextMap[tile.y][tile.x].improvement = null;
+    nextMap[tile.y][tile.x].improvementProject = null;
+    nextMap[tile.y][tile.x].owner = null;
+    summary = " Site infrastructure destroyed.";
+  }
+
+  return summary;
+}
+
+function findCruiseMissileImpactDescriptor(state: GameState, side: Side, x: number, y: number) {
+  const exact = getActualCruiseMissileImpactDescriptorAt(state, side, x, y);
+  if (exact) return exact;
+
+  const adjacentOffsets = [
+    [-1, -1], [0, -1], [1, -1],
+    [-1, 0],            [1, 0],
+    [-1, 1],  [0, 1],  [1, 1],
+  ] as const;
+
+  for (const [dx, dy] of adjacentOffsets) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (!inBounds(nx, ny, state.mapWidth, state.mapHeight)) continue;
+    const redirected = getActualCruiseMissileImpactDescriptorAt(state, side, nx, ny);
+    if (redirected) return redirected;
+  }
+
+  return null;
+}
+
+function launchCruiseMissile(state: GameState, side: Side, unitId: number, x: number, y: number): GameState {
+  const unit = state.units.find((currentUnit) => currentUnit.id === unitId);
+  if (!unit || unit.owner !== side || !isSubmarine(unit.type)) return state;
+  const unitStats = getUnitStats(unit);
+  const missilesRemaining = unit.cruiseMissilesRemaining ?? unitStats.cruiseMissileCapacity ?? 0;
+  if (missilesRemaining <= 0 || getRemainingMove(unit) <= 0) return state;
+
+  const descriptor = findCruiseMissileImpactDescriptor(state, side, x, y);
+  const nextMap = state.map.map((row) => row.map((cell) => cloneTile(cell)));
+  let nextUnits = state.units.map((currentUnit) =>
+    currentUnit.id === unit.id
+      ? {
+          ...currentUnit,
+          moveSpent: unitStats.move,
+          fortified: false,
+          entrenched: false,
+          concealed: false,
+          cruiseMissilesRemaining: Math.max(0, missilesRemaining - 1),
+        }
+      : currentUnit
+  );
+
+  let impactX = x;
+  let impactY = y;
+  let strikeDamage = clamp(unitStats.atk + unitStats.piercing + Math.floor(Math.random() * 3), 4, 10);
+  let logMessage =
+    side === "player"
+      ? `Cruise missile launched toward (${x + 1}, ${y + 1}).`
+      : "Enemy submarine launched a cruise missile.";
+
+  if (descriptor?.unitId) {
+    const defender = state.units.find((currentUnit) => currentUnit.id === descriptor.unitId) ?? null;
+    if (defender) {
+      const impactTile = state.map[defender.y][defender.x];
+      const combat = resolveOneWayStrike(unit, defender, {
+        defenderFortified: impactTile.city || defender.fortified,
+        defenderEntrenched: defender.entrenched,
+        defenderArmorBonus: getDefenderArmorBonus(state, defender),
+      });
+      strikeDamage = combat.defenderDamage;
+      impactX = defender.x;
+      impactY = defender.y;
+      nextUnits = nextUnits
+        .map((currentUnit) =>
+          currentUnit.id === defender.id
+            ? { ...currentUnit, hp: combat.defenderHp, fortified: false, entrenched: false, concealed: false }
+            : currentUnit
+        )
+        .filter((currentUnit) => currentUnit.hp > 0);
+      const destroyed = !nextUnits.some((currentUnit) => currentUnit.id === defender.id);
+      logMessage =
+        side === "player"
+          ? `Cruise missile hit ${getLocationLabel(impactTile)} for ${combat.defenderDamage} damage.${destroyed ? " Target destroyed." : ""}${impactX !== x || impactY !== y ? " Missile redirected to a nearby target." : ""}`
+          : `Enemy cruise missile struck near ${getLocationLabel(impactTile)}.`;
+    }
+  } else if (descriptor?.site) {
+    impactX = descriptor.x;
+    impactY = descriptor.y;
+    const impactTile = state.map[impactY][impactX];
+    const summary = resolveCruiseMissileSiteDamage(nextMap, impactTile, strikeDamage);
+    logMessage =
+      side === "player"
+        ? `Cruise missile hit ${getLocationLabel(impactTile)} for ${strikeDamage} damage.${summary}${impactX !== x || impactY !== y ? " Missile redirected to a nearby target." : ""}`
+        : `Enemy cruise missile struck near ${getLocationLabel(impactTile)}.`;
+  } else {
+    logMessage =
+      side === "player"
+        ? `Cruise missile missed at (${x + 1}, ${y + 1}).`
+        : "Enemy cruise missile splashed into empty terrain.";
+  }
+
+  const visibility = getCombatEventVisibility(state, unit.x, unit.y, impactX, impactY);
+  let nextState: GameState = {
+    ...state,
+    units: nextUnits,
+    map: nextMap,
+    selectedUnitId: side === "player" ? unit.id : state.selectedUnitId,
+  };
+  nextState = appendCombatEvents(nextState, [{
+    type: "combat",
+    style: "missile",
+    attackerSide: side,
+    attackerUnitId: unit.id,
+    fromX: unit.x,
+    fromY: unit.y,
+    targetX: impactX,
+    targetY: impactY,
+    defenderDamage: descriptor ? strikeDamage : 0,
+    attackerDamage: 0,
+    counterAttack: false,
+    ...visibility,
+  }]);
+
+  return finalizeState(addLog(nextState, logMessage));
+}
+
+function sonarPing(state: GameState, side: Side, unitId: number): GameState {
+  const unit = state.units.find((currentUnit) => currentUnit.id === unitId);
+  if (!unit || unit.owner !== side || unit.type !== "destroyer" || !unit.sonarUpgraded || getRemainingMove(unit) <= 0) return state;
+
+  const detectedSubmarineIds = state.units
+    .filter((candidate) => candidate.owner !== side && isSubmarine(candidate.type) && distance(unit, candidate) <= ACTIVE_SONAR_RANGE)
+    .map((candidate) => candidate.id);
+  const contactId = `sonar-${state.turn}-${state.nextCombatEventId}`;
+  const visibility = {
+    visibleToPlayer:
+      side === "player" ||
+      getTileVisibilityForSide(state, "player", unit.x, unit.y) ||
+      detectedSubmarineIds.some((id) => {
+        const target = state.units.find((candidate) => candidate.id === id);
+        return Boolean(target && getTileVisibilityForSide(state, "player", target.x, target.y));
+      }),
+    visibleToAi:
+      side === "ai" ||
+      getTileVisibilityForSide(state, "ai", unit.x, unit.y) ||
+      detectedSubmarineIds.some((id) => {
+        const target = state.units.find((candidate) => candidate.id === id);
+        return Boolean(target && getTileVisibilityForSide(state, "ai", target.x, target.y));
+      }),
+  };
+  let nextState: GameState = {
+    ...state,
+    units: state.units.map((currentUnit) =>
+      currentUnit.id === unit.id
+        ? { ...currentUnit, moveSpent: getUnitStats(currentUnit).move, fortified: false, entrenched: false, concealed: false }
+        : currentUnit
+    ),
+    sonarContacts: [
+      ...state.sonarContacts.filter((contact) => contact.sourceUnitId !== unit.id || contact.side !== side),
+      {
+        id: contactId,
+        side,
+        x: unit.x,
+        y: unit.y,
+        radius: ACTIVE_SONAR_RANGE,
+        sourceUnitId: unit.id,
+        turnsRemaining: ACTIVE_SONAR_CONTACT_TURNS,
+      },
+    ],
+    selectedUnitId: side === "player" ? unit.id : state.selectedUnitId,
+  };
+  nextState = appendCombatEvents(nextState, [{
+    type: "sonar-ping",
+    side,
+    unitId: unit.id,
+    x: unit.x,
+    y: unit.y,
+    radius: ACTIVE_SONAR_RANGE,
+    detectedSubmarineIds,
+    ...visibility,
+  }]);
+
+  return finalizeState(
+    addLog(
+      nextState,
+      side === "player"
+        ? `Destroyer emitted an active sonar ping.${detectedSubmarineIds.length > 0 ? ` ${detectedSubmarineIds.length} submarine contact${detectedSubmarineIds.length === 1 ? "" : "s"} found.` : " No submarine contact."}`
+        : "Enemy destroyer emitted an active sonar ping."
+    )
+  );
+}
+
+function reloadAmmo(state: GameState, side: Side, unitId: number): GameState {
+  const unit = state.units.find((currentUnit) => currentUnit.id === unitId);
+  if (!unit || unit.owner !== side || getRemainingMove(unit) <= 0) return state;
+
+  const reloadResult = applyAmmoReloadQuote(unit, state, state.credits[side]);
+  if (!reloadResult) return state;
+
+  const reloadedParts = [
+    reloadResult.bombsLoaded > 0 ? `${reloadResult.bombsLoaded} bomb${reloadResult.bombsLoaded === 1 ? "" : "s"}` : null,
+    reloadResult.torpedoesLoaded > 0 ? `${reloadResult.torpedoesLoaded} torpedo${reloadResult.torpedoesLoaded === 1 ? "" : "es"}` : null,
+    reloadResult.cruiseMissilesLoaded > 0 ? `${reloadResult.cruiseMissilesLoaded} cruise missile${reloadResult.cruiseMissilesLoaded === 1 ? "" : "s"}` : null,
+  ].filter((part): part is string => Boolean(part));
+
+  return finalizeState(
+    addLog(
+      {
+        ...state,
+        units: state.units.map((currentUnit) =>
+          currentUnit.id === unit.id
+            ? { ...reloadResult.nextUnit, moveSpent: getUnitStats(currentUnit).move, fortified: false, entrenched: false, concealed: false }
+            : currentUnit
+        ),
+        credits: { ...state.credits, [side]: state.credits[side] - reloadResult.costSpent },
+        selectedUnitId: side === "player" ? unit.id : state.selectedUnitId,
+      },
+      side === "player"
+        ? `${getUnitStats(unit).name} reloaded ${reloadedParts.join(", ")} for ${reloadResult.costSpent} credits.`
+        : `Enemy ${getUnitStats(unit).name.toLowerCase()} rearmed at a support site.`
+    )
+  );
 }
 
 function demolishImprovement(state: GameState, side: Side, unitId: number, x: number, y: number): GameState {
@@ -2928,7 +3531,13 @@ function decommissionUnit(state: GameState, side: Side, unitId: number): GameSta
 
 function beginTurn(state: GameState, side: Side): GameState {
   if (state.side !== side || state.winner) return state;
-  if (side !== "ai") return state;
+  const agedContacts = ageSonarContactsForSide(state.sonarContacts, side);
+  if (side !== "ai") {
+    return {
+      ...state,
+      sonarContacts: agedContacts,
+    };
+  }
 
   const cityIncome = getCityIncome(state, side);
   const explorationIncome = getExplorationIncome(state, side);
@@ -2940,6 +3549,7 @@ function beginTurn(state: GameState, side: Side): GameState {
       ...state,
       credits: { ...state.credits, ai: state.credits.ai + income },
       units: state.units,
+      sonarContacts: agedContacts,
     },
     `Enemy turn. Enemy treasury +${income} (${cityIncome} city income, ${explorationIncome} exploration${busyCities ? `, ${busyCities} busy` : ""}).`
   );
@@ -2976,10 +3586,11 @@ function endTurn(state: GameState, side: Side): GameState {
       updatedState = addLog(updatedState, logMessage);
     }
     updatedState = processDroneSwarmOrders(updatedState, "player");
-    const airbaseResult = processAirbaseReturn(updatedState, "player");
+    const airbaseResult = processUnitResupply(updatedState, "player");
     updatedState = {
       ...updatedState,
       units: airbaseResult.units,
+      credits: { ...updatedState.credits, player: airbaseResult.creditsRemaining },
     };
     for (const logMessage of airbaseResult.logs) {
       updatedState = addLog(updatedState, logMessage);
@@ -3006,10 +3617,11 @@ function endTurn(state: GameState, side: Side): GameState {
     updated = addLog(updated, logMessage);
   }
   updated = processDroneSwarmOrders(updated, "ai");
-  const airbaseResult = processAirbaseReturn(updated, "ai");
+  const airbaseResult = processUnitResupply(updated, "ai");
   updated = {
     ...updated,
     units: airbaseResult.units,
+    credits: { ...updated.credits, ai: airbaseResult.creditsRemaining },
   };
   for (const logMessage of airbaseResult.logs) {
     updated = addLog(updated, logMessage);
@@ -3063,12 +3675,18 @@ export function applyCommand(state: GameState, command: Command): GameState {
       return moveUnit(state, command.side, command.unitId, command.x, command.y);
     case "attack_tile":
       return attackTile(state, command.side, command.unitId, command.x, command.y);
+    case "launch_cruise_missile":
+      return launchCruiseMissile(state, command.side, command.unitId, command.x, command.y);
     case "demolish_improvement":
       return demolishImprovement(state, command.side, command.unitId, command.x, command.y);
     case "jam_drone":
       return jamDrone(state, command.side, command.unitId, command.x, command.y);
+    case "sonar_ping":
+      return sonarPing(state, command.side, command.unitId);
     case "special_ops_airstrike":
       return specialOpsAirstrike(state, command.side, command.unitId, command.x, command.y);
+    case "reload_ammo":
+      return reloadAmmo(state, command.side, command.unitId);
     case "upgrade_unit":
       return upgradeUnit(state, command.side, command.unitId, command.upgrade);
     case "load_special_ops":

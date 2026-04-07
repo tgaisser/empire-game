@@ -171,6 +171,48 @@ export type Unit = {
   carriedTroops?: TroopTransportCargo[] | null;
 };
 
+export type SonarContact = {
+  id: string;
+  side: Side;
+  x: number;
+  y: number;
+  radius: number;
+  sourceUnitId: number;
+  turnsRemaining: number;
+};
+
+export type CombatEventRecord =
+  | {
+      id: string;
+      type: "combat";
+      style: "firefight" | "strike" | "airstrike" | "missile";
+      attackerSide: Side;
+      attackerUnitId: number | null;
+      fromX: number;
+      fromY: number;
+      targetX: number;
+      targetY: number;
+      defenderDamage: number;
+      attackerDamage: number;
+      counterAttack: boolean;
+      visibleToPlayer: boolean;
+      visibleToAi: boolean;
+      turn: number;
+    }
+  | {
+      id: string;
+      type: "sonar-ping";
+      side: Side;
+      unitId: number;
+      x: number;
+      y: number;
+      radius: number;
+      detectedSubmarineIds: number[];
+      visibleToPlayer: boolean;
+      visibleToAi: boolean;
+      turn: number;
+    };
+
 export type ReachableMove = {
   x: number;
   y: number;
@@ -206,6 +248,9 @@ export type GameState = {
   aiDetectedUnitIds: number[];
   /** Paths units traveled this turn — used to reveal tiles along movement routes */
   movementPathsThisTurn: Array<{ side: Side; path: Array<{ x: number; y: number }>; vision: number }>;
+  nextCombatEventId: number;
+  combatEvents: CombatEventRecord[];
+  sonarContacts: SonarContact[];
 };
 
 export type Command =
@@ -214,9 +259,12 @@ export type Command =
   | { type: "set_drone_target"; side: Side; unitId: number; x: number; y: number }
   | { type: "move_unit"; side: Side; unitId: number; x: number; y: number }
   | { type: "attack_tile"; side: Side; unitId: number; x: number; y: number }
+  | { type: "launch_cruise_missile"; side: Side; unitId: number; x: number; y: number }
   | { type: "demolish_improvement"; side: Side; unitId: number; x: number; y: number }
   | { type: "jam_drone"; side: Side; unitId: number; x: number; y: number }
+  | { type: "sonar_ping"; side: Side; unitId: number }
   | { type: "special_ops_airstrike"; side: Side; unitId: number; x: number; y: number }
+  | { type: "reload_ammo"; side: Side; unitId: number }
   | { type: "upgrade_unit"; side: Side; unitId: number; upgrade: "sonar" | "radar-relay" }
   | { type: "load_special_ops"; side: Side; carrierUnitId: number; specialOpsUnitId: number }
   | { type: "unload_special_ops"; side: Side; carrierUnitId: number; x?: number; y?: number }

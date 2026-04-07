@@ -171,6 +171,13 @@ The game rewards system pressure more than isolated duels. Capturing or disablin
 - Radar detects air only. It does not reveal Special Ops, submarines, or minefields.
 - Recently attacking submarines generate a temporary detection event that preserves a reaction window after the submarine relocates.
 
+### Active Sonar
+
+- Destroyers with the sonar upgrade can spend their turn on an active sonar ping.
+- Active sonar reveals submarine contacts in range `4` for `1` turn even if the submarine would otherwise remain concealed.
+- Active sonar is directional intelligence, not permanent detection. If the ping is not refreshed, the contact expires.
+- A sonar ping is an intentional signature event and should be surfaced clearly to both sides when it is visible.
+
 ### Minefield Detection
 
 - Enemy minefields are hidden until the tile is visible and a friendly engineer is within engineer vision range.
@@ -184,6 +191,26 @@ The game rewards system pressure more than isolated duels. Capturing or disablin
 - Air units are produced from owned airfields.
 - Production queues are single-slot per site.
 - A garrisoned city can still queue and complete land production as long as its `2`-unit surface city stack is not already full.
+
+## Ammunition And Rearm
+
+- Heavy munitions are finite. Bombs, torpedoes, and cruise missiles are spent when used.
+- Air units can reload bombs at a friendly legal airbase during turn processing.
+- Sea units can reload torpedoes and cruise missiles at a friendly port or friendly coastal city during turn processing.
+- Units may also use an explicit reload command while at a legal support site if they still need ammunition restored immediately.
+- Reloading heavy munitions costs credits. The intent is to keep sustained bombardment and naval strike operations tied to logistics instead of treating ammo as free.
+- Current baseline reload costs are:
+- bomb: `1` credit each
+- torpedo: `2` credits each
+- cruise missile: `3` credits each
+
+### Cruise Missiles
+
+- Missile submarines and other cruise-missile-capable units may launch cruise missiles at enemy land targets.
+- Cruise missiles can strike visible enemy land units, cities, ports, airfields, outposts, and other hostile infrastructure on land.
+- A cruise missile launch spends ammunition and the firing unit's turn.
+- City strikes disrupt production before they become raw structure deletion. If a city is building or constructing something, a missile hit can cancel that work.
+- Missile strikes are one-way attacks. They do not trigger a normal direct-fire counterattack from the target.
 
 ## Engineers, Repairs, And Improvements
 
