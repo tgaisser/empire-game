@@ -93,7 +93,7 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
       {
         title: "Embark And Unload",
         body: [
-          "Troop transports require friendly port access and obey cargo-space rules. Submarines and choppers use separate Special Ops loading rules.",
+          "Troop transports embark from adjacent coastal land, ports, or coastal cities and still obey cargo-space rules. Submarines and choppers use separate Special Ops loading rules.",
           "Beachheads are usually created in waves, not in one perfect drop.",
         ],
       },

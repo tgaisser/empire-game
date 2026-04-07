@@ -20,7 +20,7 @@ export const IMPROVEMENT_MANUAL_ENTRIES: Record<TileImprovementType, ManualImpro
     strengths: ["Produces sea units.", "Supports embarkation and sustainment of invasions."],
     risks: ["A port without sea control is a liability.", "Losing a port can strand your operational plan."],
     related: [
-      { kind: "unit", id: "troop-transport", label: "Troop Transport", note: "Transports depend on friendly port access to embark troops." },
+      { kind: "unit", id: "troop-transport", label: "Troop Transport", note: "Transports can embark troops from adjacent coastal tiles, but ports still matter for naval production and safe staging." },
       { kind: "rule", id: "transport-and-escort", label: "Transport And Escort", note: "Ports are the shore-side half of naval logistics." },
     ],
   },

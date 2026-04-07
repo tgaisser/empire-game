@@ -367,6 +367,7 @@ Static AA can exist at:
 ### Troop Transports
 
 - Troop transports cannot attack.
+- Troop transports can embark adjacent friendly ground units from coastal land, ports, or coastal cities.
 - Transport capacity is `3`.
 - Infantry, engineers, and Special Ops each use `1` capacity.
 - Tanks use `3` capacity.

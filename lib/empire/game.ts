@@ -426,6 +426,12 @@ function isFriendlyPortSite(state: GameState, tile: Tile | null, side: Side) {
   return Boolean(tile.city && tile.owner === side && isCoastalTile(state, tile));
 }
 
+function canTroopTransportEmbarkFromTile(state: GameState, tile: Tile | null, side: Side) {
+  if (!tile) return false;
+  if (isFriendlyPortSite(state, tile, side)) return true;
+  return tile.terrain === "land" && isCoastalTile(state, tile);
+}
+
 export function canProduceUnitAtTile(state: GameState, tile: Tile, side: Side, unitType: UnitType) {
   const definition = getUnitDefinition(unitType);
   if (definition.domain === "air") {
@@ -759,7 +765,7 @@ export function getTroopTransportLoadTargets(state: GameState, unit: Unit | null
     if (getRemainingMove(candidate) <= 0) return false;
     if (distance(unit, candidate) !== 1) return false;
     const embarkTile = state.map[candidate.y]?.[candidate.x] ?? null;
-    if (!isFriendlyPortSite(state, embarkTile, unit.owner)) return false;
+    if (!canTroopTransportEmbarkFromTile(state, embarkTile, unit.owner)) return false;
     return canTroopTransportCarry(unit, candidate);
   });
 }
@@ -3402,7 +3408,7 @@ function loadTransportTroop(state: GameState, side: Side, transportUnitId: numbe
   if (!isTransportableTroopType(troop.type)) return state;
   if (distance(transport, troop) !== 1) return state;
   const embarkTile = state.map[troop.y]?.[troop.x] ?? null;
-  if (!isFriendlyPortSite(state, embarkTile, side)) return state;
+  if (!canTroopTransportEmbarkFromTile(state, embarkTile, side)) return state;
   if (getRemainingMove(troop) <= 0 || !canTroopTransportCarry(transport, troop)) return state;
 
   const nextCargo: TroopTransportCargo[] = [
