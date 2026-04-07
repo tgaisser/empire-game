@@ -970,16 +970,12 @@ export function useEmpireGame() {
   function handleLoadSpecialOps() {
     if (!selectedUnit || !["chopper", "submarine"].includes(selectedUnit.type)) return;
     const specialOps =
-      selectedUnit.type === "chopper"
-        ? game.units.find(
-            (unit) => unit.owner === "player" && unit.type === "special-ops"
-          )
-        : game.units.find(
-            (unit) =>
-              unit.owner === "player" &&
-              unit.type === "special-ops" &&
-              Math.abs(unit.x - selectedUnit.x) + Math.abs(unit.y - selectedUnit.y) === 1
-          );
+      game.units.find(
+        (unit) =>
+          unit.owner === "player" &&
+          unit.type === "special-ops" &&
+          Math.abs(unit.x - selectedUnit.x) + Math.abs(unit.y - selectedUnit.y) <= 1
+      );
     if (!specialOps) return;
     applyGameUpdate((current) =>
       applyCommand(current, {

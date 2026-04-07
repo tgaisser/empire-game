@@ -215,7 +215,7 @@ function chooseSpecialOpsCarrierAction(unit: Unit, state: GameState) {
 
   const specialOps = state.units.find((candidate) => {
     if (candidate.owner !== unit.owner || candidate.type !== "special-ops") return false;
-    if (unit.type === "chopper") return candidate.x === unit.x && candidate.y === unit.y;
+    if (unit.type === "chopper") return distance(candidate, unit) <= 1;
     return distance(candidate, unit) === 1;
   });
 

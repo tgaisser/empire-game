@@ -3352,11 +3352,12 @@ function loadSpecialOps(state: GameState, side: Side, carrierUnitId: number, spe
   if (carrier.owner !== side || specialOps.owner !== side) return state;
   if (!["chopper", "submarine"].includes(carrier.type) || specialOps.type !== "special-ops") return state;
   if (carrier.carriedSpecialOps) return state;
+  const embarkDistance = distance(carrier, specialOps);
 
   if (carrier.type === "chopper") {
-    // Choppers can extract Special Ops from anywhere on the map.
+    if (embarkDistance > 1) return state;
   } else {
-    if (distance(carrier, specialOps) !== 1) return state;
+    if (embarkDistance !== 1) return state;
     const embarkTile = state.map[specialOps.y]?.[specialOps.x] ?? null;
     if (!isFriendlyPortSite(state, embarkTile, side)) return state;
   }
