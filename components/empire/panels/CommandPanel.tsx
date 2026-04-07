@@ -195,7 +195,7 @@ export function CommandPanel({
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-sm text-slate-300">
           {mode === "overview" && side === "player" && !winner && "No unit or city selected. Pick a unit to move or a city to manage production."}
           {mode === "overview" && side === "ai" && !winner && "Enemy turn in progress. Review your current strategic position while the AI moves."}
-          {winner === "player" && `${playerName} beat old ${getFactionLeaderName(aiFaction)}. Generate a fresh world whenever you want another campaign.`}
+          {winner === "player" && `${playerName} beat ${getFactionLeaderName(aiFaction)}. Generate a fresh world whenever you want another campaign.`}
           {winner === "ai" && `${getFactionLeaderName(aiFaction)} controls the map. Regroup ${playerName} and start a new world when ready.`}
         </div>
 

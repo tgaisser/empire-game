@@ -1,7 +1,7 @@
 {
   "id": "canada",
   "label": "Canada",
-  "leaderName": "Prime Minister Macdonald",
+  "leaderName": "Macdonald",
   "cityListLabel": "Canadian Cities",
   "capitalCity": "Ottawa",
   "accentClass": "from-[#d80621]/38 via-white/12 to-[#d80621]/10",

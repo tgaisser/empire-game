@@ -158,7 +158,7 @@ export function EndgameOverlay({
                 ].join(" ")}
               >
                 {isVictory
-                  ? `${playerName} broke the front and beat old ${enemyLeaderName}. ${playerLeaderName}'s banner now flies across the map.`
+                  ? `${playerName} broke the front and beat ${enemyLeaderName}. ${playerLeaderName}'s banner now flies across the map.`
                   : `${enemyLeaderName} broke your line before the counterstroke landed. ${playerName} was driven from the map and ${playerLeaderName}'s command collapsed.`}
               </div>
 

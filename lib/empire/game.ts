@@ -178,7 +178,7 @@ function getLocationLabel(tile: Tile) {
 function getVictoryStatusMessage(state: GameState, winner: Side) {
   const enemyLeaderName = getFactionLeaderName(state.aiFaction);
   if (winner === "player") {
-    return `Victory! ${state.playerName} beat old ${enemyLeaderName}.`;
+    return `Victory! ${state.playerName} beat ${enemyLeaderName}.`;
   }
   return `Defeat. ${enemyLeaderName} broke ${state.playerName}'s command.`;
 }

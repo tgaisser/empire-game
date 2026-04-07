@@ -1,7 +1,7 @@
 {
   "id": "china",
   "label": "China",
-  "leaderName": "Chairman Mao",
+  "leaderName": "Mao",
   "cityListLabel": "Chinese Command Cities",
   "capitalCity": "Beijing",
   "accentClass": "from-[#EE1C25]/36 via-[#FFFF00]/12 to-yellow-100/6",
