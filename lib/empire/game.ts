@@ -1399,15 +1399,6 @@ function resolveOutpostAssault(attacker: Unit, tile: Tile) {
 function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderFortified?: boolean; defenderArmorBonus?: number }) {
   const attackerStats = getUnitStats(attacker);
   const defenderStats = getUnitStats(defender);
-  if (attacker.type === "submarine" && defender.type === "carrier") {
-    return {
-      defenderHp: 0,
-      attackerHp: attacker.hp,
-      defenderDamage: defender.hp,
-      attackerDamage: 0,
-      usedFollowUp: false,
-    };
-  }
   const defenderDamageReduction = options?.defenderFortified && !attackerStats.ignoresFortification ? 1 : 0;
   const effectiveDefenderArmor = Math.max(0, defenderStats.armor + (options?.defenderArmorBonus ?? 0) - attackerStats.piercing);
   const effectiveAttackerArmor = Math.max(0, attackerStats.armor - defenderStats.piercing);
