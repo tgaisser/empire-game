@@ -81,6 +81,7 @@ If this document disagrees with the implementation in `lib/empire/game.ts`, `lib
 - Bomber bomb capacity: `6`
 - Carrier air detection range: `5`
 - Carrier radar relay range: `5`
+- Active sonar platforms: Sonar Destroyer, SSN, SSBN
 - SSN torpedoes: `6`
 - SSN cruise missiles: `1`
 - SSBN torpedoes: `1`

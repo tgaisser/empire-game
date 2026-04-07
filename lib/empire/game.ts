@@ -158,6 +158,12 @@ export function isSubmarine(type: UnitType): boolean {
   return type === "submarine" || type === "ssbn";
 }
 
+export function canUnitUseActiveSonar(unit: Unit | null) {
+  if (!unit) return false;
+  if (isSubmarine(unit.type)) return true;
+  return unit.type === "destroyer" && unit.sonarUpgraded;
+}
+
 export function getDetectedEnemyUnitIdSet(state: GameState, side: Side) {
   return new Set(side === "player" ? state.playerDetectedUnitIds : state.aiDetectedUnitIds);
 }
@@ -3118,7 +3124,7 @@ function launchCruiseMissile(state: GameState, side: Side, unitId: number, x: nu
 
 function sonarPing(state: GameState, side: Side, unitId: number): GameState {
   const unit = state.units.find((currentUnit) => currentUnit.id === unitId);
-  if (!unit || unit.owner !== side || unit.type !== "destroyer" || !unit.sonarUpgraded || getRemainingMove(unit) <= 0) return state;
+  if (!unit || unit.owner !== side || !canUnitUseActiveSonar(unit) || getRemainingMove(unit) <= 0) return state;
 
   const detectedSubmarineIds = state.units
     .filter((candidate) => candidate.owner !== side && isSubmarine(candidate.type) && distance(unit, candidate) <= ACTIVE_SONAR_RANGE)
@@ -3176,8 +3182,8 @@ function sonarPing(state: GameState, side: Side, unitId: number): GameState {
     addLog(
       nextState,
       side === "player"
-        ? `Destroyer emitted an active sonar ping.${detectedSubmarineIds.length > 0 ? ` ${detectedSubmarineIds.length} submarine contact${detectedSubmarineIds.length === 1 ? "" : "s"} found.` : " No submarine contact."}`
-        : "Enemy destroyer emitted an active sonar ping."
+        ? `${getUnitStats(unit).name} emitted an active sonar ping.${detectedSubmarineIds.length > 0 ? ` ${detectedSubmarineIds.length} submarine contact${detectedSubmarineIds.length === 1 ? "" : "s"} found.` : " No submarine contact."}`
+        : `Enemy ${getUnitStats(unit).name.toLowerCase()} emitted an active sonar ping.`
     )
   );
 }

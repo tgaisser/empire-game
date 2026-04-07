@@ -13,6 +13,7 @@ import {
   addDeveloperImprovement,
   addDeveloperUnit,
   applyCommand,
+  canUnitUseActiveSonar,
   getCarrierJamTargets,
   getCarrierRelayAttackTargets,
   getAmmoReloadQuote,
@@ -34,6 +35,7 @@ import {
   getSeaSpawnTiles,
   getSpecialOpsDeploymentTargets,
   getSpecialOpsAirStrikeTargets,
+  getRemainingMove,
   getUnitStats,
   getTroopTransportDeploymentTargets,
   getTroopTransportLoadTargets,
@@ -174,9 +176,8 @@ export function useEmpireGame() {
       Boolean(
         selectedUnit &&
           selectedUnit.owner === "player" &&
-          selectedUnit.type === "destroyer" &&
-          selectedUnit.sonarUpgraded &&
-          getUnitStats(selectedUnit).move - selectedUnit.moveSpent > 0
+          canUnitUseActiveSonar(selectedUnit) &&
+          getRemainingMove(selectedUnit) > 0
       ),
     [selectedUnit]
   );

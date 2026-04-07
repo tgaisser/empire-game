@@ -45,7 +45,7 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
       {
         title: "Counters",
         body: [
-          "Sonar-upgraded destroyers are the practical answer to submarines.",
+          "Sonar-upgraded destroyers are the practical answer to submarines, but both submarine classes can also spend a turn on active sonar when they need to search.",
           "Engineers and appropriate recon units help expose hidden threats like minefields and stealth troops.",
           "Detection is a system property. Vision, upgrades, radar, and proper unit mix determine what your force can actually see.",
         ],

@@ -96,7 +96,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     unitType: "destroyer",
     summary: "Multirole escort warship for anti-air, anti-sub, and fleet screening.",
     role: ["Protect capital ships and transports while contesting sea and nearby land targets."],
-    strengths: ["Targets sea, land, and air.", "Can detect and attack submarines once sonar-upgraded.", "Sonar-upgraded destroyers deal bonus damage against submarines."],
+    strengths: ["Targets sea, land, and air.", "Can detect, ping, and attack submarines once sonar-upgraded.", "Sonar-upgraded destroyers deal bonus damage against submarines."],
     weaknesses: ["Less durable than carriers in drawn-out exchanges.", "Needs coordination to reach full screening value."],
     tips: ["Keep destroyers near carriers and troop transports instead of sending them alone."],
     worksWellWith: [
@@ -149,7 +149,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     unitType: "submarine",
     summary: "Attack Sub built to ambush high-value ships and insert covert teams.",
     role: ["Threaten carriers, contest sea lanes, and deliver Special Ops covertly."],
-    strengths: ["Conceals while stationary and requires sonar counterplay.", "Six torpedoes let it stay on station through repeated naval fights.", "Can insert Special Ops into coastal zones and still threaten land with one missile."],
+    strengths: ["Conceals while stationary and requires sonar counterplay.", "Six torpedoes let it stay on station through repeated naval fights.", "Can insert Special Ops into coastal zones, actively ping for subs, and still threaten land with one missile."],
     weaknesses: ["Only one cruise missile for land strikes.", "Destroyers with sonar are the dedicated counter."],
     tips: ["Use Attack Subs as your primary anti-ship hunters and covert insertion platforms, then save the single cruise missile for a high-value coastal strike."],
     worksWellWith: [
@@ -166,7 +166,7 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
     unitType: "ssbn",
     summary: "Missile Sub carrying a deep magazine of cruise missiles for repeated land strikes.",
     role: ["Strike high-value land targets from concealed positions at sea."],
-    strengths: ["Six carried cruise missiles let it sustain multiple strike windows before returning to support.", "Can fire up to three missiles in one turn if it preserves one move to slip away.", "Conceals while stationary like other submarines."],
+    strengths: ["Six carried cruise missiles let it sustain multiple strike windows before returning to support.", "Can fire up to three missiles in one turn if it preserves one move to slip away.", "Conceals while stationary like other submarines and can use active sonar when needed."],
     weaknesses: ["Slow and expensive.", "Only one defensive torpedo — vulnerable if detected.", "Each missile fired removes one move from its next turn.", "Destroyers with sonar are the dedicated counter."],
     tips: ["Keep Missile Subs behind your fleet screen. If you fire a heavy salvo, budget the next turn around the reduced movement and get back to a port or city before the magazine runs dry."],
     worksWellWith: [

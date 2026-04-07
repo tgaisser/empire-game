@@ -2,6 +2,7 @@ import { runAiTurnWithPlayback } from "@/lib/empire/ai/engine";
 import { planAiTurn } from "@/lib/empire/ai/planner";
 import { UNIT_STATS } from "@/lib/empire/config";
 import {
+  canUnitUseActiveSonar,
   countForces,
   createInitialState,
   getCityCount,
@@ -324,18 +325,18 @@ export function runAiDiagnosticsForState(state: GameState): AiDiagnosticResult[]
     )
   );
 
-  const sonarDestroyers = aiUnits.filter((unit) => unit.type === "destroyer" && unit.sonarUpgraded);
+  const sonarUnits = aiUnits.filter((unit) => canUnitUseActiveSonar(unit));
   const knownEnemySubs = plan.context.knownEnemySubCount;
   results.push(
     createDiagnosticResult(
       "sonar-coverage",
       "Sonar coverage",
-      knownEnemySubs === 0 || sonarDestroyers.length > 0 ? "pass" : "warn",
+      knownEnemySubs === 0 || sonarUnits.length > 0 ? "pass" : "warn",
       knownEnemySubs === 0
         ? "No enemy submarine contacts are currently known."
-        : sonarDestroyers.length > 0
-          ? `${sonarDestroyers.length} sonar destroyer(s) are available against ${knownEnemySubs} known submarine contact(s).`
-          : `${knownEnemySubs} enemy submarine contact(s) are known, but no sonar-upgraded destroyer is available.`
+        : sonarUnits.length > 0
+          ? `${sonarUnits.length} active-sonar sea unit(s) are available against ${knownEnemySubs} known submarine contact(s).`
+          : `${knownEnemySubs} enemy submarine contact(s) are known, but no active-sonar sea unit is available.`
     )
   );
 

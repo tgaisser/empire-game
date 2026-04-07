@@ -412,14 +412,16 @@ export function CommandPanel({
                   }
                 />
               ) : null}
-              {selectedUnit.type === "destroyer" && selectedUnit.sonarUpgraded ? (
+              {((selectedUnit.type === "destroyer" && selectedUnit.sonarUpgraded) ||
+                selectedUnit.type === "submarine" ||
+                selectedUnit.type === "ssbn") ? (
                 <ActionTileButton
                   title="Active Sonar Ping"
                   detail="Reveal submarine contacts in range 4"
-                  hint="Active sonar spends the destroyer's turn and exposes short-lived submarine contacts for your side."
+                  hint={`Active sonar spends the ${selectedUnit.type === "destroyer" ? "destroyer's" : "submarine's"} turn and exposes short-lived submarine contacts for your side.`}
                   onClick={onSonarPing}
                   disabled={side !== "player" || !!winner || !canSelectedUnitSonarPing}
-                  icon={<UnitActionBadge unitType="destroyer" faction={playerFaction} />}
+                  icon={<UnitActionBadge unitType={selectedUnit.type} faction={playerFaction} />}
                 />
               ) : null}
               {selectedUnitReloadQuote && selectedUnitReloadQuote.cost > 0 ? (

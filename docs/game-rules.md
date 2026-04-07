@@ -173,7 +173,7 @@ The game rewards system pressure more than isolated duels. Capturing or disablin
 
 ### Active Sonar
 
-- Destroyers with the sonar upgrade can spend their turn on an active sonar ping.
+- Sonar-upgraded destroyers and both submarine classes can spend their turn on an active sonar ping.
 - Active sonar reveals submarine contacts in range `4` for `1` turn even if the submarine would otherwise remain concealed.
 - Active sonar is directional intelligence, not permanent detection. If the ping is not refreshed, the contact expires.
 - A sonar ping is an intentional signature event and should be surfaced clearly to both sides when it is visible.

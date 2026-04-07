@@ -2,6 +2,7 @@ import { chooseMoveTowardTarget } from "@/lib/empire/ai/navigation";
 import { scoreEnemyThreatAtPosition, scoreFriendlySupportAtPosition } from "@/lib/empire/ai/tactics";
 import {
   applyCommand,
+  canUnitUseActiveSonar,
   getAmmoReloadQuote,
   getCarrierJamTargets,
   getCruiseMissileTargets,
@@ -269,7 +270,7 @@ function chooseCruiseMissileAction(unit: Unit, state: GameState, plan: AiTurnPla
 }
 
 function chooseSonarPingAction(unit: Unit, state: GameState, plan: AiTurnPlan) {
-  if (unit.type !== "destroyer" || !unit.sonarUpgraded) return null;
+  if (!canUnitUseActiveSonar(unit)) return null;
   if (getRemainingMove(unit) <= 0) return null;
 
   const mission = getMissionForUnit(plan, unit.id);
