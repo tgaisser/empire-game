@@ -811,7 +811,7 @@ export function useEmpireGame() {
       return;
     }
 
-    if (target === "site" && isSelectableProductionSite(x, y)) {
+    if (target === "site" && isSelectableProductionSite(x, y) && (!selectedUnit || !possibleMoveKeys.has(key(x, y)))) {
       selectCity(x, y);
       return;
     }
@@ -828,11 +828,6 @@ export function useEmpireGame() {
       } else {
         setSelectedCity(null);
       }
-      return;
-    }
-
-    if (isSelectableProductionSite(x, y) && !possibleMoveKeys.has(key(x, y))) {
-      selectCity(x, y);
       return;
     }
 
