@@ -1,29 +1,17 @@
 # Unit Stats And Combat
 
-This document consolidates the current unit values, improvement values, and implemented combat math into one reference. It exists because the repo currently spreads that information across unit JSON files, improvement data, and combat code.
+This document consolidates the working unit values, improvement values, and intended combat math into one reference. It exists because the repo currently spreads that information across unit JSON files, improvement data, and combat code.
 
-This version is a balance-pass backup that applies the agreed stat changes from the latest design review. It is intended as the current working reference for the next implementation pass.
+This version is the current balance-pass working reference for the next implementation pass.
 
 If this document disagrees with the implementation in `lib/empire/game.ts`, `lib/empire/data/units/*.json`, or `lib/empire/data/improvements.ts`, the code and data files win until the code is updated to match this file.
 
-## Source Of Truth
-
-- Unit stat values: `lib/empire/data/units/*.json`
-- Unit registry: `lib/empire/data/units/index.ts`
-- Shared rules constants: `lib/empire/data/rules.ts`
-- Improvement values: `lib/empire/data/improvements.ts`
-- Combat, site capture, and special-case damage rules: `lib/empire/game.ts`
-
 ## Shared Rule Constants
-
-These values are not per-unit, but they materially affect combat and operations.
 
 | Constant | Value | Meaning |
 | --- | ---: | --- |
 | `EXPLORATION_INCOME_STEP` | 10 | `1` exploration income per `10%` explored map |
 | `STATIC_SITE_VISION_RANGE` | 2 | Vision from owned cities, ports, airfields, and outposts |
-| `CARRIER_AIR_CAPACITY` | 4 | Carrier aircraft capacity |
-| `LAND_BASE_AIR_CAPACITY` | 1 | City / airfield aircraft capacity in current implementation |
 | `RADAR_DETECTION_RANGE` | 5 | Radar air-detection range |
 | `DESTROYER_ESCORT_RANGE` | 2 | Range for destroyer escort bonus on troop transports |
 | `DESTROYER_ESCORT_ARMOR_BONUS` | 2 | Armor bonus to escorted troop transports |
@@ -32,10 +20,10 @@ These values are not per-unit, but they materially affect combat and operations.
 | `MINEFIELD_DAMAGE` | 7 | Damage dealt by triggered minefields |
 | `OUTPOST_MAX_HP` | 12 | Outpost structure HP |
 | `OUTPOST_ARMOR` | 2 | Outpost structure armor |
+| `AIR_SUPPORT_PER_CITY` | 2 | Total aircraft support capacity granted per owned city |
+| `ASW_DESTROYER_SUB_ATTACK_BONUS` | 2 | Bonus attack applied by ASW destroyers against submarines |
 
 ## Unit Stats
-
-These are the updated working values after the latest balance pass.
 
 | Unit | Domain | Move | Atk | Armor | Piercing | Vision | HP | Cost | Build | Notes |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
@@ -43,19 +31,19 @@ These are the updated working values after the latest balance pass.
 | Scout | land | 3 | 1 | 0 | 0 | 3 | 6 | 8 | 1 | Can capture |
 | Tank | land | 3 | 6 | 2 | 2 | 1 | 10 | 22 | 3 | Can capture; can attack air |
 | Engineer | land | 2 | 2 | 0 | 0 | 1 | 10 | 12 | 1 | Can capture; detects concealed Special Ops |
-| Special Ops | land | 3 | 5 | 0 | 3 | 3 | 8 | 18 | 2 | Can capture; concealed while stationary; stealth recon |
+| Special Ops | land | 3 | 5 | 0 | 3 | 3 | 8 | 18 | 2 | Can capture; concealed while stationary; stealth recon; city-capped production |
 | Chopper | air | 4 | 5 | 1 | 5 | 3 | 8 | 18 | 2 | Ignores fortification; carrier-capable; transport `1` |
 | Fighter | air | 6 | 5 | 1 | 3 | 4 | 8 | 20 | 2 | Air-to-air only; carrier-capable |
 | Bomber | air | 7 | 7 | 0 | 3 | 3 | 7 | 24 | 3 | Land/sea attack; bomb load `6`; airfield-only landing |
 | Drone Swarm | air | 5 | 8 | 0 | 2 | 0 | 2 | 14 | 2 | Self-destructs on attack; carrier-capable |
-| Destroyer | sea | 3 | 5 | 2 | 2 | 2 | 10 | 20 | 2 | Anti-air bonus `+4`; can attack land/sea/air |
+| AA / Radar Destroyer | sea | 3 | 5 | 2 | 2 | 2 | 10 | 22 | 2 | Anti-air bonus `+5`; radar air detection `5`; does not detect submarines |
+| ASW / Sonar Destroyer | sea | 3 | 5 | 2 | 2 | 2 | 10 | 22 | 2 | Anti-air bonus `+2`; detects submarines; `+2` attack vs submarines |
 | Troop Transport | sea | 2 | 0 | 0 | 0 | 2 | 12 | 18 | 3 | No attack; transport capacity `3` |
-| Carrier | sea | 4 | 4 | 2 | 1 | 3 | 14 | 34 | 5 | Anti-air bonus `+3`; air detection `5`; radar relay `5` |
-| Submarine | sea | 4 | 8 | 1 | 5 | 1 | 7 | 24 | 3 | Sea attack only; sonar-only detection; concealed while stationary |
+| Carrier | sea | 4 | 4 | 2 | 1 | 3 | 14 | 34 | 5 | Anti-air bonus `+3`; air detection `5`; radar relay `5`; no instant-kill exception from submarine attacks |
+| SSN | sea | 4 | 8 | 1 | 5 | 1 | 6 | 26 | 4 | Sea attack only; concealed while stationary; torpedoes `2`; cruise missiles `1`; Spec Ops insertion |
+| SSBN | sea | 3 | 6 | 1 | 4 | 1 | 7 | 30 | 5 | Defensive torpedo `1`; cruise missiles many; Deep Silent after missile launch |
 
 ## Unit Abilities And Flags
-
-These are the important non-numeric rules baked into the unit definitions.
 
 ### Capture And Attack Eligibility
 
@@ -64,22 +52,26 @@ These are the important non-numeric rules baked into the unit definitions.
 - Cannot attack at all: Troop Transport
 - Fighter attack domains: air only
 - Bomber attack domains: land and sea
-- Destroyer attack domains: sea, land, and air
 - Tank attack domains: land and air
-- Submarine attack domains: sea only
+- AA / Radar Destroyer attack domains: sea, land, and air
+- ASW / Sonar Destroyer attack domains: sea, land, and air
+- SSN direct attack domains: sea only
+- SSBN direct torpedo attack domains: sea only
+- Cruise missiles target land only
 
 ### Concealment And Detection
 
-- Concealed while stationary: Special Ops, Submarine
+- Concealed while stationary: Special Ops, SSN, SSBN
 - Detects concealed Special Ops by default: Infantry, Scout, Engineer, Special Ops
 - Tanks do not detect concealed Special Ops by default
-- Submarines require sonar-upgraded destroyers for detection
+- Only ASW / Sonar Destroyers detect submarines by default
 
 ### Air Basing
 
 - Carrier-capable aircraft: Chopper, Fighter, Drone Swarm
 - Airfield-only landing: Bomber
 - `maxTurnsAwayFromBase: 2`: Chopper, Fighter, Bomber
+- Total aircraft support capacity = `2 x owned cities`
 
 ### Special Payload Or Capacity
 
@@ -88,11 +80,18 @@ These are the important non-numeric rules baked into the unit definitions.
 - Bomber bomb capacity: `6`
 - Carrier air detection range: `5`
 - Carrier radar relay range: `5`
+- SSN torpedoes: `2`
+- SSN cruise missiles: `1`
+- SSBN torpedoes: `1`
+- SSBN cruise missile load: many (exact value to be set in implementation)
+- SSN homeport limit: `1` per port
+- SSBN homeport limit: `1` per port
 
 ### Anti-Air Notes
 
 - Infantry has light AA value `+1`
-- Destroyer anti-air bonus is `+4`
+- AA / Radar Destroyer anti-air bonus is `+5`
+- ASW / Sonar Destroyer anti-air bonus is `+2`
 - Carrier anti-air bonus is `+3`
 
 ## Transport And Capacity Rules
@@ -112,8 +111,6 @@ These are the important non-numeric rules baked into the unit definitions.
 
 ## Improvement Values
 
-These are the current improvement values from `lib/empire/data/improvements.ts`.
-
 | Improvement | Cost | Build Time | Extra Values |
 | --- | ---: | ---: | --- |
 | Bridge | 0 | 1 | Land crossing aid |
@@ -125,8 +122,6 @@ These are the current improvement values from `lib/empire/data/improvements.ts`.
 | Minefield | 4 | 2 | Trigger damage `7`; hidden until detected |
 
 ## Combat Formula
-
-The current direct-combat math is implemented in `resolveCombat`.
 
 ### Attacker Damage To Defender
 
@@ -146,6 +141,7 @@ clamp(
 Where:
 
 - `attackerBaseAttack = attacker.atk + antiAirBonus` when the defender is an air unit
+- `attackerBaseAttack = attacker.atk + ASW_DESTROYER_SUB_ATTACK_BONUS` when an ASW / Sonar Destroyer attacks a submarine
 - `effectiveDefenderArmor = max(0, defender.armor + defenderArmorBonus - attacker.piercing)`
 - `defenderFortificationReduction = 1` if defender is fortified and attacker does not ignore fortification, otherwise `0`
 - `defenderFortificationReduction = 2` for entrenched infantry when the entrenchment layer is applied
@@ -173,17 +169,18 @@ Where:
 
 - Piercing reduces the target's armor directly.
 - Anti-air bonus is folded into base attack only against air targets.
+- ASW destroyer bonus is folded into base attack only against submarine targets.
 - Fortification is a flat damage reduction, not a percentage.
 - Standard fortification is `1`.
-- Entrenched infantry should use `2`.
+- Entrenched infantry uses `2`.
 - Damage always clamps to a minimum of `1` when an attack is valid.
 
 ## Special Combat Rules
 
 ### Submarine Versus Carrier
 
-- If the attacker is a submarine and the defender is a carrier, the carrier is destroyed outright.
-- The submarine takes no return damage from this rule path.
+- The previous instant-kill submarine-versus-carrier rule is removed.
+- Carriers are now intended to die in roughly two successful torpedo attacks from an SSN instead of one automatic special-case attack.
 
 ### Drone Swarm Damage Cap Against Surface Attackers
 
@@ -192,15 +189,12 @@ Where:
 ### Chopper Fortification Ignore
 
 - Choppers ignore fortification.
-- They still interact with armor and piercing normally.
 
 ### Special Ops Follow-Up Attack
 
 - Special Ops may attack twice in one engagement if:
   - they still had movement left after reaching the combat tile
   - both units survived the first strike
-
-The second pass re-runs the normal combat formula with updated HP values.
 
 ## Tile Attack And Ammo Rules
 
@@ -218,9 +212,20 @@ The second pass re-runs the normal combat formula with updated HP values.
 - They self-destruct when the strike resolves
 - They have a `10%` scatter chance to a random adjacent tile
 
-## Site Defense And Capture Math
+### Cruise Missile Rules
 
-Strategic-site capture is not the same as ordinary combat.
+- Cruise missiles require a visible or recently detected land target
+- If the exact target is gone but a valid enemy target is in an adjacent tile, the missile may redirect there
+- If no valid target remains, the missile misses
+- SSN carries `1` cruise missile
+- SSBN carries many cruise missiles
+
+### Torpedo Rules
+
+- SSN carries `2` torpedoes
+- SSBN carries `1` torpedo intended mainly as a defensive snapshot
+
+## Site Defense And Capture Math
 
 ### Site Support Count
 
@@ -242,32 +247,6 @@ Capture succeeds if:
 attacker.atk + random(0..2) > max(0, siteDefense - attacker.piercing)
 ```
 
-### Capture Notes
-
-- Non-capturing units cannot occupy enemy strategic sites
-- Capturing a city or capturable improvement clears production there
-
-## Outpost Assault Math
-
-Outposts use structure damage instead of the normal capture check.
-
-Outpost damage is:
-
-```text
-clamp(
-  attacker.atk + random(0..2) - max(0, OUTPOST_ARMOR - attacker.piercing),
-  1,
-  7
-)
-```
-
-With:
-
-- `OUTPOST_ARMOR = 2`
-- `OUTPOST_MAX_HP = 12`
-
-If outpost HP reaches `0`, the outpost is destroyed and removed.
-
 ## Escort, Radar, And Detection Values
 
 ### Destroyer Escort
@@ -279,7 +258,7 @@ If outpost HP reaches `0`, the outpost is destroyed and removed.
 ### Radar
 
 - Radar range: `5`
-- Radar currently detects enemy air only
+- Radar detects enemy air only
 - Radar is an airfield upgrade, not a standalone site
 
 ### Static Site Vision
@@ -291,44 +270,47 @@ If outpost HP reaches `0`, the outpost is destroyed and removed.
 - Minefield trigger damage: `7`
 - Engineers disarm minefields by entering them
 - Other land units trigger the mine and remove it
-- Hidden minefields only appear in intel when the tile is visible and a friendly engineer is close enough
 
-## Air Capacity
+## Logistics Caps And Production Limits
 
-Current implementation:
+### Special Ops
 
-- Carrier capacity: `4`
-- Land base capacity: `1`
+- Maximum producible Special Ops = current owned city count
 
-Design-intent note:
+### Ports
 
-- The current `docs/game-rules.md` describes a future rule where airfields may have no hard cap and instead rely on concentration risk. That is not the current implementation.
+- Each owned coastal city counts as a port
+- Additional port improvements may exist only if total port count does not exceed owned city count
 
-## Gaps Between Current Implementation And Design Doc
+### Submarines
 
-The new `docs/game-rules.md` includes some future-facing design intent that is not fully present in the current stats / combat implementation yet. At the moment, these are documentation targets rather than current balance data:
+- Per port limit: `1` SSN and `1` SSBN
 
-- Heavy aircraft loadout system
-- Chopper loadout refit system
-- Static AA upgrade objects with their own HP and attack logic
-- Mobile AA APC variant
-- SSN / SSBN split
-- Cruise missile rules
-- Forward base gameplay objects
-- Artillery unit stats and combat rules
-- Unit rebalancing mechanic
-- Infantry entrenchment as a distinct implemented stat layer beyond current fortification
+### Aircraft
+
+- Total aircraft support capacity = `2 x owned cities`
+- Aircraft may still be concentrated at one field if desired
 
 ## Applied Balance Changes In This Working Backup
 
-This backup applies the full set of agreed balance changes from the latest review:
-
 - Infantry armor increases from `1` to `2`
 - Infantry receives light AA value `+1`
-- Entrenched infantry should use defensive reduction `2` instead of the normal fortification value of `1`
+- Entrenched infantry uses defensive reduction `2`
 - Special Ops attack reduces from `7` to `5`
+- Special Ops vision increases from `2` to `3`
 - Fighter attack reduces from `6` to `5`
-- Submarine attack reduces from `10` to `8`
-- Submarine piercing reduces from `8` to `5`
-
-If any of the future-facing systems above get implemented, or if these balance changes land in code, this file should be updated with their exact values and formulas immediately.
+- Destroyers split into AA / Radar and ASW / Sonar configurations
+- Destroyer cost sets to `22`
+- SSN attack sets to `8`
+- SSN piercing sets to `5`
+- SSN HP sets to `6`
+- SSN cost sets to `26`
+- SSN build time sets to `4`
+- SSBN is introduced as a separate submarine class
+- SSBN cost sets to `30`
+- SSBN build time sets to `5`
+- The instant submarine-versus-carrier kill rule is removed
+- Special Ops production is capped by city count
+- Port count is capped by city count
+- Submarine production is capped per port
+- Total aircraft support capacity is tied to owned city count
