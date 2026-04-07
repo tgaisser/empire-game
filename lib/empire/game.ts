@@ -11,6 +11,7 @@ import {
 import { getImprovementDefinition } from "@/lib/empire/data/improvements";
 import {
   CARRIER_AIR_CAPACITY,
+  ASW_DESTROYER_SUB_ATTACK_BONUS,
   CARRIER_JAM_MAX_DAMAGE,
   CARRIER_JAM_RANGE,
   DESTROYER_ESCORT_ARMOR_BONUS,
@@ -1405,7 +1406,8 @@ function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderForti
     : 0;
   const effectiveDefenderArmor = Math.max(0, defenderStats.armor + (options?.defenderArmorBonus ?? 0) - attackerStats.piercing);
   const effectiveAttackerArmor = Math.max(0, attackerStats.armor - defenderStats.piercing);
-  const attackerBaseAttack = attackerStats.atk + (defenderStats.domain === "air" ? attackerStats.antiAirBonus ?? 0 : 0);
+  const aswBonus = attacker.type === "destroyer" && attacker.sonarUpgraded && defender.type === "submarine" ? ASW_DESTROYER_SUB_ATTACK_BONUS : 0;
+  const attackerBaseAttack = attackerStats.atk + (defenderStats.domain === "air" ? attackerStats.antiAirBonus ?? 0 : 0) + aswBonus;
   const defenderBaseAttack = defenderStats.atk + (attackerStats.domain === "air" ? defenderStats.antiAirBonus ?? 0 : 0);
   let defenderDamage = attackerStats.canAttack
     ? clamp(attackerBaseAttack + Math.floor(Math.random() * 3) - effectiveDefenderArmor - defenderDamageReduction, 1, 9)
