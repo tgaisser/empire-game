@@ -1,7 +1,7 @@
 {
   "name": "Missile Sub",
   "shortLabel": "MS",
-  "move": 3,
+  "move": 4,
   "atk": 6,
   "armor": 1,
   "piercing": 4,
@@ -16,5 +16,5 @@
   "canBeDetectedBySonarOnly": true,
   "concealedWhileStationary": true,
   "torpedoCapacity": 1,
-  "cruiseMissileCapacity": 3
+  "cruiseMissileCapacity": 6
 }

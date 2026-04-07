@@ -162,8 +162,8 @@ export type Unit = {
   bombsRemaining?: number | null;
   torpedoesRemaining?: number | null;
   cruiseMissilesRemaining?: number | null;
-  ssbnLaunchFatigue?: number;
-  launchedCruiseMissileThisTurn?: boolean;
+  ssbnLaunchPenalty?: number;
+  ssbnMissilesLaunchedThisTurn?: number;
   droneTargetX?: number | null;
   droneTargetY?: number | null;
   carriedSpecialOps?: {

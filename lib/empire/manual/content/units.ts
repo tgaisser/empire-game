@@ -164,11 +164,11 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
   },
   ssbn: {
     unitType: "ssbn",
-    summary: "Missile Sub carrying a limited salvo of cruise missiles for deep land strikes.",
+    summary: "Missile Sub carrying a deep magazine of cruise missiles for repeated land strikes.",
     role: ["Strike high-value land targets from concealed positions at sea."],
-    strengths: ["Three-missile salvo is enough to disrupt multiple city or infrastructure targets.", "Conceals while stationary like other submarines."],
-    weaknesses: ["Slow and expensive.", "Only one defensive torpedo — vulnerable if detected.", "Repeated missile launches reduce movement on later turns until it lies low or returns to support.", "Destroyers with sonar are the dedicated counter."],
-    tips: ["Keep Missile Subs behind your fleet screen. Fire one missile per turn, then plan for the growing movement penalty and eventual return to port or city for rearm."],
+    strengths: ["Six carried cruise missiles let it sustain multiple strike windows before returning to support.", "Can fire up to three missiles in one turn if it preserves one move to slip away.", "Conceals while stationary like other submarines."],
+    weaknesses: ["Slow and expensive.", "Only one defensive torpedo — vulnerable if detected.", "Each missile fired removes one move from its next turn.", "Destroyers with sonar are the dedicated counter."],
+    tips: ["Keep Missile Subs behind your fleet screen. If you fire a heavy salvo, budget the next turn around the reduced movement and get back to a port or city before the magazine runs dry."],
     worksWellWith: [
       { kind: "unit", id: "destroyer", label: "Destroyer", note: "Destroyers screen Missile Subs from enemy ASW." },
       { kind: "unit", id: "submarine", label: "Attack Sub", note: "Attack Subs hunt the escorts while the Missile Sub strikes from safety." },

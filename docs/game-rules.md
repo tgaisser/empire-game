@@ -406,9 +406,9 @@ Static AA can exist at:
 #### SSBN
 
 - Missile-heavy boomer
-- Carries `3` cruise missiles
+- Carries `6` cruise missiles
 - Carries only `1` torpedo, intended mainly as a defensive snapshot
-- Lower mobility than SSN
+- Moves `4` tiles per turn before any launch penalty
 
 ### Submarine Rules
 
@@ -445,9 +445,10 @@ After missile launch:
 - Cruise missiles require a visible or recently detected target.
 - If the target is missing, the missile may redirect to an adjacent tile.
 - If no valid target exists, the missile misses.
-- Launching a cruise missile consumes the submarine's full turn.
-- SSBN launch fatigue reduces next-turn movement by the number of missiles it has fired in its current firing cycle, up to `3`.
-- SSBN launch fatigue decays by `1` on turns where the boat does not fire and resets when it rearms at a support site.
+- Attack Sub missile launches consume the boat's full turn.
+- SSBN missile launches cost `1` move each instead of ending the turn immediately.
+- SSBNs may launch at most `3` missiles in one turn and must still have `1` move left before each launch so they can leave the area.
+- SSBN next-turn movement is reduced by the number of missiles it fired on the previous turn, up to `3`.
 - Sea rearm currently happens from a friendly port or friendly city bordering the boat's water tile, and replacement missiles and torpedoes still cost credits.
 
 ### Submarine Homeport Limits

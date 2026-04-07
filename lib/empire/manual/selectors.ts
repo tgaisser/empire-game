@@ -91,7 +91,7 @@ function buildUnitSpecialRules(unitType: UnitType) {
   }
   if (unitType === "bomber") rules.push("Rearms bombs only when back on a friendly legal base.");
   if (unitType === "submarine") rules.push("Attack Sub. Carries 6 torpedoes for sea combat and 1 cruise missile for land strikes. Can insert Special Ops covertly.");
-  if (unitType === "ssbn") rules.push("Missile Sub. Carries 3 cruise missiles for land strikes and 1 defensive torpedo. Repeated launches reduce next-turn movement until it lies low.");
+  if (unitType === "ssbn") rules.push("Missile Sub. Carries 6 cruise missiles for land strikes and 1 defensive torpedo. It can fire up to 3 in one turn, but each shot removes 1 move from its next turn.");
   if (unitType === "drone-swarm") rules.push("Uses a same-tile self-destruct strike rather than surviving a normal attack exchange.");
   if (unit.domain === "air") {
     rules.push(`Standard land air bases support ${LAND_BASE_AIR_CAPACITY} friendly aircraft in a tile.`);

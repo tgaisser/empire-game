@@ -220,8 +220,8 @@ function canSeaUnitReloadAtTile(state: GameState, unit: Unit) {
   });
 }
 
-function getSsbnLaunchFatigue(unit: Unit) {
-  return unit.type === "ssbn" ? unit.ssbnLaunchFatigue ?? 0 : 0;
+function getSsbnLaunchPenalty(unit: Unit) {
+  return unit.type === "ssbn" ? unit.ssbnLaunchPenalty ?? 0 : 0;
 }
 
 function getAmmoReloadQuoteForUnit(unit: Unit, state: GameState): AmmoReloadQuote {
@@ -283,8 +283,8 @@ function applyAmmoReloadQuote(unit: Unit, state: GameState, availableCredits: nu
     nextUnit.cruiseMissilesRemaining = (nextUnit.cruiseMissilesRemaining ?? 0) + cruiseMissilesLoaded;
   }
   if (torpedoesLoaded > 0 || cruiseMissilesLoaded > 0) {
-    nextUnit.ssbnLaunchFatigue = 0;
-    nextUnit.launchedCruiseMissileThisTurn = false;
+    nextUnit.ssbnLaunchPenalty = 0;
+    nextUnit.ssbnMissilesLaunchedThisTurn = 0;
   }
 
   return {
@@ -327,8 +327,8 @@ function createUnit(id: number, owner: Side, type: UnitType, x: number, y: numbe
     bombsRemaining: definition.bombCapacity ?? null,
     torpedoesRemaining: definition.torpedoCapacity ?? null,
     cruiseMissilesRemaining: definition.cruiseMissileCapacity ?? null,
-    ssbnLaunchFatigue: 0,
-    launchedCruiseMissileThisTurn: false,
+    ssbnLaunchPenalty: 0,
+    ssbnMissilesLaunchedThisTurn: 0,
     droneTargetX: null,
     droneTargetY: null,
     carriedSpecialOps: null,
@@ -722,7 +722,7 @@ export function getDemolishableImprovementTargets(state: GameState, unit: Unit |
 }
 
 export function getRemainingMove(unit: Unit) {
-  return Math.max(0, getUnitStats(unit).move - getSsbnLaunchFatigue(unit) - unit.moveSpent);
+  return Math.max(0, getUnitStats(unit).move - getSsbnLaunchPenalty(unit) - unit.moveSpent);
 }
 
 export function getSpecialOpsAirStrikeTargets(state: GameState, unit: Unit | null) {
@@ -2111,12 +2111,7 @@ function applyFortificationForSide(units: Unit[], side: Side) {
   return units.map((unit) => {
     if (unit.owner !== side) return unit;
     const unitStats = getUnitStats(unit);
-    const nextSsbnFatigue =
-      unit.type === "ssbn"
-        ? unit.launchedCruiseMissileThisTurn
-          ? unit.ssbnLaunchFatigue ?? 0
-          : Math.max(0, (unit.ssbnLaunchFatigue ?? 0) - 1)
-        : 0;
+    const nextSsbnPenalty = unit.type === "ssbn" ? Math.min(3, unit.ssbnMissilesLaunchedThisTurn ?? 0) : 0;
 
     if (unit.sentry) {
       return {
@@ -2125,8 +2120,8 @@ function applyFortificationForSide(units: Unit[], side: Side) {
         fortified: true,
         entrenched: unit.type === "infantry",
         moveSpent: unitStats.move,
-        ssbnLaunchFatigue: nextSsbnFatigue,
-        launchedCruiseMissileThisTurn: false,
+        ssbnLaunchPenalty: nextSsbnPenalty,
+        ssbnMissilesLaunchedThisTurn: 0,
         turnsAwayFromBase: unit.turnsAwayFromBase,
       };
     }
@@ -2138,8 +2133,8 @@ function applyFortificationForSide(units: Unit[], side: Side) {
       fortified: didNotMove,
       entrenched: didNotMove && unit.type === "infantry",
       moveSpent: 0,
-      ssbnLaunchFatigue: nextSsbnFatigue,
-      launchedCruiseMissileThisTurn: false,
+      ssbnLaunchPenalty: nextSsbnPenalty,
+      ssbnMissilesLaunchedThisTurn: 0,
       turnsAwayFromBase: unit.turnsAwayFromBase,
     };
   });
@@ -3017,7 +3012,13 @@ function launchCruiseMissile(state: GameState, side: Side, unitId: number, x: nu
   if (!unit || unit.owner !== side || !isSubmarine(unit.type)) return state;
   const unitStats = getUnitStats(unit);
   const missilesRemaining = unit.cruiseMissilesRemaining ?? unitStats.cruiseMissileCapacity ?? 0;
-  if (missilesRemaining <= 0 || getRemainingMove(unit) <= 0) return state;
+  const missilesLaunchedThisTurn = unit.type === "ssbn" ? unit.ssbnMissilesLaunchedThisTurn ?? 0 : 0;
+  const remainingMove = getRemainingMove(unit);
+  if (missilesRemaining <= 0 || remainingMove <= 0) return state;
+  if (unit.type === "ssbn") {
+    if (missilesLaunchedThisTurn >= 3) return state;
+    if (remainingMove <= 1) return state;
+  }
 
   const descriptor = findCruiseMissileImpactDescriptor(state, side, x, y);
   const nextMap = state.map.map((row) => row.map((cell) => cloneTile(cell)));
@@ -3025,13 +3026,12 @@ function launchCruiseMissile(state: GameState, side: Side, unitId: number, x: nu
     currentUnit.id === unit.id
       ? {
           ...currentUnit,
-          moveSpent: unitStats.move,
+          moveSpent: unit.type === "ssbn" ? Math.min(unitStats.move, currentUnit.moveSpent + 1) : unitStats.move,
           fortified: false,
           entrenched: false,
           concealed: false,
           cruiseMissilesRemaining: Math.max(0, missilesRemaining - 1),
-          ssbnLaunchFatigue: unit.type === "ssbn" ? Math.min(3, (currentUnit.ssbnLaunchFatigue ?? 0) + 1) : currentUnit.ssbnLaunchFatigue ?? 0,
-          launchedCruiseMissileThisTurn: true,
+          ssbnMissilesLaunchedThisTurn: unit.type === "ssbn" ? Math.min(3, missilesLaunchedThisTurn + 1) : currentUnit.ssbnMissilesLaunchedThisTurn ?? 0,
         }
       : currentUnit
   );
@@ -3201,8 +3201,8 @@ function reloadAmmo(state: GameState, side: Side, unitId: number): GameState {
                 fortified: false,
                 entrenched: false,
                 concealed: false,
-                ssbnLaunchFatigue: 0,
-                launchedCruiseMissileThisTurn: false,
+                ssbnLaunchPenalty: 0,
+                ssbnMissilesLaunchedThisTurn: 0,
               }
             : currentUnit
         ),

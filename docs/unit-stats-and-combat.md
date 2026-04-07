@@ -41,8 +41,8 @@ If this document disagrees with the implementation in `lib/empire/game.ts`, `lib
 | ASW / Sonar Destroyer | sea | 3 | 5 | 2 | 2 | 2 | 10 | 22 | 2 | Anti-air bonus `+2`; detects submarines; `+2` attack vs submarines |
 | Troop Transport | sea | 2 | 0 | 0 | 0 | 2 | 12 | 18 | 3 | No attack; transport capacity `3` |
 | Carrier | sea | 4 | 4 | 2 | 1 | 3 | 14 | 34 | 5 | Anti-air bonus `+3`; air detection `5`; radar relay `5`; no instant-kill exception from submarine attacks |
-| SSN | sea | 4 | 8 | 1 | 5 | 1 | 6 | 26 | 4 | Sea attack only; concealed while stationary; torpedoes `2`; cruise missiles `1`; Spec Ops insertion |
-| SSBN | sea | 3 | 6 | 1 | 4 | 1 | 7 | 30 | 5 | Defensive torpedo `1`; cruise missiles many; Deep Silent after missile launch |
+| SSN | sea | 4 | 8 | 1 | 5 | 1 | 6 | 26 | 4 | Sea attack only; concealed while stationary; torpedoes `6`; cruise missiles `1`; Spec Ops insertion |
+| SSBN | sea | 4 | 6 | 1 | 4 | 1 | 7 | 30 | 5 | Defensive torpedo `1`; cruise missiles `6`; up to `3` launches per turn if it keeps `1` move in reserve |
 
 ## Unit Abilities And Flags
 
@@ -81,10 +81,10 @@ If this document disagrees with the implementation in `lib/empire/game.ts`, `lib
 - Bomber bomb capacity: `6`
 - Carrier air detection range: `5`
 - Carrier radar relay range: `5`
-- SSN torpedoes: `2`
+- SSN torpedoes: `6`
 - SSN cruise missiles: `1`
 - SSBN torpedoes: `1`
-- SSBN cruise missile load: many (exact value to be set in implementation)
+- SSBN cruise missile load: `6`
 - SSN homeport limit: `1` per port
 - SSBN homeport limit: `1` per port
 
@@ -218,13 +218,11 @@ Where:
 - Cruise missiles require a visible or recently detected land target
 - If the exact target is gone but a valid enemy target is in an adjacent tile, the missile may redirect there
 - If no valid target remains, the missile misses
-- Each missile launch consumes the submarine's full turn
+- Each Attack Sub missile launch consumes the submarine's full turn
 - SSN carries `1` cruise missile
-- SSBN carries `3` cruise missiles
-- SSBN missile launches build launch fatigue:
-- after the first launch, next-turn movement is reduced by `1`
-- after the second consecutive launch, next-turn movement is reduced by `2`
-- after the third consecutive launch, next-turn movement is reduced by `3` until the boat spends turns lying low or returns to support for rearm
+- SSBN carries `6` cruise missiles
+- SSBNs may fire up to `3` missiles in one turn, but each launch costs `1` move and requires at least `1` move still available before firing
+- SSBN next-turn movement is reduced by the number of missiles it fired on the previous turn, up to `3`
 
 ### Torpedo Rules
 
