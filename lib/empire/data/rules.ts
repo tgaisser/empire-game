@@ -10,3 +10,5 @@ export const CARRIER_JAM_MAX_DAMAGE = 5;
 export const MINEFIELD_DAMAGE = 7;
 export const OUTPOST_MAX_HP = 12;
 export const OUTPOST_ARMOR = 2;
+export const AIR_SUPPORT_PER_CITY = 2;
+export const ASW_DESTROYER_SUB_ATTACK_BONUS = 2;
