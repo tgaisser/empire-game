@@ -157,13 +157,22 @@ export function CommandPanel({
   const cityAirSummary = selectedCityOccupants?.air.length
     ? `${selectedCityOccupants.air.length} · ${selectedCityOccupants.air.map((unit) => unit.name ?? getUnitStats(unit).name).join(", ")}`
     : "None";
+  const siteHeaderIcon = selectedSiteType === "city"
+    ? <Castle className="h-5 w-5 shrink-0" />
+    : selectedSiteImprovementType
+      ? (
+          <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center">
+            <ImprovementIcon improvementType={selectedSiteImprovementType} />
+          </span>
+        )
+      : <Castle className="h-5 w-5 shrink-0" />;
 
   return (
     <Card className="border-slate-800 bg-slate-900/90 rounded-3xl shadow-2xl">
       <CardHeader>
         <CardTitle className="text-xl flex items-center gap-2">
           {mode === "city" ? (
-            selectedSiteType === "city" ? <Castle className="w-5 h-5" /> : selectedSiteImprovementType ? <ImprovementIcon improvementType={selectedSiteImprovementType} /> : <Castle className="w-5 h-5" />
+            siteHeaderIcon
           ) : mode === "unit" ? <Shield className="w-5 h-5" /> : <Compass className="w-5 h-5" />}
           Context Panel
         </CardTitle>
