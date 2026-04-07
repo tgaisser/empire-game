@@ -13,13 +13,14 @@ import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import {
   getPreferredDisplayUnitAt,
   getRemainingMove,
+  getUnitDefinition,
   getUnitStats,
   getUnitsAt,
   isUnitConcealedFromSide,
   getTileLabel,
 } from "@/lib/empire/game";
 import { getUnitCargoManifest } from "@/components/empire/shared/unitCargo";
-import type { Faction, ReachableMove, Tile, Unit } from "@/lib/empire/types";
+import type { Faction, LastKnownUnit, ReachableMove, Tile, Unit } from "@/lib/empire/types";
 
 function CityIcon({ className }: { className: string }) {
   return (
@@ -495,6 +496,7 @@ type MapTileProps = {
   highlightPendingOrder: boolean;
   bridgeBuildTarget: boolean;
   bridgeOrientation: "horizontal" | "vertical" | null;
+  ghostMarkers?: LastKnownUnit[];
   moveData?: ReachableMove;
   canInteract: boolean;
   onClick: (x: number, y: number, target?: TileClickTarget) => void;
@@ -514,6 +516,7 @@ export function MapTile({
   highlightPendingOrder,
   bridgeBuildTarget,
   bridgeOrientation,
+  ghostMarkers = [],
   moveData,
   canInteract,
   onClick,
@@ -876,6 +879,23 @@ export function MapTile({
             ) : null}
           </span>
         )}
+        {!visible && ghostMarkers.length > 0 && (() => {
+          const ghost = ghostMarkers[0];
+          const ghostDef = getUnitDefinition(ghost.unitType);
+          return (
+            <span
+              className={[
+                "absolute inset-0 z-20 m-auto flex h-[56%] w-[56%] min-h-7 min-w-7 max-h-12 max-w-12 items-center justify-center rounded-full border-2 border-dashed opacity-50",
+                getSideUnitBadgeClass(ghost.unitType, ghostDef.domain, playerFaction, aiFaction, ghost.owner),
+              ].join(" ")}
+              style={getSideUnitBadgeStyle(ghost.unitType, ghostDef.domain, playerFaction, aiFaction, ghost.owner)}
+              title={`Last known: ${ghost.unitType}`}
+            >
+              <UnitTypeIcon unitType={ghost.unitType} className={getSideUnitIconClass(playerFaction, aiFaction, ghost.owner)} />
+              <span className="absolute -top-1 -right-1 rounded-full bg-slate-950/90 px-1 text-[9px] font-bold text-amber-300">?</span>
+            </span>
+          );
+        })()}
       </div>
       {occupant && (
         <div className="absolute top-1 left-1 z-30 rounded bg-slate-950/75 px-1 text-[10px] font-bold text-white shadow-sm">

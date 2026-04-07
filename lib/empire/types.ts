@@ -183,6 +183,15 @@ export type SonarContact = {
   turnsRemaining: number;
 };
 
+export type LastKnownUnit = {
+  unitId: number;
+  unitType: UnitType;
+  owner: Side;
+  x: number;
+  y: number;
+  turnDetected: number;
+};
+
 export type CombatEventRecord =
   | {
       id: string;
@@ -248,6 +257,9 @@ export type GameState = {
   aiIntel: (Tile | null)[][];
   playerDetectedUnitIds: number[];
   aiDetectedUnitIds: number[];
+  /** Last known position markers — ghost markers for enemy units that left visibility */
+  playerLastKnown: LastKnownUnit[];
+  aiLastKnown: LastKnownUnit[];
   /** Paths units traveled this turn — used to reveal tiles along movement routes */
   movementPathsThisTurn: Array<{ side: Side; path: Array<{ x: number; y: number }>; vision: number }>;
   nextCombatEventId: number;

@@ -32,6 +32,7 @@ export const QUICK_START_CARDS: ManualQuickStartCard[] = [
     body: [
       "Exploration matters. Vision reveals the map, and every 10 percent explored adds income.",
       "Use scouts, Special Ops, radar, carriers, and engineers to keep your intel fresh.",
+      "Detected enemies leave a ghost marker that lasts one turn. The marker shows where they were last seen, not where they are now.",
     ],
   },
   {

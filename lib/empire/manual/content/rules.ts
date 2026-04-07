@@ -50,6 +50,14 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
           "Detection is a system property. Vision, upgrades, radar, and proper unit mix determine what your force can actually see.",
         ],
       },
+      {
+        title: "Last Known Positions",
+        body: [
+          "When you detect an enemy unit, the intel layer records its position as a ghost marker.",
+          "Ghost markers persist for one full turn after detection. If the unit is re-detected, the marker refreshes.",
+          "A ghost marker shows where the enemy was last seen, not where it is now. Use fresh recon to confirm whether the threat has moved.",
+        ],
+      },
     ],
     related: [
       { kind: "unit", id: "special-ops", label: "Special Ops" },

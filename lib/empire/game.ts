@@ -1138,6 +1138,26 @@ function refreshSideIntel(state: GameState, side: Side) {
     }
   }
 
+  // --- Last known position markers ---
+  const previousLastKnown = side === "player" ? state.playerLastKnown : state.aiLastKnown;
+  const aliveUnitIds = new Set(state.units.map((u) => u.id));
+  const lastKnown: import("@/lib/empire/types").LastKnownUnit[] = [];
+
+  // Upsert markers for currently detected enemies
+  for (const enemyUnit of enemyUnits) {
+    if (!detectedEnemyUnitIds.has(enemyUnit.id)) continue;
+    lastKnown.push({ unitId: enemyUnit.id, unitType: enemyUnit.type, owner: enemyUnit.owner, x: enemyUnit.x, y: enemyUnit.y, turnDetected: state.turn });
+  }
+
+  // Carry forward non-expired, non-refreshed markers for units still alive
+  const refreshedIds = new Set(lastKnown.map((m) => m.unitId));
+  for (const marker of previousLastKnown) {
+    if (refreshedIds.has(marker.unitId)) continue;
+    if (!aliveUnitIds.has(marker.unitId)) continue;
+    if (state.turn >= marker.turnDetected + 2) continue;
+    lastKnown.push(marker);
+  }
+
   const friendlyEngineers = state.units.filter((unit) => unit.owner === side && unit.type === "engineer");
 
   for (let y = 0; y < state.mapHeight; y += 1) {
@@ -1158,7 +1178,7 @@ function refreshSideIntel(state: GameState, side: Side) {
     }
   }
 
-  return { visible, intel, detectedEnemyUnitIds: [...detectedEnemyUnitIds] };
+  return { visible, intel, detectedEnemyUnitIds: [...detectedEnemyUnitIds], lastKnown };
 }
 
 export function refreshIntel(state: GameState): GameState {
@@ -1173,6 +1193,8 @@ export function refreshIntel(state: GameState): GameState {
     aiIntel: aiIntelState.intel,
     playerDetectedUnitIds: playerIntelState.detectedEnemyUnitIds,
     aiDetectedUnitIds: aiIntelState.detectedEnemyUnitIds,
+    playerLastKnown: playerIntelState.lastKnown,
+    aiLastKnown: aiIntelState.lastKnown,
   };
 }
 
@@ -1235,6 +1257,8 @@ export function createInitialState(
     aiIntel: createIntelGrid(mapWidth, mapHeight),
     playerDetectedUnitIds: [],
     aiDetectedUnitIds: [],
+    playerLastKnown: [],
+    aiLastKnown: [],
     movementPathsThisTurn: [],
     nextCombatEventId: 1,
     combatEvents: [],
