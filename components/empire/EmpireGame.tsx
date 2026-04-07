@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useEffectEvent, useRef, useState } from "react";
+import { startTransition, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useEmpireAudio } from "@/components/empire/audio/useEmpireAudio";
@@ -113,10 +113,7 @@ export default function EmpireGame() {
   const [selectedGameType, setSelectedGameType] = useState<GameType>("normal");
   const [selectedPlayerFaction, setSelectedPlayerFaction] = useState<Faction>("usa");
   const [selectedAiFaction, setSelectedAiFaction] = useState<Faction>("china");
-  const [selectedPlayerName, setSelectedPlayerName] = useState(() => getPreferredPlayerName("usa"));
-  const [selectedPlayerNameIsCustom, setSelectedPlayerNameIsCustom] = useState(() =>
-    isCustomPlayerName(getPreferredPlayerName("usa"), "usa")
-  );
+  const [selectedPlayerNameOverride, setSelectedPlayerNameOverride] = useState<string | null>(null);
   const [selectedWorldSizeId, setSelectedWorldSizeId] = useState(worldSizeId);
   const [pendingBridgeAction, setPendingBridgeAction] = useState<{ x: number; y: number } | null>(null);
   const [pendingEngineerPlacement, setPendingEngineerPlacement] = useState<"port" | "airfield" | "radar" | "tunnel" | "outpost" | "minefield" | null>(null);
@@ -151,7 +148,19 @@ export default function EmpireGame() {
   const [tacticalViewport, setTacticalViewport] = useState({ left: 0, top: 0, width: 1, height: 1 });
   const [battlefieldFxEvents, setBattlefieldFxEvents] = useState<BattlefieldFxEvent[]>([]);
   const [fieldManualFocusLink, setFieldManualFocusLink] = useState<ManualRelatedLink | null>(null);
-  const autoSaveSummary = startGameOpen ? getAutoSaveSummary() : null;
+  const localStorageReady = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const preferredInitialPlayerName = useSyncExternalStore(
+    () => () => {},
+    () => getPreferredPlayerName("usa"),
+    () => getFactionLeaderName("usa")
+  );
+  const selectedPlayerName = selectedPlayerNameOverride ?? preferredInitialPlayerName;
+  const selectedPlayerNameIsCustom = isCustomPlayerName(selectedPlayerName, selectedPlayerFaction);
+  const autoSaveSummary = localStorageReady && startGameOpen ? getAutoSaveSummary() : null;
   const showPhaseBanner = useEffectEvent((message: string) => {
     setPhaseBanner(message);
   });
@@ -303,8 +312,7 @@ export default function EmpireGame() {
     setSelectedGameType(game.gameType);
     setSelectedPlayerFaction(game.playerFaction);
     setSelectedAiFaction(game.aiFaction);
-    setSelectedPlayerName(game.playerName);
-    setSelectedPlayerNameIsCustom(isCustomPlayerName(game.playerName, game.playerFaction));
+    setSelectedPlayerNameOverride(game.playerName);
     setSelectedWorldSizeId(worldSizeId);
     if (source === "endgame" && game.winner) {
       setDismissedWinner(game.winner);
@@ -315,20 +323,16 @@ export default function EmpireGame() {
     const currentFactionLeader = getFactionLeaderName(selectedPlayerFaction);
     setSelectedPlayerFaction(nextFaction);
     if (!selectedPlayerNameIsCustom || selectedPlayerName.trim() === currentFactionLeader) {
-      setSelectedPlayerName(getFactionLeaderName(nextFaction));
-      setSelectedPlayerNameIsCustom(false);
+      setSelectedPlayerNameOverride(getFactionLeaderName(nextFaction));
     }
   }
 
   function handlePlayerNameChange(value: string) {
-    setSelectedPlayerName(value);
-    const trimmed = value.trim();
-    setSelectedPlayerNameIsCustom(Boolean(trimmed) && trimmed !== getFactionLeaderName(selectedPlayerFaction));
+    setSelectedPlayerNameOverride(value);
   }
 
   function handleResetPlayerName() {
-    setSelectedPlayerName(getFactionLeaderName(selectedPlayerFaction));
-    setSelectedPlayerNameIsCustom(false);
+    setSelectedPlayerNameOverride(getFactionLeaderName(selectedPlayerFaction));
   }
 
   function handleStartGame() {
@@ -338,8 +342,7 @@ export default function EmpireGame() {
     clearAutoSave();
     savePlayerProfile(playerName, selectedPlayerFaction);
     resetGame(selectedGameType, selectedWorldSizeId, selectedPlayerFaction, selectedAiFaction, playerName);
-    setSelectedPlayerName(playerName);
-    setSelectedPlayerNameIsCustom(isCustomPlayerName(playerName, selectedPlayerFaction));
+    setSelectedPlayerNameOverride(playerName);
     setSkipEndTurnMoveWarning(false);
     setDismissedWinner(null);
     setAiDiagnosticsReport(null);
