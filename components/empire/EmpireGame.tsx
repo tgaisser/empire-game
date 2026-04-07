@@ -52,6 +52,7 @@ export default function EmpireGame() {
     movementPlayback,
     effectivePlayerVisible,
     effectivePlayerIntel,
+    effectivePlayerLastKnown,
     pendingCityRename,
     pendingDroneTarget,
     pendingUnitRename,
@@ -1060,6 +1061,7 @@ export default function EmpireGame() {
                     map={game.map}
                     playerVisible={effectivePlayerVisible}
                     playerIntel={effectivePlayerIntel}
+                    playerLastKnown={effectivePlayerLastKnown}
                     units={game.units}
                     selectedUnit={selectedUnit}
                     playerFaction={game.playerFaction}

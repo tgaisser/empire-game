@@ -7,7 +7,7 @@ import type { MovementPlayback } from "@/components/empire/hooks/useEmpireGame";
 import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
 import { getUnitsAt, key } from "@/lib/empire/game";
 import { getSideDisplayOption } from "@/lib/empire/factions";
-import type { Faction, ReachableMove, Tile, Unit } from "@/lib/empire/types";
+import type { Faction, LastKnownUnit, ReachableMove, Tile, Unit } from "@/lib/empire/types";
 import { BattlefieldFxOverlay, type BattlefieldFxEvent } from "@/components/empire/map/BattlefieldFxOverlay";
 import { MapTile } from "@/components/empire/map/MapTile";
 import { getSideUnitBadgeClass, getSideUnitBadgeStyle, getSideUnitIconClass } from "@/components/empire/shared/domainStyles";
@@ -18,6 +18,7 @@ type GameMapProps = {
   map: Tile[][];
   playerVisible: boolean[][];
   playerIntel: (Tile | null)[][];
+  playerLastKnown: LastKnownUnit[];
   units: Unit[];
   selectedUnit: Unit | null;
   playerFaction: Faction;
@@ -120,6 +121,7 @@ export function GameMap({
   map,
   playerVisible,
   playerIntel,
+  playerLastKnown,
   units,
   selectedUnit,
   playerFaction,
@@ -350,6 +352,7 @@ export function GameMap({
       const isHighlightedUnit = occupants.some((occupant) => highlightedUnitIds.has(occupant.id));
       const isBridgeBuildTarget = bridgeBuildKeys?.has(key(tile.x, tile.y)) ?? false;
       const bridgeOrientation = getBridgeOrientation(map, tile);
+      const ghostMarkers = visible ? [] : playerLastKnown.filter((m) => m.x === tile.x && m.y === tile.y);
 
       visibleTiles.push(
         <div
@@ -375,6 +378,7 @@ export function GameMap({
             highlightPendingOrder={isHighlightedUnit}
             bridgeBuildTarget={isBridgeBuildTarget}
             bridgeOrientation={bridgeOrientation}
+            ghostMarkers={ghostMarkers}
             moveData={visible ? moveData : undefined}
             canInteract={canInteract}
             onClick={onTileClick}

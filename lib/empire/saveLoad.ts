@@ -27,6 +27,8 @@ function hydrateGameState(state: GameState): GameState {
     ...state,
     playerName: state.playerName?.trim() || getFactionLeaderName(state.playerFaction),
     movementPathsThisTurn: state.movementPathsThisTurn ?? [],
+    playerLastKnown: state.playerLastKnown ?? [],
+    aiLastKnown: state.aiLastKnown ?? [],
   };
 }
 

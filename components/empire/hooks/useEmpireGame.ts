@@ -334,6 +334,11 @@ export function useEmpireGame() {
     return game.map.map((row) => row.map((tile) => ({ ...tile })));
   }, [developerSettings.playerFogEnabled, game.map, game.playerIntel, game.winner]);
 
+  const effectivePlayerLastKnown = useMemo(() => {
+    if (game.winner || !developerSettings.playerFogEnabled) return [];
+    return game.playerLastKnown;
+  }, [developerSettings.playerFogEnabled, game.playerLastKnown, game.winner]);
+
   const selectedCityTile = useMemo(() => {
     if (!selectedCity) return null;
     return game.map[selectedCity.y]?.[selectedCity.x] ?? null;
@@ -1099,6 +1104,7 @@ export function useEmpireGame() {
     movementPlayback,
     effectivePlayerVisible,
     effectivePlayerIntel,
+    effectivePlayerLastKnown,
     pendingCityRename,
     pendingDroneTarget,
     pendingUnitRename,
