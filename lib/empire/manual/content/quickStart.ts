@@ -22,6 +22,7 @@ export const QUICK_START_CARDS: ManualQuickStartCard[] = [
     title: "Build Network",
     body: [
       "Cities build land units, ports build fleets, and airfields build aircraft.",
+      "A defending unit inside a city does not block land production by itself, but a full city garrison stack will.",
       "Engineers extend your network with ports, airfields, tunnels, radar, outposts, bridges, and minefields.",
     ],
   },

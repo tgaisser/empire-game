@@ -1,5 +1,5 @@
 import { DIRECTIONS, UNIT_STATS } from "@/lib/empire/config";
-import { AIR_SUPPORT_PER_CITY } from "@/lib/empire/data/rules";
+import { AIR_SUPPORT_PER_CITY, CITY_SURFACE_CAPACITY } from "@/lib/empire/data/rules";
 import { assignAiUnitMissions, createAiThreatSummary, planAiStrategicGoals } from "@/lib/empire/ai/strategy";
 import type { GameState, Side, Tile, Unit, UnitDomain, UnitType } from "@/lib/empire/types";
 import type { AiStrategicGoal, AiThreatSummary, AiUnitMission } from "@/lib/empire/ai/strategy";
@@ -114,6 +114,12 @@ function getBlockingUnitAt(units: Unit[], x: number, y: number, domain: UnitDoma
   );
 }
 
+function getFriendlySurfaceCountAt(units: Unit[], x: number, y: number, side: Side) {
+  return units.filter(
+    (unit) => unit.x === x && unit.y === y && unit.owner === side && getOccupancyLayer(UNIT_STATS[unit.type].domain) === "surface"
+  ).length;
+}
+
 function createProductionSites(state: GameState) {
   const sites: AiProductionSite[] = [];
 
@@ -206,7 +212,7 @@ function getSupportedUnitsForSite(context: AiContext, site: AiProductionSite) {
   const builds: Array<{ unitType: UnitType; spawnX?: number; spawnY?: number }> = [];
 
   if (site.kind === "city" || site.kind === "coastal-city") {
-    if (!getBlockingUnitAt(context.state.units, site.x, site.y, "land")) {
+    if (getFriendlySurfaceCountAt(context.state.units, site.x, site.y, "ai") < CITY_SURFACE_CAPACITY) {
       for (const unitType of LAND_PRODUCTION_UNITS) {
         builds.push({ unitType });
       }

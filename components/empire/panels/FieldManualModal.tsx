@@ -12,7 +12,6 @@ import { ImprovementIcon } from "@/components/empire/shared/ImprovementIcon";
 import { UnitTypeIcon } from "@/components/empire/shared/UnitTypeIcon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getManualCampaignEntries,
   getManualDomainEntries,
@@ -214,10 +213,10 @@ export function FieldManualModal({ open, playerFaction, focusLink = null, onFocu
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/82 p-3 backdrop-blur-sm md:p-4">
+    <div className="fixed inset-0 z-[120] flex items-start justify-center bg-slate-950/82 p-3 backdrop-blur-sm md:p-4">
       <div className="absolute inset-0" onClick={onClose} />
-      <Card className="relative z-10 flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden border-slate-800 bg-slate-900 shadow-2xl">
-        <CardHeader className="border-b border-slate-800 bg-slate-950/70 pb-4">
+      <Card className="relative z-10 flex h-[calc(100dvh-1.5rem)] max-h-[92vh] w-full max-w-7xl flex-col gap-0 overflow-hidden border-slate-800 bg-slate-900 py-0 shadow-2xl md:h-[calc(100dvh-2rem)]">
+        <CardHeader className="shrink-0 border-b border-slate-800 bg-slate-950/70 pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl text-slate-100">
@@ -257,10 +256,9 @@ export function FieldManualModal({ open, playerFaction, focusLink = null, onFocu
           </div>
         </CardHeader>
 
-        <CardContent className="min-h-0 flex-1 p-0">
-          <div className="grid h-full min-h-0 grid-cols-1 xl:grid-cols-[220px_280px_minmax(0,1fr)]">
+        <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
+          <div className="grid min-h-full grid-cols-1 xl:grid-cols-[220px_280px_minmax(0,1fr)]">
             <div className="border-b border-slate-800 bg-slate-950/40 xl:border-b-0 xl:border-r">
-              <ScrollArea className="h-full">
                 <div className="p-4">
                   {mode === "reference" ? (
                     <div className="space-y-2">
@@ -291,11 +289,9 @@ export function FieldManualModal({ open, playerFaction, focusLink = null, onFocu
                     </div>
                   )}
                 </div>
-              </ScrollArea>
             </div>
 
             <div className="border-b border-slate-800 bg-slate-900/60 xl:border-b-0 xl:border-r">
-              <ScrollArea className="h-full">
                 <div className="p-4">
                   {showSearchResults ? (
                     <SearchResultsList results={searchResults} onSelect={handleSearchSelect} />
@@ -458,11 +454,9 @@ export function FieldManualModal({ open, playerFaction, focusLink = null, onFocu
                     </div>
                   )}
                 </div>
-              </ScrollArea>
             </div>
 
             <div className="bg-slate-900/30">
-              <ScrollArea className="h-full">
                 <div className="p-4 md:p-5">
                   {showSearchResults ? (
                     <SearchDetailPanel query={searchQuery} />
@@ -512,7 +506,6 @@ export function FieldManualModal({ open, playerFaction, focusLink = null, onFocu
                     />
                   )}
                 </div>
-              </ScrollArea>
             </div>
           </div>
         </CardContent>

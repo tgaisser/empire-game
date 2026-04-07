@@ -92,7 +92,8 @@ The game rewards system pressure more than isolated duels. Capturing or disablin
 ### Occupancy Rules
 
 - Land and sea share the surface occupancy layer. Air uses a separate air layer.
-- Friendly surface units cannot stack on the same tile.
+- Friendly surface units normally cannot stack on the same tile.
+- Owned cities are the exception: they can hold up to `2` friendly surface units as a garrison stack.
 - Air units can share a tile only when that tile has spare air capacity.
 - Legal start and end states matter as much as path cost. A route is only valid if the unit can actually exist on both ends of it.
 
@@ -182,6 +183,7 @@ The game rewards system pressure more than isolated duels. Capturing or disablin
 - Sea units are produced from owned ports or owned coastal cities.
 - Air units are produced from owned airfields.
 - Production queues are single-slot per site.
+- A garrisoned city can still queue and complete land production as long as its `2`-unit surface city stack is not already full.
 
 ## Engineers, Repairs, And Improvements
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
+import { startTransition, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useEmpireAudio } from "@/components/empire/audio/useEmpireAudio";
@@ -20,6 +20,7 @@ import { NamePromptModal } from "@/components/empire/panels/NamePromptModal";
 import { StartGameModal } from "@/components/empire/panels/StartGameModal";
 import { TileContentsModal } from "@/components/empire/panels/TileContentsModal";
 import { TopCommandBar } from "@/components/empire/panels/TopCommandBar";
+import { SiteIntelModal } from "@/components/empire/panels/SiteIntelModal";
 import { UnitIntelModal } from "@/components/empire/panels/UnitIntelModal";
 import { createAiDiagnosticsReport } from "@/lib/empire/ai/diagnostics";
 import { getRemainingMove, getUnitStats, getUnitsAt, key } from "@/lib/empire/game";
@@ -135,6 +136,7 @@ export default function EmpireGame() {
   const [aiDiagnosticsReport, setAiDiagnosticsReport] = useState<ReturnType<typeof createAiDiagnosticsReport> | null>(null);
   const [miniMapJumpTarget, setMiniMapJumpTarget] = useState<{ x: number; y: number; nonce: number } | null>(null);
   const [tileContentsTarget, setTileContentsTarget] = useState<{ x: number; y: number } | null>(null);
+  const [siteIntelTarget, setSiteIntelTarget] = useState<{ x: number; y: number } | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
   const unmovedCycleIndexRef = useRef(0);
   const aiPlaybackTimeoutRef = useRef<number | null>(null);
@@ -215,6 +217,28 @@ export default function EmpireGame() {
     ...devPlacementTargets.map((tile) => key(tile.x, tile.y)),
     ...devImprovementPlacementTargets.map((tile) => key(tile.x, tile.y)),
   ]);
+  const activeSiteIntel = useMemo(() => {
+    if (!siteIntelTarget) return null;
+
+    const liveTile = game.map[siteIntelTarget.y]?.[siteIntelTarget.x] ?? null;
+    const intelTile = effectivePlayerIntel[siteIntelTarget.y]?.[siteIntelTarget.x] ?? null;
+    const visible = effectivePlayerVisible[siteIntelTarget.y]?.[siteIntelTarget.x] ?? false;
+    const tile = visible ? liveTile : intelTile;
+
+    if (!tile) return null;
+    if (!tile.city && !tile.improvement && !tile.improvementProject) return null;
+
+    const visibleUnits = visible
+      ? getUnitsAt(game.units, siteIntelTarget.x, siteIntelTarget.y).filter((unit) => unit.owner !== "player")
+      : [];
+
+    return {
+      tile,
+      visible,
+      surfaceUnits: visibleUnits.filter((unit) => getUnitStats(unit).domain !== "air"),
+      airUnits: visibleUnits.filter((unit) => getUnitStats(unit).domain === "air"),
+    };
+  }, [effectivePlayerIntel, effectivePlayerVisible, game.map, game.units, siteIntelTarget]);
 
   function getClickedEnemyUnit(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
     const visible = effectivePlayerVisible[y]?.[x];
@@ -276,6 +300,72 @@ export default function EmpireGame() {
     }
 
     return clickedEnemyUnit;
+  }
+
+  function getInspectableSiteAt(x: number, y: number) {
+    const liveTile = game.map[y]?.[x] ?? null;
+    const intelTile = effectivePlayerIntel[y]?.[x] ?? null;
+    const visible = effectivePlayerVisible[y]?.[x] ?? false;
+    const displayTile = visible ? liveTile : intelTile;
+    if (!displayTile) return null;
+
+    const owner = displayTile.improvement?.owner ?? displayTile.improvementProject?.owner ?? displayTile.owner ?? null;
+    const isInspectableSite = Boolean(displayTile.city || displayTile.improvement || displayTile.improvementProject);
+    if (!isInspectableSite) return null;
+    if (owner === "player" && visible) return null;
+
+    return { x, y, visible, tile: displayTile };
+  }
+
+  function shouldOpenSiteIntelOnClick(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
+    const site = getInspectableSiteAt(x, y);
+    if (!site) return null;
+
+    if (
+      pendingDroneTarget ||
+      pendingDevPlacement ||
+      pendingDevImprovementPlacement ||
+      pendingSeaBuild ||
+      transportLoadMode ||
+      pendingEngineerPlacement ||
+      pendingSpecialOpsDeployment
+    ) {
+      return null;
+    }
+
+    if (target === "site") return site;
+
+    if (possibleMoves.some((move) => move.x === x && move.y === y)) {
+      return null;
+    }
+
+    if (
+      selectedUnit &&
+      selectedUnit.x === x &&
+      selectedUnit.y === y &&
+      getUnitStats(selectedUnit).attackRequiresSameTile &&
+      game.units.some(
+        (unit) =>
+          unit.x === x &&
+          unit.y === y &&
+          unit.owner !== selectedUnit.owner &&
+          getUnitStats(selectedUnit).attackDomains.includes(getUnitStats(unit).domain) &&
+          getUnitStats(unit).cannotBeAttacked !== true
+      )
+    ) {
+      return null;
+    }
+
+    if (selectedUnit?.type === "special-ops" && specialOpsAirStrikeTargets.some((tile) => tile.x === x && tile.y === y)) {
+      return null;
+    }
+
+    if (selectedUnit?.type === "carrier" && carrierJamTargets.some((tile) => tile.x === x && tile.y === y)) {
+      return null;
+    }
+
+    if (target === "tile" || target === undefined) return site;
+    return null;
   }
 
   function handleAttemptEndTurn() {
@@ -450,6 +540,7 @@ export default function EmpireGame() {
     playTileClick(game.map[y]?.[x] ?? null);
     setIntelUnitId(null);
     setTileContentsTarget(null);
+    setSiteIntelTarget(null);
     if (pendingDroneTarget) {
       handleSetDroneTarget(x, y);
       return;
@@ -535,6 +626,12 @@ export default function EmpireGame() {
       return;
     }
 
+    const clickedSite = shouldOpenSiteIntelOnClick(x, y, target);
+    if (clickedSite) {
+      setSiteIntelTarget({ x: clickedSite.x, y: clickedSite.y });
+      return;
+    }
+
     if (shouldOpenTileContentsPicker(x, y, target)) {
       setTileContentsTarget({ x, y });
       return;
@@ -544,9 +641,18 @@ export default function EmpireGame() {
   }
 
   function handleMapTileRightClick(x: number, y: number, target?: "tile" | "site" | "surface-unit" | "air-unit") {
+    setTileContentsTarget(null);
     const targetUnit = getClickedEnemyUnit(x, y, target);
     if (targetUnit) {
+      setSiteIntelTarget(null);
       setIntelUnitId(targetUnit.id);
+      return;
+    }
+
+    const targetSite = shouldOpenSiteIntelOnClick(x, y, target);
+    if (targetSite) {
+      setIntelUnitId(null);
+      setSiteIntelTarget({ x: targetSite.x, y: targetSite.y });
     }
   }
 
@@ -1023,6 +1129,16 @@ export default function EmpireGame() {
         aiFaction={game.aiFaction}
         onOpenFieldManual={handleOpenFieldManualForUnit}
         onClose={() => setIntelUnitId(null)}
+      />
+      <SiteIntelModal
+        open={!!activeSiteIntel}
+        tile={activeSiteIntel?.tile ?? null}
+        visible={activeSiteIntel?.visible ?? false}
+        surfaceUnits={activeSiteIntel?.surfaceUnits ?? []}
+        airUnits={activeSiteIntel?.airUnits ?? []}
+        playerFaction={game.playerFaction}
+        aiFaction={game.aiFaction}
+        onClose={() => setSiteIntelTarget(null)}
       />
       <TileContentsModal
         open={!!tileContentsTarget}

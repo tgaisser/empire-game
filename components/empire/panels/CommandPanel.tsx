@@ -891,7 +891,7 @@ function minimapTileColor(
   if (!visible && !intelTile) return "#020617";
 
   const sourceTile = visible ? tile : intelTile ?? tile;
-  const fogDim = visible ? 0 : 0.68;
+  const fogDim = visible ? 0 : 0.54;
 
   if (sourceTile.owner === "player") return mixColor(displaySwatch(playerDisplay), "#0f172a", fogDim ? fogDim : 0.38);
   if (sourceTile.owner === "ai") return mixColor(displaySwatch(aiDisplay), "#0f172a", fogDim ? fogDim : 0.38);

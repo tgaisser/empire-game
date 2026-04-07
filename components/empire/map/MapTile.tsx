@@ -583,7 +583,7 @@ export function MapTile({
         hasPendingOrderHighlight
           ? "ring-[5px] ring-[#d9f99d] shadow-[0_0_0_2px_rgba(132,204,22,0.4),0_0_28px_rgba(190,242,100,0.65)] animate-[pulse_0.9s_ease-in-out_infinite]"
           : "",
-        stale ? "brightness-50 saturate-50" : "",
+        stale ? "brightness-[0.72] saturate-[0.78]" : "",
         canInteract && visible ? "hover:brightness-110" : "cursor-default",
       ].join(" ")}
       style={isMove ? playerFactionStyle.moveRingStyle : undefined}

@@ -2,6 +2,7 @@ export const EXPLORATION_INCOME_STEP = 10;
 export const STATIC_SITE_VISION_RANGE = 2;
 export const CARRIER_AIR_CAPACITY = 4;
 export const LAND_BASE_AIR_CAPACITY = 1;
+export const CITY_SURFACE_CAPACITY = 2;
 export const RADAR_DETECTION_RANGE = 5;
 export const DESTROYER_ESCORT_RANGE = 2;
 export const DESTROYER_ESCORT_ARMOR_BONUS = 2;

@@ -11,6 +11,7 @@ import {
 import { getImprovementDefinition } from "@/lib/empire/data/improvements";
 import {
   CARRIER_AIR_CAPACITY,
+  CITY_SURFACE_CAPACITY,
   AIR_SUPPORT_PER_CITY,
   ASW_DESTROYER_SUB_ATTACK_BONUS,
   CARRIER_JAM_MAX_DAMAGE,
@@ -296,7 +297,7 @@ export function canProduceUnitAtTile(state: GameState, tile: Tile, side: Side, u
     if (currentSpecOps + queuedSpecOps >= ownedCities) return false;
   }
 
-  return tile.city && tile.owner === side;
+  return tile.city && tile.owner === side && canUnitOccupyTile(state, tile.x, tile.y, side, unitType);
 }
 
 export function getSeaSpawnTiles(state: GameState, tile: Tile, units: Unit[] = state.units) {
@@ -341,7 +342,7 @@ export function getDeveloperPlacementTargets(state: GameState, side: Side, unitT
       candidateUnit.x = x;
       candidateUnit.y = y;
       if (getTerrainMoveCost(state, candidateUnit, tile) >= 999) continue;
-      if (getBlockingUnitAt(state.units, x, y, "land")) continue;
+      if (!canUnitOccupyTile(state, x, y, side, unitType)) continue;
       targets.push(tile);
     }
   }
@@ -410,7 +411,9 @@ function getSpawnTileForProduction(
   if (definition.domain === "air") {
     return canStackAirUnitAt(state, tile.x, tile.y, tile.owner ?? "player", unitType, units) ? { x: tile.x, y: tile.y } : null;
   }
-  if (definition.domain !== "sea") return { x: tile.x, y: tile.y };
+  if (definition.domain !== "sea") {
+    return canUnitOccupyTile(state, tile.x, tile.y, tile.owner ?? "player", unitType, units) ? { x: tile.x, y: tile.y } : null;
+  }
 
   if (production?.spawnX !== undefined && production.spawnY !== undefined) {
     const candidate = state.map[production.spawnY]?.[production.spawnX];
@@ -589,7 +592,7 @@ export function getSpecialOpsDeploymentTargets(state: GameState, unit: Unit | nu
       return inBounds(x, y, state.mapWidth, state.mapHeight) ? state.map[y][x] : null;
     })
     .filter((tile): tile is Tile => Boolean(tile))
-    .filter((tile) => tile.terrain !== "water" && !getBlockingUnitAt(state.units, tile.x, tile.y, "land"));
+    .filter((tile) => tile.terrain !== "water" && canUnitOccupyTile(state, tile.x, tile.y, unit.owner, "special-ops"));
 }
 
 export function getTroopTransportLoadTargets(state: GameState, unit: Unit | null) {
@@ -616,7 +619,7 @@ export function getTroopTransportDeploymentTargets(state: GameState, unit: Unit 
       return inBounds(x, y, state.mapWidth, state.mapHeight) ? state.map[y][x] : null;
     })
     .filter((tile): tile is Tile => Boolean(tile))
-    .filter((tile) => tile.terrain !== "water" && !getBlockingUnitAt(state.units, tile.x, tile.y, "land"));
+    .filter((tile) => tile.terrain !== "water" && canUnitOccupyTile(state, tile.x, tile.y, unit.owner, "infantry"));
 }
 
 export function isUnitConcealedFromSide(unit: Unit, side: Side) {
@@ -635,6 +638,30 @@ function getAirUnitsAtForSide(units: Unit[], x: number, y: number, side: Side) {
   return units.filter((unit) => unit.x === x && unit.y === y && getUnitStats(unit).domain === "air" && unit.owner === side);
 }
 
+function getSurfaceUnitsAtForSide(units: Unit[], x: number, y: number, side: Side) {
+  return units.filter(
+    (unit) => unit.x === x && unit.y === y && getOccupancyLayer(getUnitStats(unit).domain) === "surface" && unit.owner === side
+  );
+}
+
+function getSurfaceCapacityAtTile(tile: Tile | null, side: Side) {
+  if (!tile) return 0;
+  return tile.city && tile.owner === side ? CITY_SURFACE_CAPACITY : 1;
+}
+
+export function canStackSurfaceUnitAt(state: GameState, x: number, y: number, side: Side, units: Unit[] = state.units) {
+  const tile = state.map[y]?.[x] ?? null;
+  if (!tile) return false;
+
+  const enemySurfaceUnit = units.some(
+    (unit) => unit.x === x && unit.y === y && getOccupancyLayer(getUnitStats(unit).domain) === "surface" && unit.owner !== side
+  );
+  if (enemySurfaceUnit) return false;
+
+  const friendlySurfaceCount = getSurfaceUnitsAtForSide(units, x, y, side).length;
+  return friendlySurfaceCount < getSurfaceCapacityAtTile(tile, side);
+}
+
 function getAirCapacityAtTile(state: GameState, x: number, y: number, side: Side, unitType?: UnitType) {
   const tile = state.map[y]?.[x] ?? null;
   if (!tile) return 0;
@@ -651,6 +678,13 @@ function canStackAirUnitAt(state: GameState, x: number, y: number, side: Side, u
   if (capacity <= 0) return false;
   const friendlyAirCount = getAirUnitsAtForSide(units, x, y, side).length;
   return friendlyAirCount < capacity;
+}
+
+function canUnitOccupyTile(state: GameState, x: number, y: number, side: Side, unitType: UnitType, units: Unit[] = state.units) {
+  const domain = getUnitDefinition(unitType).domain;
+  if (domain === "air") return canStackAirUnitAt(state, x, y, side, unitType, units);
+  if (domain === "sea") return !getBlockingUnitAt(units, x, y, "sea");
+  return canStackSurfaceUnitAt(state, x, y, side, units);
 }
 
 export function getBlockingUnitAt(units: Unit[], x: number, y: number, domain: UnitDomain) {
@@ -1225,11 +1259,7 @@ export function getReachableMoves(state: GameState, unit: Unit | null): Reachabl
 
       let blockingOccupant = getVisibleUnitAtForSide(state, nx, ny, unit.owner, getUnitStats(unit).domain);
       const attackableOccupant = getAttackableVisibleUnitAtForSide(state, nx, ny, unit.owner, unit);
-      if (
-        getUnitStats(unit).domain === "air" &&
-        blockingOccupant?.owner === unit.owner &&
-        canStackAirUnitAt(state, nx, ny, unit.owner, unit.type)
-      ) {
+      if (blockingOccupant?.owner === unit.owner && canUnitOccupyTile(state, nx, ny, unit.owner, unit.type)) {
         blockingOccupant = null;
       }
       if (blockingOccupant && blockingOccupant.owner === unit.owner) continue;
@@ -1325,11 +1355,7 @@ export function getReachableMovesFromIntel(state: GameState, unit: Unit | null):
 
       let blockingOccupant = getVisibleUnitAtForSide(state, nx, ny, unit.owner, getUnitStats(unit).domain);
       const attackableOccupant = getAttackableVisibleUnitAtForSide(state, nx, ny, unit.owner, unit);
-      if (
-        getUnitStats(unit).domain === "air" &&
-        blockingOccupant?.owner === unit.owner &&
-        canStackAirUnitAt(state, nx, ny, unit.owner, unit.type)
-      ) {
+      if (blockingOccupant?.owner === unit.owner && canUnitOccupyTile(state, nx, ny, unit.owner, unit.type)) {
         blockingOccupant = null;
       }
       if (blockingOccupant && blockingOccupant.owner === unit.owner) continue;
@@ -1928,7 +1954,7 @@ function processCityProduction(state: GameState, side: Side) {
       const spawnTile = getSpawnTileForProduction(state, tile, tile.production.unitType, units, tile.production);
       const definition = getUnitDefinition(tile.production.unitType);
 
-      if (!spawnTile || getBlockingUnitAt(units, spawnTile.x, spawnTile.y, definition.domain)) {
+      if (!spawnTile || !canUnitOccupyTile(state, spawnTile.x, spawnTile.y, side, tile.production.unitType, units)) {
         tile.production = { ...tile.production, turnsRemaining: 0 };
         logs.push(
           side === "player"
@@ -2134,7 +2160,7 @@ function recruitUnit(state: GameState, side: Side, unitType: UnitType, x: number
   const seaSpawn = definition.domain === "sea" ? { spawnX, spawnY } : undefined;
   const spawnTile = getSpawnTileForProduction(state, tile, unitType, state.units, seaSpawn);
   if (!spawnTile) return state;
-  if (getBlockingUnitAt(state.units, spawnTile.x, spawnTile.y, definition.domain)) return state;
+  if (!canUnitOccupyTile(state, spawnTile.x, spawnTile.y, side, unitType, state.units)) return state;
   if (state.credits[side] < definition.cost) return state;
   const nextMap = state.map.map((row) => row.map((cell) => cloneTile(cell)));
   nextMap[y][x].production = {

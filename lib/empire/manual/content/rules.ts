@@ -18,6 +18,7 @@ export const RULE_ENTRIES: ManualRuleEntry[] = [
         title: "Fortification And Entrenchment",
         body: [
           "Units that hold position fortify. City defenders benefit from the site as well as their own fortification status.",
+          "Owned cities can hold a small friendly surface garrison stack, so one dug-in defender does not consume the city's land-production slot.",
           "Infantry that holds position also entrenches, gaining a stronger damage reduction than standard fortification.",
           "Some attackers ignore fortification entirely, which makes them ideal for cracking prepared defenses.",
         ],

@@ -21,6 +21,7 @@ If this document disagrees with the implementation in `lib/empire/game.ts`, `lib
 | `OUTPOST_MAX_HP` | 12 | Outpost structure HP |
 | `OUTPOST_ARMOR` | 2 | Outpost structure armor |
 | `AIR_SUPPORT_PER_CITY` | 2 | Total aircraft support capacity granted per owned city |
+| `CITY_SURFACE_CAPACITY` | 2 | Friendly surface-unit garrison capacity inside an owned city |
 | `ASW_DESTROYER_SUB_ATTACK_BONUS` | 2 | Bonus attack applied by ASW destroyers against submarines |
 
 ## Unit Stats
