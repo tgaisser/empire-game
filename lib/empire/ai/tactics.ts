@@ -202,6 +202,7 @@ function shouldRetreat(unit: Unit, mission: AiUnitMission | null, state: GameSta
   if (stats.maxTurnsAwayFromBase && unit.turnsAwayFromBase >= stats.maxTurnsAwayFromBase - 1) return true;
   if (hpRatio <= 0.55 && localThreat > localSupport * 1.1) return true;
   if (mission?.missionType === "hold-site" && hpRatio <= 0.45 && localThreat > localSupport) return true;
+  if ((mission?.missionType === "stage-assault" || mission?.missionType === "escort-expedition") && localThreat > localSupport * 1.05) return true;
   if (isHighValueUnit && hpRatio <= 0.7 && localThreat > localSupport * 1.15) return true;
   if (unit.type === "troop-transport" && (unit.carriedTroops?.length ?? 0) > 0 && localThreat > localSupport * 0.85) return true;
 
@@ -217,6 +218,8 @@ function scoreDefensiveValue(mission: AiUnitMission | null, move: ReachableMove)
 
 function chooseBestCombatMove(unit: Unit, mission: AiUnitMission | null, state: GameState) {
   if (!getUnitStats(unit).canAttack) return null;
+  if (mission?.missionType === "stage-assault" && ["troop-transport", "engineer", "special-ops"].includes(unit.type)) return null;
+  if (mission?.missionType === "escort-expedition" && ["carrier", "troop-transport"].includes(unit.type)) return null;
   const attacks = getReachableMoves(state, unit).filter((move) => move.occupiedByEnemy);
   if (!attacks.length) return null;
 
@@ -234,14 +237,22 @@ function chooseBestCombatMove(unit: Unit, mission: AiUnitMission | null, state: 
           ? 18
           : mission?.missionType === "advance-on-city" && tile.city
             ? 10
+            : mission?.missionType === "escort-expedition"
+              ? -8
+              : mission?.missionType === "stage-assault" && unit.type === "troop-transport"
+                ? -12
             : 0;
       const preservationPenalty =
         ["carrier", "troop-transport", "bomber", "engineer"].includes(unit.type) && threat > support
           ? (threat - support) * 0.3
           : 0;
+      const unsupportedAssaultPenalty =
+        tile.city && mission && ["advance-on-city", "capture-city"].includes(mission.missionType) && support < threat * 0.9
+          ? (threat - support) * 0.45 + 8
+          : 0;
       return {
         move,
-        score: combatScore + support * 0.35 - threat * 0.45 + defenseBias + objectiveBias - preservationPenalty - move.cost,
+        score: combatScore + support * 0.35 - threat * 0.45 + defenseBias + objectiveBias - preservationPenalty - unsupportedAssaultPenalty - move.cost,
       };
     })
     .sort((a, b) => b.score - a.score);
@@ -249,6 +260,25 @@ function chooseBestCombatMove(unit: Unit, mission: AiUnitMission | null, state: 
   if (!ranked.length) return null;
   if (ranked[0].score < 6) return null;
   return ranked[0].move;
+}
+
+function shouldHoldMissionPosition(unit: Unit, mission: AiUnitMission | null) {
+  if (!mission) return false;
+  if (mission.missionType === "hold-site") {
+    return unit.x === mission.targetX && unit.y === mission.targetY;
+  }
+  if (mission.missionType === "stage-assault") {
+    if (unit.type === "troop-transport" && (unit.carriedTroops?.length ?? 0) > 0 && mission.approachX !== undefined && mission.approachY !== undefined) {
+      return unit.x === mission.approachX && unit.y === mission.approachY;
+    }
+    const stagingX = mission.stagingX ?? mission.targetX;
+    const stagingY = mission.stagingY ?? mission.targetY;
+    return unit.x === stagingX && unit.y === stagingY;
+  }
+  if (mission.missionType === "escort-expedition" && mission.approachX !== undefined && mission.approachY !== undefined) {
+    return unit.x === mission.approachX && unit.y === mission.approachY;
+  }
+  return false;
 }
 
 export function chooseTacticalMove(unit: Unit, mission: AiUnitMission | null, state: GameState, aiOmniscience = false) {
@@ -261,6 +291,10 @@ export function chooseTacticalMove(unit: Unit, mission: AiUnitMission | null, st
 
   const combatMove = chooseBestCombatMove(unit, mission, state);
   if (combatMove) return combatMove;
+
+  if (shouldHoldMissionPosition(unit, mission)) {
+    return null;
+  }
 
   if (mission) {
     return chooseMoveForMission(unit, mission, state, aiOmniscience);

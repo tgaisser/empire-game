@@ -38,6 +38,14 @@ function executeAiProductionPhase(state: GameState) {
     `AI threat summary: ${plan.context.threatSummary.threatenedSites.length} threatened site(s), ${plan.context.threatSummary.knownEnemyCityCount} known enemy city target(s), ${plan.context.threatSummary.unexploredTileCount} unexplored tile(s).`
   );
 
+  const operationSummary = plan.operations
+    .slice(0, 4)
+    .map((operation) => `${operation.type}:${operation.stage}@${getLocationLabel(operation.targetX, operation.targetY)}`)
+    .join(" | ");
+  if (operationSummary) {
+    nextState = addLog(nextState, `AI operations: ${operationSummary}.`);
+  }
+
   const missionSummary = plan.unitMissions
     .slice(0, 5)
     .map((mission) => `${mission.unitType}:${mission.role}->${mission.missionType}@${getLocationLabel(mission.targetX, mission.targetY)}`)
@@ -107,7 +115,26 @@ export function runAiTurnWithPlayback(current: GameState, options?: { aiOmniscie
   state = productionPhase.state;
   const unitMissionMap = new Map(productionPhase.plan.unitMissions.map((mission) => [mission.unitId, mission] as const));
 
-  const aiUnits = state.units.filter((unit) => unit.owner === "ai");
+  const getMissionExecutionPriority = (unitId: number) => {
+    const mission = unitMissionMap.get(unitId);
+    if (!mission) return 40;
+    if (mission.missionType === "stage-assault" && mission.unitType !== "troop-transport") return 110;
+    if (mission.missionType === "hold-site") return 102;
+    if (mission.unitType === "engineer") return 98;
+    if (mission.missionType === "stage-assault" && mission.unitType === "troop-transport") return 92;
+    if (mission.missionType === "escort-expedition") return 84;
+    if (mission.missionType === "intercept-threat") return 78;
+    if (mission.missionType === "capture-city" || mission.missionType === "advance-on-city") return 72;
+    if (mission.missionType === "strike-target") return 68;
+    return 54;
+  };
+  const aiUnits = state.units
+    .filter((unit) => unit.owner === "ai")
+    .sort((a, b) => {
+      const priorityDelta = getMissionExecutionPriority(b.id) - getMissionExecutionPriority(a.id);
+      if (priorityDelta !== 0) return priorityDelta;
+      return b.hp - a.hp;
+    });
 
   for (const aiUnit of aiUnits) {
     const liveUnit = state.units.find((unit) => unit.id === aiUnit.id);

@@ -1,3 +1,5 @@
+import { DIRECTIONS } from "@/lib/empire/config";
+import { getTerrainMoveCost } from "@/lib/empire/game";
 import type { GameState, Side, Tile, Unit } from "@/lib/empire/types";
 
 export type AiThreatenedSite = {
@@ -31,6 +33,33 @@ export type AiStrategicGoal = {
   summary: string;
 };
 
+export type AiOperationType =
+  | "defense"
+  | "expansion"
+  | "offense"
+  | "recon"
+  | "naval-control"
+  | "amphibious-assault";
+
+export type AiOperationStage = "forming" | "staging" | "executing";
+
+export type AiOperation = {
+  id: string;
+  type: AiOperationType;
+  priority: number;
+  targetX: number;
+  targetY: number;
+  stagingX: number;
+  stagingY: number;
+  approachX?: number;
+  approachY?: number;
+  requiresTransport: boolean;
+  requiresEscort: boolean;
+  stage: AiOperationStage;
+  goalType: AiStrategicGoalType | "fallback";
+  summary: string;
+};
+
 export type AiUnitRole =
   | "garrison"
   | "line-attacker"
@@ -52,7 +81,9 @@ export type AiUnitMissionType =
   | "intercept-threat"
   | "support-front"
   | "strike-target"
-  | "screen-fleet";
+  | "screen-fleet"
+  | "stage-assault"
+  | "escort-expedition";
 
 export type AiUnitMission = {
   unitId: number;
@@ -62,6 +93,13 @@ export type AiUnitMission = {
   targetX: number;
   targetY: number;
   goalType: AiStrategicGoalType | "fallback";
+  operationId: string | null;
+  operationType: AiOperationType | null;
+  stagingX?: number;
+  stagingY?: number;
+  approachX?: number;
+  approachY?: number;
+  requiresTransport?: boolean;
   summary: string;
 };
 
@@ -81,6 +119,30 @@ function getLocationLabel(tile: Tile | Pick<Tile, "x" | "y">) {
 
 function inBounds(x: number, y: number, width: number, height: number) {
   return x >= 0 && y >= 0 && x < width && y < height;
+}
+
+function createProbeUnit(type: Unit["type"], x: number, y: number, owner: Side = "ai"): Unit {
+  return {
+    id: -1,
+    owner,
+    type,
+    x,
+    y,
+    hp: 10,
+    moveSpent: 0,
+    fortified: false,
+    entrenched: false,
+    sentry: false,
+    concealed: false,
+    turnsAwayFromBase: 0,
+    bombsRemaining: null,
+    torpedoesRemaining: null,
+    cruiseMissilesRemaining: null,
+    droneTargetX: null,
+    droneTargetY: null,
+    carriedSpecialOps: null,
+    carriedTroops: null,
+  };
 }
 
 function getDetectedEnemyUnits(state: GameState, side: Side) {
@@ -108,6 +170,177 @@ function scoreThreatAtSite(site: Tile, enemyUnits: Unit[]) {
   }
 
   return threatScore;
+}
+
+function hasAdjacentWater(state: GameState, x: number, y: number) {
+  return DIRECTIONS.some(([dx, dy]) => {
+    const nx = x + dx;
+    const ny = y + dy;
+    return inBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].terrain === "water";
+  });
+}
+
+function getCoastalAiSites(state: GameState) {
+  return state.map.flat().filter((tile) => {
+    if (tile.owner !== "ai") return false;
+    if (!(tile.city || tile.improvement?.type === "port" || tile.improvement?.type === "airfield")) return false;
+    return hasAdjacentWater(state, tile.x, tile.y);
+  });
+}
+
+function hasLandRouteIgnoringUnits(state: GameState, start: Pick<Tile, "x" | "y">, target: Pick<Tile, "x" | "y">, unitType: Unit["type"]) {
+  const frontier = [{ x: start.x, y: start.y, cost: 0 }];
+  const bestCost = new Map<string, number>([[`${start.x},${start.y}`, 0]]);
+  const probe = createProbeUnit(unitType, start.x, start.y);
+
+  while (frontier.length > 0) {
+    frontier.sort((a, b) => a.cost - b.cost);
+    const current = frontier.shift();
+    if (!current) break;
+    if (current.x === target.x && current.y === target.y) return true;
+
+    for (const [dx, dy] of DIRECTIONS) {
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+      if (!inBounds(nx, ny, state.mapWidth, state.mapHeight)) continue;
+      const tile = state.map[ny][nx];
+      const moveCost = getTerrainMoveCost(state, probe, tile);
+      if (moveCost >= 999) continue;
+      const totalCost = current.cost + moveCost;
+      const tileKey = `${nx},${ny}`;
+      const previous = bestCost.get(tileKey);
+      if (previous !== undefined && previous <= totalCost) continue;
+      bestCost.set(tileKey, totalCost);
+      frontier.push({ x: nx, y: ny, cost: totalCost });
+    }
+  }
+
+  return false;
+}
+
+function findBestFriendlyStagingSite(state: GameState, target: Pick<Tile, "x" | "y">) {
+  const coastalSites = getCoastalAiSites(state);
+  if (coastalSites.length === 0) return null;
+  return [...coastalSites].sort((a, b) => distance(a, target) - distance(b, target))[0] ?? null;
+}
+
+function findLandingPlan(state: GameState, target: Pick<Tile, "x" | "y">, stagingSite: Pick<Tile, "x" | "y">) {
+  let bestLanding: { x: number; y: number } | null = null;
+  let bestApproach: { x: number; y: number } | null = null;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (const row of state.map) {
+    for (const tile of row) {
+      if (tile.terrain === "water") continue;
+      if (!hasAdjacentWater(state, tile.x, tile.y)) continue;
+      if (!hasLandRouteIgnoringUnits(state, tile, target, "infantry")) continue;
+
+      const approachTiles = DIRECTIONS
+        .map(([dx, dy]) => ({ x: tile.x + dx, y: tile.y + dy }))
+        .filter((candidate) => inBounds(candidate.x, candidate.y, state.mapWidth, state.mapHeight))
+        .filter((candidate) => state.map[candidate.y][candidate.x].terrain === "water");
+      if (approachTiles.length === 0) continue;
+
+      const approach = approachTiles.sort((a, b) => distance(a, stagingSite) - distance(b, stagingSite))[0];
+      const score = distance(tile, target) * 4 + distance(approach, stagingSite);
+      if (score < bestScore) {
+        bestScore = score;
+        bestLanding = { x: tile.x, y: tile.y };
+        bestApproach = approach;
+      }
+    }
+  }
+
+  if (!bestLanding || !bestApproach) return null;
+  return { landing: bestLanding, approach: bestApproach };
+}
+
+function createObjectiveOperation(state: GameState, goal: AiStrategicGoal, aiUnits: Unit[]): AiOperation {
+  const captureUnits = aiUnits.filter((unit) => ["infantry", "tank", "scout", "engineer", "special-ops"].includes(unit.type));
+  const reachableByLand = captureUnits.some((unit) => hasLandRouteIgnoringUnits(state, unit, goal, unit.type));
+  const stagingSite = findBestFriendlyStagingSite(state, goal);
+  const landingPlan = !reachableByLand && stagingSite ? findLandingPlan(state, goal, stagingSite) : null;
+  const requiresTransport = !reachableByLand && Boolean(stagingSite && landingPlan);
+  const stage =
+    !requiresTransport
+      ? "executing"
+      : state.units.some((unit) => unit.owner === "ai" && unit.type === "troop-transport")
+        ? "staging"
+        : "forming";
+
+  return {
+    id: `${goal.type}:${goal.x},${goal.y}`,
+    type:
+      goal.type === "capture-neutral-city"
+        ? requiresTransport
+          ? "amphibious-assault"
+          : "expansion"
+        : requiresTransport
+          ? "amphibious-assault"
+          : "offense",
+    priority: goal.score + (requiresTransport ? 10 : 0),
+    targetX: goal.x,
+    targetY: goal.y,
+    stagingX: stagingSite?.x ?? goal.x,
+    stagingY: stagingSite?.y ?? goal.y,
+    approachX: landingPlan?.approach.x,
+    approachY: landingPlan?.approach.y,
+    requiresTransport,
+    requiresEscort: requiresTransport,
+    stage,
+    goalType: goal.type,
+    summary:
+      requiresTransport && stagingSite && landingPlan
+        ? `${goal.summary}; stage from ${getLocationLabel(stagingSite)} and land via ${getLocationLabel(landingPlan.landing)}`
+        : goal.summary,
+  };
+}
+
+function createNavalControlOperations(state: GameState, aiUnits: Unit[], operations: AiOperation[]) {
+  const enemySeaUnits = getDetectedEnemyUnits(state, "ai").filter((unit) =>
+    ["destroyer", "troop-transport", "carrier", "submarine", "ssbn", "fighter", "bomber", "chopper", "drone-swarm"].includes(unit.type)
+  );
+  const navalOperations: AiOperation[] = [];
+  const aiSeaPower = aiUnits.filter((unit) => ["destroyer", "troop-transport", "carrier", "submarine", "ssbn"].includes(unit.type));
+
+  if (enemySeaUnits.length > 0 && aiSeaPower.length > 0) {
+    const focal = [...enemySeaUnits].sort((a, b) => distance(aiSeaPower[0], a) - distance(aiSeaPower[0], b))[0];
+    navalOperations.push({
+      id: `naval-control:${focal.x},${focal.y}`,
+      type: "naval-control",
+      priority: 74,
+      targetX: focal.x,
+      targetY: focal.y,
+      stagingX: focal.x,
+      stagingY: focal.y,
+      requiresTransport: false,
+      requiresEscort: false,
+      stage: "executing",
+      goalType: "fallback",
+      summary: `Contest enemy naval pressure near ${getLocationLabel(focal)}`,
+    });
+  }
+
+  for (const operation of operations.filter((candidate) => candidate.requiresEscort)) {
+    navalOperations.push({
+      id: `escort:${operation.id}`,
+      type: "naval-control",
+      priority: operation.priority - 4,
+      targetX: operation.approachX ?? operation.targetX,
+      targetY: operation.approachY ?? operation.targetY,
+      stagingX: operation.stagingX,
+      stagingY: operation.stagingY,
+      approachX: operation.approachX,
+      approachY: operation.approachY,
+      requiresTransport: false,
+      requiresEscort: false,
+      stage: operation.stage,
+      goalType: operation.goalType,
+      summary: `Escort corridor for ${operation.summary.toLowerCase()}`,
+    });
+  }
+
+  return navalOperations;
 }
 
 export function createAiThreatSummary(state: GameState): AiThreatSummary {
@@ -156,9 +389,9 @@ export function planAiStrategicGoals(state: GameState, threatSummary: AiThreatSu
   const knownNeutralCities = knownTiles.filter((tile) => tile.city && tile.owner === null);
   const aiUnits = state.units.filter((unit) => unit.owner === "ai");
   const capturingUnits = aiUnits.filter((unit) => ["infantry", "tank", "scout", "engineer", "special-ops"].includes(unit.type));
-  const knownEnemyAirUnits = getDetectedEnemyUnits(state, "ai").filter((unit) => state.units.find((candidate) => candidate.id === unit.id)?.type && unit.type !== "infantry").filter((unit) => {
-    return ["chopper", "fighter", "bomber", "drone-swarm"].includes(unit.type);
-  });
+  const knownEnemyAirUnits = getDetectedEnemyUnits(state, "ai").filter((unit) =>
+    ["chopper", "fighter", "bomber", "drone-swarm"].includes(unit.type)
+  );
 
   for (const site of threatSummary.threatenedSites.slice(0, 3)) {
     goals.push({
@@ -245,6 +478,108 @@ export function planAiStrategicGoals(state: GameState, threatSummary: AiThreatSu
   return goals.sort((a, b) => b.score - a.score);
 }
 
+export function planAiOperations(state: GameState, goals: AiStrategicGoal[], threatSummary: AiThreatSummary): AiOperation[] {
+  const operations: AiOperation[] = [];
+  const aiUnits = state.units.filter((unit) => unit.owner === "ai");
+
+  for (const goal of goals) {
+    if (goal.type === "defend-city") {
+      operations.push({
+        id: `${goal.type}:${goal.x},${goal.y}`,
+        type: "defense",
+        priority: goal.score,
+        targetX: goal.x,
+        targetY: goal.y,
+        stagingX: goal.x,
+        stagingY: goal.y,
+        requiresTransport: false,
+        requiresEscort: false,
+        stage: "executing",
+        goalType: goal.type,
+        summary: goal.summary,
+      });
+      continue;
+    }
+
+    if (goal.type === "capture-neutral-city" || goal.type === "attack-enemy-city") {
+      operations.push(createObjectiveOperation(state, goal, aiUnits));
+      continue;
+    }
+
+    if (goal.type === "scout-unexplored") {
+      operations.push({
+        id: `${goal.type}:${goal.x},${goal.y}`,
+        type: "recon",
+        priority: goal.score,
+        targetX: goal.x,
+        targetY: goal.y,
+        stagingX: goal.x,
+        stagingY: goal.y,
+        requiresTransport: false,
+        requiresEscort: false,
+        stage: "executing",
+        goalType: goal.type,
+        summary: goal.summary,
+      });
+      continue;
+    }
+
+    if (goal.type === "intercept-air-threat") {
+      operations.push({
+        id: `${goal.type}:${goal.x},${goal.y}`,
+        type: "defense",
+        priority: goal.score,
+        targetX: goal.x,
+        targetY: goal.y,
+        stagingX: goal.x,
+        stagingY: goal.y,
+        requiresTransport: false,
+        requiresEscort: false,
+        stage: "executing",
+        goalType: goal.type,
+        summary: goal.summary,
+      });
+      continue;
+    }
+
+    operations.push({
+      id: `${goal.type}:${goal.x},${goal.y}`,
+      type: "defense",
+      priority: goal.score,
+      targetX: goal.x,
+      targetY: goal.y,
+      stagingX: goal.x,
+      stagingY: goal.y,
+      requiresTransport: false,
+      requiresEscort: false,
+      stage: "executing",
+      goalType: goal.type,
+      summary: goal.summary,
+    });
+  }
+
+  const navalOperations = createNavalControlOperations(state, aiUnits, operations);
+  const fallbackThreat = threatSummary.threatenedSites[0];
+  if (navalOperations.length === 0 && fallbackThreat && hasAdjacentWater(state, fallbackThreat.x, fallbackThreat.y)) {
+    navalOperations.push({
+      id: `naval-control:${fallbackThreat.x},${fallbackThreat.y}`,
+      type: "naval-control",
+      priority: 58,
+      targetX: fallbackThreat.x,
+      targetY: fallbackThreat.y,
+      stagingX: fallbackThreat.x,
+      stagingY: fallbackThreat.y,
+      requiresTransport: false,
+      requiresEscort: false,
+      stage: "executing",
+      goalType: "fallback",
+      summary: `Guard coastal approaches near ${fallbackThreat.name}`,
+    });
+  }
+
+  return [...operations, ...navalOperations].sort((a, b) => b.priority - a.priority);
+}
+
 export function classifyAiUnitRole(unit: Unit): AiUnitRole {
   if (unit.type === "scout") return "scout";
   if (unit.type === "fighter") return "interceptor";
@@ -258,81 +593,113 @@ export function classifyAiUnitRole(unit: Unit): AiUnitRole {
   return "line-attacker";
 }
 
-function getRoleGoalAffinity(role: AiUnitRole, goalType: AiStrategicGoalType) {
-  if (role === "garrison") {
-    if (goalType === "defend-city") return 28;
-    if (goalType === "capture-neutral-city") return 20;
-    if (goalType === "reinforce-front") return 12;
-    if (goalType === "scout-unexplored") return 8;
+function getRoleOperationAffinity(role: AiUnitRole, operation: AiOperation) {
+  if (operation.type === "defense") {
+    if (role === "garrison") return 32;
+    if (role === "interceptor") return 24;
+    if (role === "line-attacker") return 16;
+    if (role === "bombardment") return 12;
+    if (role === "fleet-screen") return 8;
   }
-  if (role === "line-attacker") {
-    if (goalType === "attack-enemy-city") return 26;
-    if (goalType === "reinforce-front") return 16;
-    if (goalType === "capture-neutral-city") return 14;
-    if (goalType === "scout-unexplored") return 6;
+
+  if (operation.type === "expansion" || operation.type === "offense") {
+    if (role === "garrison") return 22;
+    if (role === "line-attacker") return 26;
+    if (role === "scout") return 12;
+    if (role === "bombardment") return operation.type === "offense" ? 24 : 12;
+    if (role === "interceptor") return 10;
+    if (role === "specialist") return 16;
+    if (role === "transport-support" && operation.requiresTransport) return 26;
+    if (role === "fleet-screen" && operation.requiresEscort) return 18;
+    if (role === "fleet-strike" && operation.requiresEscort) return 16;
+    if (role === "carrier-core" && operation.requiresEscort) return 18;
   }
-  if (role === "scout") {
-    if (goalType === "scout-unexplored") return 32;
-    if (goalType === "capture-neutral-city") return 8;
+
+  if (operation.type === "amphibious-assault") {
+    if (role === "transport-support") return 34;
+    if (role === "fleet-screen") return 28;
+    if (role === "fleet-strike") return 24;
+    if (role === "carrier-core") return 22;
+    if (role === "interceptor") return 16;
+    if (role === "garrison" || role === "line-attacker" || role === "specialist") return 22;
+    if (role === "bombardment") return 18;
   }
-  if (role === "interceptor") {
-    if (goalType === "intercept-air-threat") return 34;
-    if (goalType === "defend-city") return 10;
+
+  if (operation.type === "recon") {
+    if (role === "scout") return 36;
+    if (role === "specialist") return 14;
   }
-  if (role === "bombardment") {
-    if (goalType === "attack-enemy-city") return 24;
-    if (goalType === "reinforce-front") return 12;
-    if (goalType === "intercept-air-threat") return 14;
-  }
-  if (role === "fleet-screen") {
-    if (goalType === "defend-city") return 14;
-    if (goalType === "intercept-air-threat") return 20;
-    if (goalType === "reinforce-front") return 18;
-    if (goalType === "attack-enemy-city") return 12;
-  }
-  if (role === "fleet-strike") {
-    if (goalType === "capture-neutral-city") return 10;
-    if (goalType === "attack-enemy-city") return 18;
-    if (goalType === "reinforce-front") return 14;
-  }
-  if (role === "carrier-core") {
-    if (goalType === "attack-enemy-city") return 14;
-    if (goalType === "intercept-air-threat") return 18;
-    if (goalType === "reinforce-front") return 16;
-  }
-  if (role === "transport-support") {
-    if (goalType === "capture-neutral-city") return 18;
-    if (goalType === "attack-enemy-city") return 10;
-    if (goalType === "reinforce-front") return 8;
-  }
-  if (role === "specialist") {
-    if (goalType === "scout-unexplored") return 10;
-    if (goalType === "defend-city") return 8;
-    if (goalType === "attack-enemy-city") return 8;
+
+  if (operation.type === "naval-control") {
+    if (role === "fleet-screen") return 32;
+    if (role === "fleet-strike") return 30;
+    if (role === "carrier-core") return 22;
+    if (role === "interceptor") return 12;
+    if (role === "transport-support") return 10;
   }
 
   return 0;
 }
 
 function getRoleAssignmentPriority(role: AiUnitRole) {
+  if (role === "transport-support") return 104;
   if (role === "garrison") return 100;
   if (role === "interceptor") return 92;
-  if (role === "transport-support") return 88;
-  if (role === "carrier-core") return 84;
-  if (role === "fleet-screen") return 80;
+  if (role === "carrier-core") return 88;
+  if (role === "fleet-screen") return 84;
+  if (role === "fleet-strike") return 82;
   if (role === "line-attacker") return 74;
   if (role === "bombardment") return 70;
-  if (role === "fleet-strike") return 66;
   if (role === "scout") return 62;
   return 50;
 }
 
-function getMissionTypeFor(goalType: AiStrategicGoalType, role: AiUnitRole): AiUnitMissionType {
-  if (goalType === "defend-city") return "hold-site";
-  if (goalType === "capture-neutral-city") return "capture-city";
-  if (goalType === "attack-enemy-city") return role === "bombardment" ? "strike-target" : "advance-on-city";
-  if (goalType === "scout-unexplored") return "scout-sector";
-  if (goalType === "intercept-air-threat") return "intercept-threat";
+function getOperationDestination(unit: Unit, role: AiUnitRole, operation: AiOperation) {
+  if (operation.type === "recon") {
+    return { x: operation.targetX, y: operation.targetY };
+  }
+
+  if (operation.type === "naval-control") {
+    return { x: operation.approachX ?? operation.targetX, y: operation.approachY ?? operation.targetY };
+  }
+
+  if (operation.requiresTransport) {
+    if (role === "transport-support") {
+      return {
+        x: operation.stagingX,
+        y: operation.stagingY,
+      };
+    }
+
+    if (role === "fleet-screen" || role === "fleet-strike" || role === "carrier-core" || role === "interceptor") {
+      return {
+        x: operation.approachX ?? operation.stagingX,
+        y: operation.approachY ?? operation.stagingY,
+      };
+    }
+
+    if (["garrison", "line-attacker", "specialist"].includes(role) && unit.type !== "chopper") {
+      return { x: operation.stagingX, y: operation.stagingY };
+    }
+  }
+
+  return { x: operation.targetX, y: operation.targetY };
+}
+
+function getMissionTypeForOperation(unit: Unit, role: AiUnitRole, operation: AiOperation): AiUnitMissionType {
+  if (operation.type === "recon") return "scout-sector";
+  if (operation.type === "naval-control") return role === "fleet-strike" ? "strike-target" : "screen-fleet";
+  if (operation.type === "defense") return role === "interceptor" ? "intercept-threat" : "hold-site";
+  if (operation.requiresTransport) {
+    if (role === "transport-support" || role === "fleet-screen" || role === "fleet-strike" || role === "carrier-core" || role === "interceptor") {
+      return role === "transport-support" ? "stage-assault" : "escort-expedition";
+    }
+    if (["garrison", "line-attacker", "specialist"].includes(role) && unit.type !== "chopper") {
+      return "stage-assault";
+    }
+  }
+  if (operation.goalType === "capture-neutral-city") return "capture-city";
+  if (operation.goalType === "attack-enemy-city") return role === "bombardment" ? "strike-target" : "advance-on-city";
   return role === "fleet-screen" ? "screen-fleet" : "support-front";
 }
 
@@ -379,6 +746,8 @@ function getFallbackMission(state: GameState, role: AiUnitRole, unit: Unit, thre
       targetX: scoutTarget.x,
       targetY: scoutTarget.y,
       goalType: "fallback",
+      operationId: null,
+      operationType: null,
       summary: frontierTarget
         ? `${unit.type} probes the nearest frontier at ${getLocationLabel(frontierTarget)}`
         : `${unit.type} scouts locally while awaiting higher-priority goals`,
@@ -394,6 +763,8 @@ function getFallbackMission(state: GameState, role: AiUnitRole, unit: Unit, thre
       targetX: fallbackTarget.x,
       targetY: fallbackTarget.y,
       goalType: "fallback",
+      operationId: null,
+      operationType: null,
       summary: `${unit.type} holds near ${fallbackTarget.name} as reserve`,
     };
   }
@@ -407,6 +778,8 @@ function getFallbackMission(state: GameState, role: AiUnitRole, unit: Unit, thre
       targetX: frontierTarget.x,
       targetY: frontierTarget.y,
       goalType: "fallback",
+      operationId: null,
+      operationType: null,
       summary: `${unit.type} advances toward the frontier at ${getLocationLabel(frontierTarget)}`,
     };
   }
@@ -419,13 +792,15 @@ function getFallbackMission(state: GameState, role: AiUnitRole, unit: Unit, thre
     targetX: unit.x,
     targetY: unit.y,
     goalType: "fallback",
+    operationId: null,
+    operationType: null,
     summary: `${unit.type} remains in general reserve`,
   };
 }
 
 export function assignAiUnitMissions(
   state: GameState,
-  goals: AiStrategicGoal[],
+  operations: AiOperation[],
   threatSummary: AiThreatSummary
 ) {
   const aiUnits = state.units
@@ -436,49 +811,68 @@ export function assignAiUnitMissions(
       return b.hp - a.hp;
     });
   const missions: AiUnitMission[] = [];
-  const goalLoad = new Map<string, number>();
+  const operationLoad = new Map<string, number>();
+  const operationRoleLoad = new Map<string, number>();
 
   for (const unit of aiUnits) {
     const role = classifyAiUnitRole(unit);
-    let bestGoal: AiStrategicGoal | null = null;
+    let bestOperation: AiOperation | null = null;
     let bestScore = Number.NEGATIVE_INFINITY;
 
-    for (const goal of goals) {
-      const affinity = getRoleGoalAffinity(role, goal.type);
+    for (const operation of operations) {
+      const affinity = getRoleOperationAffinity(role, operation);
       if (affinity <= 0) continue;
 
-      const loadPenalty = (goalLoad.get(`${goal.type}:${goal.x},${goal.y}`) ?? 0) * 6;
-      const distancePenalty = distance(unit, goal) * 2;
-      const threatBias =
-        goal.type === "defend-city" && role === "garrison" && distance(unit, goal) <= 4
+      const destination = getOperationDestination(unit, role, operation);
+      const loadPenalty = (operationLoad.get(operation.id) ?? 0) * 5;
+      const rolePenalty = (operationRoleLoad.get(`${operation.id}:${role}`) ?? 0) * 8;
+      const distancePenalty = distance(unit, destination) * 2;
+      const stagingBias =
+        operation.requiresTransport && ["garrison", "line-attacker", "specialist"].includes(role) &&
+        !hasLandRouteIgnoringUnits(state, unit, { x: operation.targetX, y: operation.targetY }, unit.type)
           ? 12
-          : goal.type === "capture-neutral-city" && role === "transport-support"
-            ? 8
-            : 0;
-      const score = goal.score + affinity + threatBias - distancePenalty - loadPenalty;
+          : 0;
+      const defensiveBias =
+        operation.type === "defense" && distance(unit, { x: operation.targetX, y: operation.targetY }) <= 4
+          ? 14
+          : 0;
+      const escortBias =
+        operation.requiresEscort && ["fleet-screen", "fleet-strike", "carrier-core", "interceptor", "transport-support"].includes(role)
+          ? 10
+          : 0;
+      const score = operation.priority + affinity + stagingBias + defensiveBias + escortBias - distancePenalty - loadPenalty - rolePenalty;
 
       if (score > bestScore) {
         bestScore = score;
-        bestGoal = goal;
+        bestOperation = operation;
       }
     }
 
-    if (!bestGoal) {
+    if (!bestOperation) {
       missions.push(getFallbackMission(state, role, unit, threatSummary));
       continue;
     }
 
-    const goalKey = `${bestGoal.type}:${bestGoal.x},${bestGoal.y}`;
-    goalLoad.set(goalKey, (goalLoad.get(goalKey) ?? 0) + 1);
+    const destination = getOperationDestination(unit, role, bestOperation);
+    const missionType = getMissionTypeForOperation(unit, role, bestOperation);
+    operationLoad.set(bestOperation.id, (operationLoad.get(bestOperation.id) ?? 0) + 1);
+    operationRoleLoad.set(`${bestOperation.id}:${role}`, (operationRoleLoad.get(`${bestOperation.id}:${role}`) ?? 0) + 1);
     missions.push({
       unitId: unit.id,
       unitType: unit.type,
       role,
-      missionType: getMissionTypeFor(bestGoal.type, role),
-      targetX: bestGoal.x,
-      targetY: bestGoal.y,
-      goalType: bestGoal.type,
-      summary: `${unit.type} assigned ${getMissionTypeFor(bestGoal.type, role)} toward ${bestGoal.summary.toLowerCase()}`,
+      missionType,
+      targetX: destination.x,
+      targetY: destination.y,
+      goalType: bestOperation.goalType,
+      operationId: bestOperation.id,
+      operationType: bestOperation.type,
+      stagingX: bestOperation.stagingX,
+      stagingY: bestOperation.stagingY,
+      approachX: bestOperation.approachX,
+      approachY: bestOperation.approachY,
+      requiresTransport: bestOperation.requiresTransport,
+      summary: `${unit.type} assigned ${missionType} for ${bestOperation.summary.toLowerCase()}`,
     });
   }
 

@@ -71,10 +71,16 @@ function scoreMoveForMission(
   state: GameState,
   aiOmniscience = false
 ) {
-  const routeCost = estimateRouteCost(unit, { x: move.x, y: move.y }, { x: mission.targetX, y: mission.targetY }, state, aiOmniscience);
-  const directDistance = distance(move, { x: mission.targetX, y: mission.targetY });
+  const operationalTarget =
+    mission.missionType === "stage-assault" && unit.type === "troop-transport" && (unit.carriedTroops?.length ?? 0) > 0 && mission.approachX !== undefined && mission.approachY !== undefined
+      ? { x: mission.approachX, y: mission.approachY }
+      : mission.missionType === "escort-expedition" && mission.approachX !== undefined && mission.approachY !== undefined
+        ? { x: mission.approachX, y: mission.approachY }
+        : { x: mission.targetX, y: mission.targetY };
+  const routeCost = estimateRouteCost(unit, { x: move.x, y: move.y }, operationalTarget, state, aiOmniscience);
+  const directDistance = distance(move, operationalTarget);
   const unknownNeighbors = getUnknownNeighborCount(state, move.x, move.y);
-  const onObjective = move.x === mission.targetX && move.y === mission.targetY;
+  const onObjective = move.x === operationalTarget.x && move.y === operationalTarget.y;
 
   let score = 0;
 
@@ -98,6 +104,16 @@ function scoreMoveForMission(
     score -= directDistance * 7;
     score -= Number.isFinite(routeCost) ? routeCost * 3 : 35;
     score += move.occupiedByEnemy ? 12 : 0;
+  } else if (mission.missionType === "stage-assault") {
+    score += onObjective ? 36 : 0;
+    score -= directDistance * 6;
+    score -= Number.isFinite(routeCost) ? routeCost * 3 : 36;
+    score -= move.occupiedByEnemy ? 12 : 0;
+  } else if (mission.missionType === "escort-expedition") {
+    score += onObjective ? 24 : 0;
+    score -= directDistance * 6;
+    score -= Number.isFinite(routeCost) ? routeCost * 2 : 28;
+    score += move.occupiedByEnemy ? 4 : 0;
   } else if (mission.missionType === "strike-target") {
     score += onObjective ? 34 : 0;
     score -= directDistance * 6;
@@ -120,14 +136,20 @@ function scoreMoveForMission(
 export function chooseMoveForMission(unit: Unit, mission: AiUnitMission, state: GameState, aiOmniscience = false): ReachableMove | null {
   const reachable = unit.owner === "ai" && !aiOmniscience ? getReachableMovesFromIntel(state, unit) : getReachableMoves(state, unit);
   if (!reachable.length) return null;
+  const operationalTarget =
+    mission.missionType === "stage-assault" && unit.type === "troop-transport" && (unit.carriedTroops?.length ?? 0) > 0 && mission.approachX !== undefined && mission.approachY !== undefined
+      ? { x: mission.approachX, y: mission.approachY }
+      : mission.missionType === "escort-expedition" && mission.approachX !== undefined && mission.approachY !== undefined
+        ? { x: mission.approachX, y: mission.approachY }
+        : { x: mission.targetX, y: mission.targetY };
 
   const ranked = [...reachable].sort((a, b) => {
     const scoreDelta = scoreMoveForMission(unit, mission, b, state, aiOmniscience) - scoreMoveForMission(unit, mission, a, state, aiOmniscience);
     if (scoreDelta !== 0) return scoreDelta;
 
     const routeDelta =
-      estimateRouteCost(unit, { x: a.x, y: a.y }, { x: mission.targetX, y: mission.targetY }, state, aiOmniscience) -
-      estimateRouteCost(unit, { x: b.x, y: b.y }, { x: mission.targetX, y: mission.targetY }, state, aiOmniscience);
+      estimateRouteCost(unit, { x: a.x, y: a.y }, operationalTarget, state, aiOmniscience) -
+      estimateRouteCost(unit, { x: b.x, y: b.y }, operationalTarget, state, aiOmniscience);
     if (routeDelta !== 0) return routeDelta;
 
     return a.cost - b.cost;
@@ -140,7 +162,7 @@ export function chooseMoveForMission(unit: Unit, mission: AiUnitMission, state: 
     unit.owner === "ai" &&
     !aiOmniscience &&
     !Number.isFinite(
-      estimateRouteCost(unit, { x: bestMove.x, y: bestMove.y }, { x: mission.targetX, y: mission.targetY }, state, aiOmniscience)
+      estimateRouteCost(unit, { x: bestMove.x, y: bestMove.y }, operationalTarget, state, aiOmniscience)
     ) &&
     mission.missionType !== "scout-sector"
   ) {

@@ -26,6 +26,14 @@ function getKnownNeutralCityTargets(state: GameState) {
   return state.aiIntel.flat().filter((tile): tile is Tile => Boolean(tile?.city && tile.owner === null));
 }
 
+function getMissionForUnit(plan: AiTurnPlan, unitId: number) {
+  return plan.unitMissions.find((mission) => mission.unitId === unitId) ?? null;
+}
+
+function isHighValueTransportCargo(unit: Unit) {
+  return ["infantry", "tank", "engineer", "special-ops", "scout"].includes(unit.type);
+}
+
 function chooseEngineerImprovement(unit: Unit, state: GameState, plan: AiTurnPlan) {
   const options = getEngineerBuildOptions(state, unit);
   const enemyAirPressure = plan.context.knownEnemyCountsByDomain.air;
@@ -98,29 +106,66 @@ function chooseEngineerImprovement(unit: Unit, state: GameState, plan: AiTurnPla
   return null;
 }
 
-function chooseTroopTransportAction(unit: Unit, state: GameState) {
+function chooseTroopTransportAction(unit: Unit, state: GameState, plan: AiTurnPlan) {
+  const transportMission = getMissionForUnit(plan, unit.id);
+  const missionObjective =
+    transportMission?.approachX !== undefined && transportMission?.approachY !== undefined
+      ? { x: transportMission.approachX, y: transportMission.approachY }
+      : transportMission
+        ? { x: transportMission.targetX, y: transportMission.targetY }
+        : null;
   const deploymentTargets = getTroopTransportDeploymentTargets(state, unit);
   if (deploymentTargets.length > 0 && (unit.carriedTroops?.length ?? 0) > 0) {
     const priority = [...getKnownNeutralCityTargets(state), ...getKnownEnemyCityTargets(state)];
-    const target = [...deploymentTargets].sort((a, b) => {
+    const rankedTargets = [...deploymentTargets].sort((a, b) => {
       const proximityA = priority.length ? Math.min(...priority.map((city) => distance(a, city))) : 999;
       const proximityB = priority.length ? Math.min(...priority.map((city) => distance(b, city))) : 999;
       const cargoType = unit.carriedTroops?.[0]?.type ?? "infantry";
       const templateUnit = { ...unit, type: cargoType, x: a.x, y: a.y } as Unit;
       const templateUnitB = { ...unit, type: cargoType, x: b.x, y: b.y } as Unit;
-      const scoreA = proximityA * 8 + scoreEnemyThreatAtPosition(templateUnit, a.x, a.y, state) - scoreFriendlySupportAtPosition(templateUnit, a.x, a.y, state) * 0.5;
-      const scoreB = proximityB * 8 + scoreEnemyThreatAtPosition(templateUnitB, b.x, b.y, state) - scoreFriendlySupportAtPosition(templateUnitB, b.x, b.y, state) * 0.5;
+      const missionBiasA = missionObjective ? distance(a, missionObjective) * 12 : 0;
+      const missionBiasB = missionObjective ? distance(b, missionObjective) * 12 : 0;
+      const scoreA =
+        missionBiasA +
+        proximityA * 8 +
+        scoreEnemyThreatAtPosition(templateUnit, a.x, a.y, state) -
+        scoreFriendlySupportAtPosition(templateUnit, a.x, a.y, state) * 0.5;
+      const scoreB =
+        missionBiasB +
+        proximityB * 8 +
+        scoreEnemyThreatAtPosition(templateUnitB, b.x, b.y, state) -
+        scoreFriendlySupportAtPosition(templateUnitB, b.x, b.y, state) * 0.5;
       return scoreA - scoreB;
-    })[0];
+    });
+    const target = rankedTargets[0];
+    if (!target) return null;
+    if (missionObjective && distance(target, missionObjective) > 5) {
+      const localThreat = scoreEnemyThreatAtPosition(unit, unit.x, unit.y, state);
+      const localSupport = scoreFriendlySupportAtPosition(unit, unit.x, unit.y, state);
+      if (localThreat <= localSupport + 2) {
+        return null;
+      }
+    }
     return { type: "unload_transport_troop" as const, transportUnitId: unit.id, x: target.x, y: target.y };
   }
 
   const loadTargets = getTroopTransportLoadTargets(state, unit);
   if (loadTargets.length > 0) {
-    const troop = [...loadTargets].sort((a, b) => {
-      const weight = (candidate: Unit) => (candidate.type === "tank" ? 30 : candidate.type === "infantry" ? 20 : 10) + candidate.hp;
-      return weight(b) - weight(a);
+    const stagedLoadTargets = transportMission?.stagingX !== undefined && transportMission?.stagingY !== undefined
+      ? loadTargets.filter((candidate) => distance(candidate, { x: transportMission.stagingX!, y: transportMission.stagingY! }) <= 3)
+      : loadTargets;
+    const targets = stagedLoadTargets.length > 0 ? stagedLoadTargets : loadTargets;
+    const troop = [...targets].sort((a, b) => {
+      const missionA = getMissionForUnit(plan, a.id);
+      const missionB = getMissionForUnit(plan, b.id);
+      const weight = (candidate: Unit, missionOperationId: string | null) =>
+        (candidate.type === "tank" ? 32 : candidate.type === "infantry" ? 22 : isHighValueTransportCargo(candidate) ? 18 : 10) +
+        candidate.hp +
+        (transportMission?.operationId && missionOperationId === transportMission.operationId ? 24 : 0) +
+        (missionOperationId && transportMission?.operationId !== missionOperationId ? -6 : 0);
+      return weight(b, missionB?.operationId ?? null) - weight(a, missionA?.operationId ?? null);
     })[0];
+    if (!troop) return null;
     return { type: "load_transport_troop" as const, transportUnitId: unit.id, troopUnitId: troop.id };
   }
 
@@ -200,7 +245,7 @@ export function executeAiUnitSpecialAction(state: GameState, unit: Unit, plan: A
     if (nextState !== state) return nextState;
   }
 
-  const transportAction = unit.type === "troop-transport" ? chooseTroopTransportAction(unit, state) : null;
+  const transportAction = unit.type === "troop-transport" ? chooseTroopTransportAction(unit, state, plan) : null;
   if (transportAction) {
     const nextState = applyCommand(state, { ...transportAction, side: "ai" } as never);
     if (nextState !== state) return nextState;

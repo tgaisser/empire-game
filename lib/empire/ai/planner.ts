@@ -1,8 +1,8 @@
 import { DIRECTIONS, UNIT_STATS } from "@/lib/empire/config";
 import { AIR_SUPPORT_PER_CITY, CITY_SURFACE_CAPACITY } from "@/lib/empire/data/rules";
-import { assignAiUnitMissions, createAiThreatSummary, planAiStrategicGoals } from "@/lib/empire/ai/strategy";
+import { assignAiUnitMissions, createAiThreatSummary, planAiOperations, planAiStrategicGoals } from "@/lib/empire/ai/strategy";
 import type { GameState, Side, Tile, Unit, UnitDomain, UnitType } from "@/lib/empire/types";
-import type { AiStrategicGoal, AiThreatSummary, AiUnitMission } from "@/lib/empire/ai/strategy";
+import type { AiOperation, AiStrategicGoal, AiThreatSummary, AiUnitMission } from "@/lib/empire/ai/strategy";
 
 type AiProductionSiteKind = "city" | "coastal-city" | "port" | "airfield";
 
@@ -44,6 +44,7 @@ export type AiProductionDecision = {
 export type AiTurnPlan = {
   context: AiContext;
   strategicGoals: AiStrategicGoal[];
+  operations: AiOperation[];
   unitMissions: AiUnitMission[];
   productionDecisions: AiProductionDecision[];
 };
@@ -241,7 +242,13 @@ function formatReason(reasons: string[]) {
   return reasons.slice(0, 3).join("; ");
 }
 
-function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: UnitType): CandidateBuild {
+function scoreUnitForSite(
+  context: AiContext,
+  site: AiProductionSite,
+  unitType: UnitType,
+  operations: AiOperation[],
+  unitMissions: AiUnitMission[]
+): CandidateBuild {
   const definition = UNIT_STATS[unitType];
   const aiTypeCount = context.aiCountsByType[unitType];
   const aiLand = context.aiCountsByDomain.land;
@@ -260,6 +267,16 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
   const aiBombers = context.aiCountsByType.bomber;
   const aiFighters = context.aiCountsByType.fighter;
   const aiChoppers = context.aiCountsByType.chopper;
+  const expeditionOperations = operations.filter((operation) => operation.requiresTransport);
+  const navalOperations = operations.filter((operation) => operation.type === "naval-control");
+  const stagedAssaultUnits = unitMissions.filter(
+    (mission) =>
+      mission.missionType === "stage-assault" &&
+      ["infantry", "tank", "scout", "engineer", "special-ops"].includes(mission.unitType)
+  ).length;
+  const escortMissionCount = unitMissions.filter((mission) => mission.missionType === "escort-expedition").length;
+  const transportNeed = Math.max(0, Math.ceil(stagedAssaultUnits / 2) - aiTransports);
+  const escortShortfall = Math.max(0, expeditionOperations.length * 2 - escortMissionCount);
   const siteThreatScore =
     context.threatSummary.threatenedSites.find((threatenedSite) => threatenedSite.x === site.x && threatenedSite.y === site.y)?.threatScore ?? 0;
   const isNavalMap =
@@ -300,6 +317,10 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       score += 10;
       reasons.push("credits are tight");
     }
+    if (transportNeed > 0 && aiLand >= Math.max(6, context.aiCityCount * 2)) {
+      score -= 12;
+      reasons.push("expedition lift is missing");
+    }
     score -= aiTypeCount * 4;
   } else if (unitType === "scout") {
     score += 20;
@@ -310,6 +331,10 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     if (context.aiCountsByType.scout === 0) {
       score += 14;
       reasons.push("no scout screen is active");
+    }
+    if (expeditionOperations.length > 0) {
+      score += 8;
+      reasons.push("amphibious plans need pathfinders");
     }
     score -= aiTypeCount * 9;
   } else if (unitType === "tank") {
@@ -324,6 +349,10 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     }
     if (aiLand <= context.aiCityCount) {
       score -= 6;
+    }
+    if (transportNeed > 0 && aiTransports === 0) {
+      score -= 16;
+      reasons.push("armor needs transports before more hulls");
     }
     score -= aiTypeCount * 3;
   } else if (unitType === "engineer") {
@@ -343,6 +372,10 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     if (context.aiRadarCount < Math.max(1, threatenedSiteCount) && enemyAir > 0) {
       score += 16;
       reasons.push("enemy air pressure justifies radar");
+    }
+    if (expeditionOperations.length > 0 && context.aiPortCount < Math.max(1, context.coastalCityCount)) {
+      score += 18;
+      reasons.push("expeditions need more embark points");
     }
     if (context.state.turn <= 2) {
       score -= 8;
@@ -391,6 +424,14 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       score += 12;
       reasons.push("capital ships need screening");
     }
+    if (escortShortfall > 0) {
+      score += 20;
+      reasons.push("active expeditions are under-escorted");
+    }
+    if (navalOperations.length > 0) {
+      score += 10;
+      reasons.push("sea control operations are active");
+    }
     score -= aiTypeCount * 4;
   } else if (unitType === "troop-transport") {
     score += 10;
@@ -405,6 +446,14 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     if (knownEnemyCities > 0 || context.unexploredTileCount > context.state.mapWidth) {
       score += 10;
       reasons.push("new objectives exist beyond the front");
+    }
+    if (transportNeed > 0) {
+      score += 28;
+      reasons.push("staged assault units are waiting for lift");
+    }
+    if (expeditionOperations.length > aiTransports) {
+      score += 18;
+      reasons.push("known objectives require sea crossings");
     }
     if (aiDestroyers === 0) {
       score -= 8;
@@ -427,6 +476,10 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     if (aiDestroyers < aiCarriers + 1) {
       score -= 10;
     }
+    if (escortShortfall > 1 && enemyAir > 0) {
+      score += 12;
+      reasons.push("expeditions need protected air cover");
+    }
     score -= aiCarriers * 18;
   } else if (unitType === "submarine") {
     score += 28;
@@ -441,6 +494,10 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
     if (aiDestroyers > 0) {
       score += 8;
       reasons.push("friendly destroyers support coordinated sea pressure");
+    }
+    if (navalOperations.length > 0 || expeditionOperations.length > 0) {
+      score += 12;
+      reasons.push("sea control pressure favors attack subs");
     }
     score -= aiTypeCount * 6;
   } else if (unitType === "ssbn") {
@@ -487,6 +544,10 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       score += 8;
       reasons.push("bombers need fighter escort");
     }
+    if (escortShortfall > 0) {
+      score += 8;
+      reasons.push("expeditions benefit from intercept cover");
+    }
     score -= aiTypeCount * 5;
   } else if (unitType === "bomber") {
     score += 26;
@@ -525,23 +586,6 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
   return { unitType, score, reasons };
 }
 
-function chooseBestProductionForSite(context: AiContext, site: AiProductionSite) {
-  const supported = getSupportedUnitsForSite(context, site);
-  const ranked = supported
-    .map((build) => {
-      const candidate = scoreUnitForSite(context, site, build.unitType);
-      return {
-        ...candidate,
-        spawnX: build.spawnX,
-        spawnY: build.spawnY,
-      };
-    })
-    .filter((candidate) => candidate.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  return ranked[0] ?? null;
-}
-
 function applyCommittedCounts(context: AiContext, decisions: AiProductionDecision[]): AiContext {
   if (decisions.length === 0) {
     return context;
@@ -562,7 +606,7 @@ function applyCommittedCounts(context: AiContext, decisions: AiProductionDecisio
   };
 }
 
-export function planAiProductionPhase(context: AiContext): AiProductionDecision[] {
+export function planAiProductionPhase(context: AiContext, operations: AiOperation[], unitMissions: AiUnitMission[]): AiProductionDecision[] {
   let creditsRemaining = context.state.credits.ai;
   const decisions: AiProductionDecision[] = [];
   const reservedSites = new Set<string>();
@@ -581,7 +625,18 @@ export function planAiProductionPhase(context: AiContext): AiProductionDecision[
           credits: { ...context.state.credits, ai: creditsRemaining },
         },
       };
-      const choice = chooseBestProductionForSite(simulatedContext, site);
+      const supported = getSupportedUnitsForSite(simulatedContext, site);
+      const choice = supported
+        .map((build) => {
+          const candidate = scoreUnitForSite(simulatedContext, site, build.unitType, operations, unitMissions);
+          return {
+            ...candidate,
+            spawnX: build.spawnX,
+            spawnY: build.spawnY,
+          };
+        })
+        .filter((candidate) => candidate.score > 0)
+        .sort((a, b) => b.score - a.score)[0] ?? null;
       if (!choice) continue;
       if (UNIT_STATS[choice.unitType].cost > creditsRemaining) continue;
 
@@ -613,12 +668,14 @@ export function planAiProductionPhase(context: AiContext): AiProductionDecision[
 export function planAiTurn(state: GameState): AiTurnPlan {
   const context = createAiContext(state);
   const strategicGoals = planAiStrategicGoals(state, context.threatSummary);
-  const unitMissions = assignAiUnitMissions(state, strategicGoals, context.threatSummary);
+  const operations = planAiOperations(state, strategicGoals, context.threatSummary);
+  const unitMissions = assignAiUnitMissions(state, operations, context.threatSummary);
 
   return {
     context,
     strategicGoals,
+    operations,
     unitMissions,
-    productionDecisions: planAiProductionPhase(context),
+    productionDecisions: planAiProductionPhase(context, operations, unitMissions),
   };
 }

@@ -131,6 +131,7 @@ export function runAiDiagnosticsForState(state: GameState): AiDiagnosticResult[]
   const aiUnits = state.units.filter((unit) => unit.owner === "ai");
   const missionIds = new Set(plan.unitMissions.map((mission) => mission.unitId));
   const reservedSites = new Set<string>();
+  const operationIds = new Set(plan.operations.map((operation) => operation.id));
   let hasInvalidDecision = false;
   let hasDuplicateDecision = false;
   let overspend = 0;
@@ -237,7 +238,55 @@ export function runAiDiagnosticsForState(state: GameState): AiDiagnosticResult[]
         ? `Engineers already have ${engineerOpportunityCount} available improvement target(s).`
         : engineerInQueue
           ? "Planner is preparing an engineer despite no current improvement action."
-          : "No engineer opportunity is active and no engineer is queued."
+        : "No engineer opportunity is active and no engineer is queued."
+    )
+  );
+
+  const undercoveredOperations = plan.operations.filter((operation) => {
+    const assigned = plan.unitMissions.filter((mission) => mission.operationId === operation.id);
+    if (operation.type === "naval-control") return assigned.length < 1;
+    if (operation.requiresTransport) return assigned.length < 3;
+    return assigned.length < 1;
+  });
+  results.push(
+    createDiagnosticResult(
+      "operation-coverage",
+      "Operation coverage",
+      undercoveredOperations.length === 0 ? "pass" : "warn",
+      undercoveredOperations.length === 0
+        ? `${operationIds.size} operation(s) have mission coverage.`
+        : `${undercoveredOperations.length} operation(s) are light on assigned units.`
+    )
+  );
+
+  const expeditionOperations = plan.operations.filter((operation) => operation.requiresTransport);
+  const stagedAssaultMissions = plan.unitMissions.filter((mission) => mission.missionType === "stage-assault");
+  const transportMissions = stagedAssaultMissions.filter((mission) => mission.unitType === "troop-transport");
+  results.push(
+    createDiagnosticResult(
+      "expedition-lift",
+      "Expedition lift",
+      expeditionOperations.length === 0 || transportMissions.length > 0 ? "pass" : "warn",
+      expeditionOperations.length === 0
+        ? "No amphibious expedition is currently required."
+        : transportMissions.length > 0
+          ? `${transportMissions.length} transport mission(s) support ${expeditionOperations.length} expedition(s).`
+          : `${expeditionOperations.length} expedition(s) are planned without transport mission coverage.`
+    )
+  );
+
+  const escortOperations = plan.operations.filter((operation) => operation.requiresEscort);
+  const escortMissions = plan.unitMissions.filter((mission) => mission.missionType === "escort-expedition");
+  results.push(
+    createDiagnosticResult(
+      "escort-readiness",
+      "Escort readiness",
+      escortOperations.length === 0 || escortMissions.length >= escortOperations.length ? "pass" : "warn",
+      escortOperations.length === 0
+        ? "No escort-dependent operation is active."
+        : escortMissions.length >= escortOperations.length
+          ? `${escortMissions.length} escort mission(s) cover ${escortOperations.length} escort-demanding operation(s).`
+          : `${escortOperations.length} escort-demanding operation(s) only have ${escortMissions.length} escort mission(s).`
     )
   );
 
