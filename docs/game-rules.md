@@ -1,8 +1,19 @@
 # Game Rules
 
-This document explains the implemented ruleset at a system level. It is written for developers first, but it should stay readable enough that designers and future contributors can use it to understand the real game behavior, including the mechanical edge cases that materially affect play.
+This document explains the implemented and intended ruleset at a system level. It is written for developers first, but it should stay readable enough that designers and future contributors can use it to understand the real game behavior, the design direction, and the edge cases that materially affect play.
 
-If this document disagrees with the actual behavior in `lib/empire/game.ts`, the code wins until the mismatch is resolved.
+If this document disagrees with the actual behavior in `lib/empire/game.ts`, the code wins until the mismatch is resolved. When new rules are added here before full implementation lands, treat them as authoritative design intent for the next rules pass.
+
+## Core Philosophy
+
+The game is built around a few persistent design priorities:
+
+- Systems matter more than individual units.
+- Information matters more than raw power.
+- Logistics matter more than convenience.
+- Clarity matters more than hidden mechanics.
+
+That means the game should reward planning, combined arms, and infrastructure. A unit should be strong because the rest of the system makes it strong, not because it bypasses the rest of the game.
 
 ## Core Loop
 
@@ -16,7 +27,7 @@ The normal flow is:
 4. End the turn. Stationary units fortify, income is paid, projects and production advance, and delayed systems resolve.
 5. Repeat until one side has no cities and no units left.
 
-The game rewards system pressure more than isolated duels. Capturing or disabling a key city, port, or airfield usually matters more than trading evenly on a random front.
+The game rewards system pressure more than isolated duels. Capturing or disabling a key city, port, airfield, forward base, or logistics route usually matters more than trading evenly on a random front.
 
 ## Win And Loss
 
@@ -24,6 +35,7 @@ The game rewards system pressure more than isolated duels. Capturing or disablin
 - Losing all cities is not by itself defeat if units still survive.
 - Losing all units is not by itself defeat if at least one city still survives.
 - Capturing cities matters because cities are both economy and production nodes, but elimination is not complete until the side has no surviving field presence either.
+- Air and naval power can shape the map, but land control is what closes the game out.
 
 ## Turn Structure
 
@@ -33,6 +45,7 @@ The implementation is asymmetrical in timing but not in outcome.
 - The AI gains income at the beginning of the AI turn.
 - On turn handoff, stationary units fortify, improvement projects advance, production queues advance, drone orders resolve, and airbase recovery logic runs.
 - Production and projects do not resolve instantly when queued. They tick down on turn transition.
+- End-of-turn effects are an important part of balance. Engineers, entrenchment, repairs, concealment refresh, and base-related behavior all live here conceptually even when they originate from different systems.
 
 ## Economy
 
@@ -53,7 +66,22 @@ This means a player can be rich in territory and still cash-poor if too many cit
 - A tile can be visible without every enemy unit on it being legally detected.
 - Movement also reveals. Units reveal tiles along their movement path during the turn, not just from their final position.
 
+### Last Known Position
+
+- When an enemy unit is detected, the intel layer should preserve a last known position marker.
+- Last known markers last `1` turn unless refreshed.
+- This system exists to preserve clarity without granting perfect information.
+- The player should know where the enemy was last positively identified, not where the enemy certainly is now.
+
 This makes reconnaissance economically valuable and tactically actionable at the same time.
+
+## Land Ownership
+
+- Tiles have an owner state: player, enemy, or neutral.
+- Ownership affects who may build on the tile.
+- Ownership affects who may deploy from the tile.
+- Ownership does not itself grant a direct combat modifier.
+- Ownership is a control and logistics rule, not an invisible stat buff.
 
 ## Movement And Domains
 
@@ -72,14 +100,16 @@ The game is explicitly domain-based.
 - Bridges let land units cross water crossings at normal movement cost.
 - Tunnels let land units cross mountain tiles at normal movement cost.
 - Spies are a special case: they can cross water, and water costs their full move allowance for the step.
+- Special Ops have normal land movement by default, but updated rules allow them to cross up to `2` water tiles when the route starts and ends on a legal insertion or extraction point.
 
 ### Occupancy Rules
 
 - Land and sea share the surface occupancy layer. Air uses a separate air layer.
 - Friendly surface units cannot stack on the same tile.
 - Air units can share a tile only when that tile has spare air capacity.
+- Legal start and end states matter as much as path cost. A route is only valid if the unit can actually exist on both ends of it.
 
-## Fortification
+## Fortification And Entrenchment
 
 - Units that do not spend their turn moving fortify at turn end.
 - Sentry units also fortify and consume the turn while remaining in place.
@@ -87,13 +117,21 @@ The game is explicitly domain-based.
 - Choppers are a major exception because they ignore fortification.
 - Concealment for spies, submarines, and stationary Special Ops is also refreshed through this same end-of-turn stationary logic.
 
+### Infantry Entrenchment
+
+- Infantry can entrench when they do not move.
+- Entrenchment persists until the unit moves.
+- Entrenchment reduces incoming damage.
+- Entrenchment also improves defensive counterattack value.
+- Entrenchment is meant to make infantry the backbone of positional warfare rather than just cheap capture tokens.
+
 Fortification exists to reward planning, defensive posture, and map preparation.
 
 ## Strategic Sites And Capture
 
 Cities and certain improvements have their own site-defense rules beyond normal unit combat.
 
-- Cities, ports, and airfields resist capture through a site-defense check.
+- Cities, ports, airfields, and forward bases resist capture through a site-defense check.
 - Adjacent friendly units add support to that site, up to `4` support points.
 - Cities and ports get a base defense bonus of `2`.
 - Airfields get a base defense bonus of `2`, or `4` if the airfield has radar.
@@ -108,12 +146,21 @@ Cities and certain improvements have their own site-defense rules beyond normal 
 - Attacks against an enemy outpost deal structure damage until the outpost is destroyed.
 - Destroying an outpost removes the improvement and clears ownership of that tile.
 
+### Forward Bases
+
+- Forward bases are staging sites rather than full cities.
+- A forward base requires an engineer and infantry to establish.
+- A forward base must maintain at least one infantry garrison.
+- If a forward base is left empty, it is abandoned.
+- Forward bases exist to create local reinforcement, staging, and operational depth without replacing cities.
+
 ## Combat
 
 - Combat damage is partly stat-based and partly randomized.
 - Fortification and armor matter, but piercing reduces armor value.
 - Defenders can retaliate if they are allowed to attack the attacker back.
 - Anti-air bonuses apply when attacking or retaliating against air units.
+- Combat should remain readable. The system should prefer clear role expression over large stacks of obscure modifiers.
 
 ### Important Combat Exceptions
 
@@ -147,6 +194,7 @@ Vision is not the same as detection.
 - Submarines are only detected by sonar-upgraded destroyers.
 - Radar detects air only. It does not reveal spies, Special Ops, submarines, or minefields.
 - Engineers are the key minefield counter.
+- Recently attacking submarines should generate a temporary detection event even if they are otherwise difficult to pin down.
 
 ### Minefield Detection
 
@@ -156,17 +204,6 @@ Vision is not the same as detection.
 - Engineers entering an enemy minefield disarm it instead of taking damage.
 
 This system is meant to make intelligence a force multiplier rather than decorative UI information.
-
-## Logistics And Basing
-
-The game treats logistics as gameplay, not bookkeeping.
-
-- Cities, ports, airfields, and carriers form the production and basing web.
-- Air power depends on legal landing sites and rearm opportunities.
-- Naval invasions depend on transport capacity and escort support.
-- Engineers matter because they expand the map of legal operations.
-
-If a force cannot sustain itself after the first action, it is overextended even if it looked powerful on the previous turn.
 
 ## Production
 
@@ -183,7 +220,7 @@ If a force cannot sustain itself after the first action, it is overextended even
 - Land and air production also require a legal unblocked spawn tile at completion.
 - Completed-but-blocked production remains in place with `turnsRemaining` at `0` until the lane opens.
 
-## Engineers And Improvements
+## Engineers, Repairs, And Improvements
 
 Engineers are one of the most important strategic units because they convert map shape into player choice.
 
@@ -196,8 +233,9 @@ They can build or affect systems such as:
 - radar
 - outposts
 - minefields
+- forward bases
 
-The point of the engineer is not raw combat efficiency. The point is to create routes, staging, traps, and forward pressure that other units can exploit.
+The point of the engineer is not raw combat efficiency. The point is to create routes, staging, traps, repair coverage, and forward pressure that other units can exploit.
 
 ### Project Rules
 
@@ -206,6 +244,12 @@ The point of the engineer is not raw combat efficiency. The point is to create r
 - An engineer assigned to a project is effectively pinned to it. If the engineer leaves the assigned origin tile, the project is canceled.
 - Decommissioning an engineer also cancels any project linked to that engineer.
 - Radar is not a standalone site. It upgrades an existing friendly airfield.
+
+### Repairs
+
+- Engineers provide adjacent repair support at end of turn.
+- Repair is intended to reward maintaining formation integrity and preserving support units.
+- Repair should favor nearby combined-arms groups over isolated spearheads.
 
 ### Improvement Costs And Time
 
@@ -217,14 +261,147 @@ The point of the engineer is not raw combat efficiency. The point is to create r
 - Outpost: cost `2`, build time `3`
 - Minefield: cost `4`, build time `2`
 
-## Naval Model
+## Air System
 
-The navy is designed around formations rather than isolated ship strength.
+Air power exists to provide speed, reach, and precision.
 
-- Troop transports are logistics assets, not combat ships.
-- Destroyers screen transports and carriers and provide survivability benefits.
-- Submarines threaten expensive hulls and sea lanes through concealment.
-- Carriers project air power and information forward, but become priority targets when left unscreened.
+Air units do:
+
+- reposition quickly
+- exploit exposed targets
+- punish weak logistics
+- reinforce distant sectors
+
+Air units do not:
+
+- hold territory
+- sustain operations without bases
+- survive prolonged exposure
+
+### Air Constraints
+
+- Air units must land on a valid base.
+- Air units are vulnerable to AA.
+- Air units cannot capture or hold territory.
+- Air power should feel sharp and flexible, but never self-sufficient.
+
+### Fighters
+
+- Role: air superiority
+- Strong versus air
+- Weak versus ground
+- Fighters are the cleanest answer to enemy aircraft, not a general-purpose strike platform.
+
+### Heavy Aircraft
+
+Heavy aircraft are loadout-based rather than permanently single-role.
+
+#### Heavy Aircraft Loadouts
+
+- Bomber: high damage versus land targets
+- Transport: carries units with limited capacity
+- Drop Ops: deploys units such as Special Ops or infantry
+
+#### Heavy Aircraft Loadout Rules
+
+- Loadout changes happen only at an airfield.
+- The first loadout is free.
+- Changing loadout costs `1` full turn.
+- The unit is renamed based on the active loadout.
+
+This keeps the chassis strategically flexible while preserving real operational commitment.
+
+### Choppers
+
+Choppers are also loadout-based support aircraft rather than pure attack pieces.
+
+#### Chopper Loadouts
+
+- Transport
+- Tank Killer
+- Spec Ops Support
+
+#### Chopper Loadout Rules
+
+- Loadout changes happen at base only.
+- Refit takes `1` turn.
+
+#### Chopper Behavior
+
+- Fragile
+- Short range
+- Intended to support operations rather than dominate combat
+- Best used to crack a narrow problem inside a larger combined-arms push
+
+### Airfield Capacity
+
+- Airfields have no hard unit cap under the updated rule set.
+- The balancing pressure is not stacking prohibition but concentration risk.
+- If an airfield is attacked successfully, all aircraft based there are at risk.
+- This encourages dispersion, redundancy, and careful base placement.
+
+### Endurance And Rearm
+
+- Fighters and choppers have `maxTurnsAwayFromBase: 2`.
+- Bombers also have `maxTurnsAwayFromBase: 2`.
+- Bombers track bomb ammunition separately and start with `6` bombs.
+- Bombers rearm when on a friendly legal base during turn processing.
+- The current implementation resets air-unit away-from-base state only when on a legal base; it does not currently destroy aircraft automatically for exceeding endurance, so endurance acts more like a tracked support requirement than a crash timer.
+
+## Anti-Air System
+
+Anti-air exists to stop aircraft from becoming a default answer to every problem.
+
+The AA model should be visible, understandable, and map-shaping.
+
+### Static AA
+
+Static AA can exist at:
+
+- cities
+- airfields
+- forward bases
+
+#### Static AA Rules
+
+- Static AA is built via upgrade.
+- Static AA has HP and can be destroyed.
+- Static AA automatically attacks enemy air in range.
+- Static AA should be a meaningful area-denial asset, not just flavor.
+
+#### Static AA Detection
+
+- Static AA has a short base detection range.
+- Static AA gains extended coverage if radar is present nearby.
+
+### Mobile AA
+
+Mobile AA is the formation-level air-defense layer.
+
+#### Infantry Light AA
+
+- Minimal AA capability
+- Defensive only
+- Triggers when attacked or when hostile air is adjacent
+
+This makes ordinary infantry slightly less helpless against air without turning them into true AA units.
+
+#### Armored AA
+
+- Implemented as an APC-style variant
+- Moderate AA capability
+- Mobile
+- Intended to protect formations and advance with the ground force
+
+### Naval AA
+
+- Destroyers and carriers provide strong anti-air coverage.
+- Ships act as mobile AA zones.
+- Naval AA is one of the main reasons fleets should travel as groups instead of isolated hulls.
+
+## Naval System
+
+The navy is designed around formations, threat projection, and risk management rather than isolated ship strength.
 
 ### Troop Transports
 
@@ -243,47 +420,64 @@ The navy is designed around formations rather than isolated ship strength.
 - A destroyer within range `2` of a troop transport grants that transport `+2` armor.
 - This is a passive survivability modifier, not an activated ability.
 
-### Submarines
+### Submarine Classes
 
-- Submarines can only attack sea targets.
-- Submarines can attack other submarines.
-- Submarines are sonar-only detection targets.
-- A submarine ambush on a carrier is lethal regardless of remaining carrier HP.
+The updated rules split submarines into clearer roles.
 
-## Air Model
+#### SSN
 
-Air power is strong, but deliberately constrained.
+- Fast attack submarine
+- Uses torpedoes
+- Carries `1` cruise missile
+- Can deploy Special Ops to coastal tiles
 
-- Fighters control the air and defend fleets or bases.
-- Bombers punish surface targets and infrastructure.
-- Choppers support flexible strike and insertion play.
-- Drone swarms create pressure through expendable threat projection.
+#### SSBN
 
-Air units are balanced around basing, recovery, and information. Without the right support network, they become inefficient very quickly.
+- Missile-heavy boomer
+- Carries multiple cruise missiles
+- Lower mobility than SSN
 
-### Air Capacity And Landing
+### Submarine Rules
 
-- Normal friendly air bases have capacity `1`.
-- Carriers have capacity `4`.
-- Fighters, choppers, and drone swarms can land on carriers.
-- Bombers cannot land on carriers. They can only land on airfields.
-- Cities can host aircraft only when the aircraft's landing rules allow cities.
-- Air stacking is therefore limited by capacity, not by a general unlimited-air rule.
+#### Attack Behavior
 
-### Endurance And Rearm
+- After attacking, a submarine must move.
+- A submarine cannot remain in the same tile after an attack.
 
-- Fighters and choppers have `maxTurnsAwayFromBase: 2`.
-- Bombers also have `maxTurnsAwayFromBase: 2`.
-- Bombers track bomb ammunition separately and start with `6` bombs.
-- Bombers rearm when on a friendly legal base during turn processing.
-- The current implementation resets air-unit away-from-base state only when on a legal base; it does not currently destroy aircraft automatically for exceeding endurance, so endurance acts more like a tracked support requirement than a crash timer.
+#### Detection
 
-### Radar And Carrier Air Support
+- Attacking creates a temporary detection event.
+- That detection event lasts `1` turn.
+- Enemy forces should gain a brief but meaningful chance to react after a submarine reveals itself through violence.
 
-- Radar on an airfield detects enemy air in range `5`.
-- Carriers detect enemy air in range `5`.
-- Carriers can be upgraded with radar relay, which lets friendly units attack detected enemies through the carrier relay network.
-- Carriers can jam enemy drone swarms within range `2`, dealing up to `5` damage.
+### SSBN Deep Silent Rule
+
+After missile launch:
+
+1. The SSBN must move.
+2. It enters Deep Silent for `2` turns.
+3. While in Deep Silent:
+   - it cannot attack
+   - it is extremely hard to detect
+
+This rule reinforces SSBN identity as a strategic threat rather than a repeated tactical skirmisher.
+
+### Spec Ops Deployment From SSN
+
+- SSN can deploy Special Ops to an adjacent land tile.
+- After deployment, the SSN must remain stationary on the next turn.
+- While stationary, the SSN is very difficult to detect.
+- If an enemy submarine enters the same tile, the SSN is detected.
+
+### Cruise Missiles
+
+- Cruise missiles target land only.
+- Cruise missiles require a visible or recently detected target.
+- Missile resolution happens the same turn or the next depending on the firing model.
+- If the target is missing, the missile may redirect to an adjacent tile.
+- If no valid target exists, the missile misses.
+
+Cruise missiles should reward intel preparation, not blind firing.
 
 ## Special Ops, Spies, And Drones
 
@@ -299,12 +493,25 @@ These units are rule-heavy enough that they need explicit treatment.
 
 ### Special Ops
 
+- Special Ops are an infiltration, recon-support, and capture-support unit.
 - Special Ops can capture.
 - Special Ops conceal while stationary.
 - Special Ops can call an air strike against visible hostile units within range `3` if they still have movement remaining.
 - Special Ops can be loaded into submarines or choppers.
 - Submarine insertion places Special Ops onto adjacent land and keeps them concealed on deployment.
 - Choppers can extract Special Ops from anywhere on the map in the current implementation; they do not require adjacent loading.
+
+#### Special Ops Movement Update
+
+- Special Ops use normal land movement as a base rule.
+- Special Ops may cross up to `2` water tiles.
+- Water-crossing movement must start and end on one of the following:
+  - land
+  - submarine
+  - ship
+  - chopper
+
+This makes them excellent at infiltration without turning them into general amphibious assault troops.
 
 ### Drone Swarms
 
@@ -315,11 +522,77 @@ These units are rule-heavy enough that they need explicit treatment.
 - Carriers can jam nearby enemy drone swarms.
 - Drone swarms are hard to ignore, but they are also disposable by design.
 
-## Decommissioning
+## Ground System
 
-- Units can be decommissioned for a refund equal to half their cost, rounded down.
-- Decommissioning an engineer also cancels any active project assigned to that engineer.
-- Decommissioning is therefore a real economic action, not just cleanup.
+Ground forces decide the war because they are the only layer that can reliably occupy, defend, and convert map control into victory.
+
+### Infantry
+
+- Infantry captures territory.
+- Infantry can entrench.
+- Infantry is the backbone of holding ground and protecting support assets.
+
+### Tanks
+
+- Tanks are breakthrough units.
+- Tanks are strongest against exposed targets.
+- Tanks should be feared in open routes and frustrated by bad terrain, mines, and unsupported overextension.
+
+### Artillery
+
+- Artillery attacks at range `2` to `3`.
+- Artillery cannot attack adjacent targets.
+- Artillery cannot defend itself effectively.
+- Artillery exists to force enemy movement and break entrenched positions.
+
+Artillery should shape ground tempo rather than act as a direct brawler.
+
+### Engineers
+
+- Engineers build improvements.
+- Engineers provide adjacent repair at end of turn.
+- Engineers are required to create the operational geometry that tanks, artillery, and airpower exploit.
+
+### Unit Rebalancing At Bases
+
+Unit rebalancing is a sustainment mechanic intended to reduce awkward HP fragmentation.
+
+- Rebalancing can happen at cities and forward bases.
+- Only the same unit types may rebalance with each other.
+- Total HP is conserved.
+- Each resulting unit must retain at least `1` HP.
+
+This is a logistics-quality rule, not a free-heal rule.
+
+## Air, Naval, And Land Balance Summary
+
+### Air
+
+- Fast
+- Flexible
+- Precision-oriented
+- Vulnerable
+- Base-dependent
+
+Air should feel powerful when supported and brittle when overextended.
+
+### Naval
+
+- Strong
+- Risk-based
+- Intel-dependent
+- Position-dependent
+
+Naval power should feel dominant in the right corridor and uncertain in the wrong one.
+
+### Land
+
+- Wins the game
+- Provides stable positional play
+- Controls territory
+- Converts operational success into actual victory
+
+Land is the final authority on map ownership.
 
 ## Combined Arms
 
@@ -330,8 +603,20 @@ The rules are built to discourage single-unit solutions.
 - Transports want destroyers.
 - Special Ops want insertion and reconnaissance support.
 - Carriers want escorts and aircraft that can exploit their mobility.
+- Artillery wants screened ground and spotting support.
+- Forward bases want infantry garrisons and engineer access.
+- AA wants radar and proper placement.
 
-This is a foundational design rule for future balance work. New mechanics should generally deepen combined-arms play, not bypass it.
+Combined arms is not a flavor target. It is the balance foundation.
+
+## Final Notes
+
+- Air cannot win alone.
+- Naval cannot hold territory.
+- Land wins the game.
+- Combined arms is required for success.
+
+Any future rules work should preserve those truths. New units and mechanics should deepen system identity, not blur it.
 
 ## Developer Notes
 
