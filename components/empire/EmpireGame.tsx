@@ -24,6 +24,8 @@ import { createAiDiagnosticsReport } from "@/lib/empire/ai/diagnostics";
 import { getRemainingMove, getUnitStats, key } from "@/lib/empire/game";
 import type { ManualRelatedLink } from "@/lib/empire/manual";
 import { MOVEMENT_PLAYBACK_STEP_MS } from "@/lib/empire/config";
+import { getFactionLeaderName } from "@/lib/empire/factions";
+import { getPreferredPlayerName, isCustomPlayerName, resolvePlayerName, savePlayerProfile } from "@/lib/empire/playerProfile";
 import { clearAutoSave, downloadSaveFile, getAutoSaveSummary, loadAutoSave, uploadSaveFile } from "@/lib/empire/saveLoad";
 import type { DeveloperPlacementType, Faction, GameType, Side, UnitType } from "@/lib/empire/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -111,6 +113,10 @@ export default function EmpireGame() {
   const [selectedGameType, setSelectedGameType] = useState<GameType>("normal");
   const [selectedPlayerFaction, setSelectedPlayerFaction] = useState<Faction>("usa");
   const [selectedAiFaction, setSelectedAiFaction] = useState<Faction>("china");
+  const [selectedPlayerName, setSelectedPlayerName] = useState(() => getPreferredPlayerName("usa"));
+  const [selectedPlayerNameIsCustom, setSelectedPlayerNameIsCustom] = useState(() =>
+    isCustomPlayerName(getPreferredPlayerName("usa"), "usa")
+  );
   const [selectedWorldSizeId, setSelectedWorldSizeId] = useState(worldSizeId);
   const [pendingBridgeAction, setPendingBridgeAction] = useState<{ x: number; y: number } | null>(null);
   const [pendingEngineerPlacement, setPendingEngineerPlacement] = useState<"port" | "airfield" | "radar" | "tunnel" | "outpost" | "minefield" | null>(null);
@@ -297,17 +303,43 @@ export default function EmpireGame() {
     setSelectedGameType(game.gameType);
     setSelectedPlayerFaction(game.playerFaction);
     setSelectedAiFaction(game.aiFaction);
+    setSelectedPlayerName(game.playerName);
+    setSelectedPlayerNameIsCustom(isCustomPlayerName(game.playerName, game.playerFaction));
     setSelectedWorldSizeId(worldSizeId);
     if (source === "endgame" && game.winner) {
       setDismissedWinner(game.winner);
     }
   }
 
+  function handlePlayerFactionChange(nextFaction: Faction) {
+    const currentFactionLeader = getFactionLeaderName(selectedPlayerFaction);
+    setSelectedPlayerFaction(nextFaction);
+    if (!selectedPlayerNameIsCustom || selectedPlayerName.trim() === currentFactionLeader) {
+      setSelectedPlayerName(getFactionLeaderName(nextFaction));
+      setSelectedPlayerNameIsCustom(false);
+    }
+  }
+
+  function handlePlayerNameChange(value: string) {
+    setSelectedPlayerName(value);
+    const trimmed = value.trim();
+    setSelectedPlayerNameIsCustom(Boolean(trimmed) && trimmed !== getFactionLeaderName(selectedPlayerFaction));
+  }
+
+  function handleResetPlayerName() {
+    setSelectedPlayerName(getFactionLeaderName(selectedPlayerFaction));
+    setSelectedPlayerNameIsCustom(false);
+  }
+
   function handleStartGame() {
     if (selectedPlayerFaction === selectedAiFaction) return;
+    const playerName = resolvePlayerName(selectedPlayerName, selectedPlayerFaction);
     playDeployCampaign();
     clearAutoSave();
-    resetGame(selectedGameType, selectedWorldSizeId, selectedPlayerFaction, selectedAiFaction);
+    savePlayerProfile(playerName, selectedPlayerFaction);
+    resetGame(selectedGameType, selectedWorldSizeId, selectedPlayerFaction, selectedAiFaction, playerName);
+    setSelectedPlayerName(playerName);
+    setSelectedPlayerNameIsCustom(isCustomPlayerName(playerName, selectedPlayerFaction));
     setSkipEndTurnMoveWarning(false);
     setDismissedWinner(null);
     setAiDiagnosticsReport(null);
@@ -322,13 +354,14 @@ export default function EmpireGame() {
       toast.error("No saved game found.");
       return;
     }
+    savePlayerProfile(saved.playerName, saved.playerFaction);
     loadGame(saved);
     setDismissedWinner(null);
     setAiDiagnosticsReport(null);
     setPendingTransportLoad(false);
     setStartGameOpen(false);
     setStartGameSource("menu");
-    toast.success(`Resumed game at turn ${saved.turn}.`);
+    toast.success(`Resumed ${saved.playerName} at turn ${saved.turn}.`);
   }
 
   async function handleLoadSaveFile() {
@@ -337,13 +370,14 @@ export default function EmpireGame() {
       toast.error("Could not load save file. Make sure it is a valid Empire save.");
       return;
     }
+    savePlayerProfile(state.playerName, state.playerFaction);
     loadGame(state);
     setDismissedWinner(null);
     setAiDiagnosticsReport(null);
     setPendingTransportLoad(false);
     setStartGameOpen(false);
     setStartGameSource("menu");
-    toast.success(`Loaded game at turn ${state.turn}.`);
+    toast.success(`Loaded ${state.playerName} at turn ${state.turn}.`);
   }
 
   function handleSaveToFile() {
@@ -569,7 +603,7 @@ export default function EmpireGame() {
 
     for (const message of newMessages) {
       if (
-        message.startsWith("Welcome, commander.") ||
+        message.startsWith("Welcome, ") ||
         message.startsWith("Enemy turn.") ||
         message.startsWith("End of your turn.") ||
         message.startsWith("Turn ")
@@ -747,6 +781,7 @@ export default function EmpireGame() {
                 unmovedUnitCount={unmovedUnitCount}
                 playerFaction={game.playerFaction}
                 aiFaction={game.aiFaction}
+                playerName={game.playerName}
                 side={game.side}
                 winner={game.winner}
                 unitDefinitions={unitDefinitions}
@@ -904,6 +939,9 @@ export default function EmpireGame() {
         turn={game.turn}
         playerCities={playerCities}
         playerUnits={playerUnits}
+        playerName={game.playerName}
+        playerFaction={game.playerFaction}
+        aiFaction={game.aiFaction}
         onClose={() => setDismissedWinner(game.winner)}
         onReset={() => {
           openStartGameModal("endgame");
@@ -915,11 +953,14 @@ export default function EmpireGame() {
         selectedGameType={selectedGameType}
         selectedPlayerFaction={selectedPlayerFaction}
         selectedAiFaction={selectedAiFaction}
+        selectedPlayerName={selectedPlayerName}
         selectedWorldSizeId={selectedWorldSizeId}
         worldSizeOptions={worldSizeOptions}
         onChangeGameType={setSelectedGameType}
-        onChangePlayerFaction={setSelectedPlayerFaction}
+        onChangePlayerFaction={handlePlayerFactionChange}
         onChangeAiFaction={setSelectedAiFaction}
+        onChangePlayerName={handlePlayerNameChange}
+        onResetPlayerName={handleResetPlayerName}
         onChangeWorldSize={setSelectedWorldSizeId}
         onOpenFieldManual={() => setFieldManualOpen(true)}
         autoSaveSummary={autoSaveSummary}

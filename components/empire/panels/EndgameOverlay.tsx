@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crown, RotateCcw, Skull, Sparkles, Swords, X } from "lucide-react";
-import type { Side } from "@/lib/empire/types";
+import { getFactionLeaderName } from "@/lib/empire/factions";
+import type { Faction, Side } from "@/lib/empire/types";
 import { Button } from "@/components/ui/button";
 
 type EndgameOverlayProps = {
@@ -12,6 +13,9 @@ type EndgameOverlayProps = {
   turn: number;
   playerCities: number;
   playerUnits: number;
+  playerName: string;
+  playerFaction: Faction;
+  aiFaction: Faction;
   onClose: () => void;
   onReset: () => void;
 };
@@ -22,10 +26,15 @@ export function EndgameOverlay({
   turn,
   playerCities,
   playerUnits,
+  playerName,
+  playerFaction,
+  aiFaction,
   onClose,
   onReset,
 }: EndgameOverlayProps) {
   const isVictory = winner === "player";
+  const playerLeaderName = getFactionLeaderName(playerFaction);
+  const enemyLeaderName = getFactionLeaderName(aiFaction);
 
   const particles = useMemo(
     () =>
@@ -149,8 +158,8 @@ export function EndgameOverlay({
                 ].join(" ")}
               >
                 {isVictory
-                  ? "The front finally broke. Your colors are flying over the map, the enemy line has collapsed, and the campaign belongs to you."
-                  : "The line failed. Cities fell, formations shattered, and the map slipped out of your hands before the counterstroke arrived."}
+                  ? `${playerName} broke the front and beat old ${enemyLeaderName}. ${playerLeaderName}'s banner now flies across the map.`
+                  : `${enemyLeaderName} broke your line before the counterstroke landed. ${playerName} was driven from the map and ${playerLeaderName}'s command collapsed.`}
               </div>
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">

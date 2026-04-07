@@ -18,13 +18,16 @@ type StartGameModalProps = {
   selectedGameType: GameType;
   selectedPlayerFaction: Faction;
   selectedAiFaction: Faction;
+  selectedPlayerName: string;
   selectedWorldSizeId: string;
   worldSizeOptions: WorldSizeOption[];
   onChangeGameType: (value: GameType) => void;
   onChangePlayerFaction: (value: Faction) => void;
   onChangeAiFaction: (value: Faction) => void;
+  onChangePlayerName: (value: string) => void;
+  onResetPlayerName: () => void;
   onChangeWorldSize: (value: string) => void;
-  autoSaveSummary: { turn: number; playerFaction: string; aiFaction: string; savedAt: string } | null;
+  autoSaveSummary: { turn: number; playerFaction: string; aiFaction: string; playerName: string; savedAt: string } | null;
   onOpenFieldManual: () => void;
   onCancel?: () => void;
   onStart: () => void;
@@ -83,11 +86,14 @@ export function StartGameModal({
   selectedGameType,
   selectedPlayerFaction,
   selectedAiFaction,
+  selectedPlayerName,
   selectedWorldSizeId,
   worldSizeOptions,
   onChangeGameType,
   onChangePlayerFaction,
   onChangeAiFaction,
+  onChangePlayerName,
+  onResetPlayerName,
   onChangeWorldSize,
   autoSaveSummary,
   onOpenFieldManual,
@@ -104,6 +110,7 @@ export function StartGameModal({
   const playerFaction = getFactionOption(selectedPlayerFaction);
   const aiFaction = getFactionOption(selectedAiFaction);
   const aiDisplayFaction = getDisplayFactionOption(selectedPlayerFaction, selectedAiFaction, "ai") ?? aiFaction;
+  const autoSaveAiFaction = autoSaveSummary ? getFactionOption(autoSaveSummary.aiFaction as Faction) : null;
   const factionsConflict = selectedPlayerFaction === selectedAiFaction;
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/82 p-4 backdrop-blur-md">
@@ -183,6 +190,26 @@ export function StartGameModal({
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                     </div>
                     <FactionSwatches faction={playerFaction} className="mt-3" />
+                    <div className="mt-4">
+                      <label className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                        Commander Name
+                      </label>
+                      <input
+                        value={selectedPlayerName}
+                        onChange={(event) => onChangePlayerName(event.target.value)}
+                        className="mt-2 h-12 w-full rounded-2xl border border-slate-700 bg-slate-950/80 px-4 text-base font-semibold text-white outline-none transition focus:border-amber-300"
+                      />
+                      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-400">
+                        <span>Default leader: {playerFaction.leaderName}</span>
+                        <button
+                          type="button"
+                          className="font-semibold text-amber-200 transition hover:text-amber-100"
+                          onClick={onResetPlayerName}
+                        >
+                          Use faction leader
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div className={`rounded-2xl border ${aiFaction.chipClass} ${aiDisplayFaction.borderClass}/45 bg-slate-950/70 p-4`}>
                     <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Play Against</div>
@@ -201,6 +228,9 @@ export function StartGameModal({
                       <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                     </div>
                     <FactionSwatches faction={aiDisplayFaction} className="mt-3" />
+                    <div className="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/60 px-3 py-2 text-xs text-slate-300">
+                      Historic leader: {aiFaction.leaderName}
+                    </div>
                   </div>
                 </div>
                 {factionsConflict ? (
@@ -230,6 +260,11 @@ export function StartGameModal({
                     Continue Game
                     <span className="ml-2 text-xs opacity-75">Turn {autoSaveSummary.turn}</span>
                   </Button>
+                )}
+                {autoSaveSummary && (
+                  <div className="mt-2 rounded-2xl border border-slate-800/80 bg-slate-950/50 px-3 py-2 text-xs text-slate-300">
+                    Commander {autoSaveSummary.playerName} vs {autoSaveAiFaction?.leaderName ?? autoSaveSummary.aiFaction}
+                  </div>
                 )}
                 <Button variant="outline" className="mt-3 h-12 w-full rounded-2xl" onClick={onLoadFile}>
                   <Upload className="mr-2 h-4 w-4" />

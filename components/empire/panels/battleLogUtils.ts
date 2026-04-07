@@ -13,9 +13,9 @@ export function getBattleLogFilterLabel(filter: BattleLogFilter) {
 export function matchesBattleLogFilter(log: string, filter: BattleLogFilter) {
   const lower = log.toLowerCase();
   if (filter === "combat") return /attack|destroyed|detonated|strike|jamming|bombard|cripple|shattered/.test(lower);
-  if (filter === "capture") return /captured|control|rules the map/.test(lower);
+  if (filter === "capture") return /captured|control|rules the map|victory|defeat|beat old|broke .* command/.test(lower);
   if (filter === "build") return /produced|completed|build|placed|installed|treasury/.test(lower);
-  if (filter === "intel") return /turn|enemy turn|radar|visible|fog|exploration|commander/.test(lower);
+  if (filter === "intel") return /turn|enemy turn|radar|visible|fog|exploration|welcome|your command/.test(lower);
   return true;
 }
 
