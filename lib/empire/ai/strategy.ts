@@ -250,7 +250,7 @@ export function classifyAiUnitRole(unit: Unit): AiUnitRole {
   if (unit.type === "fighter") return "interceptor";
   if (unit.type === "bomber" || unit.type === "drone-swarm") return "bombardment";
   if (unit.type === "destroyer") return "fleet-screen";
-  if (unit.type === "submarine") return "fleet-strike";
+  if (unit.type === "submarine" || unit.type === "ssbn") return "fleet-strike";
   if (unit.type === "carrier") return "carrier-core";
   if (unit.type === "troop-transport") return "transport-support";
   if (unit.type === "special-ops" || unit.type === "engineer" || unit.type === "chopper") return "specialist";

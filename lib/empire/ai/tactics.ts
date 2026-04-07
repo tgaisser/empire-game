@@ -34,7 +34,7 @@ function getStrategicUnitValue(unit: Unit) {
   if (unit.type === "carrier") return 34;
   if (unit.type === "troop-transport") return 26;
   if (unit.type === "bomber") return 22;
-  if (unit.type === "submarine") return 20;
+  if (unit.type === "submarine" || unit.type === "ssbn") return 20;
   if (unit.type === "engineer" || unit.type === "special-ops") return 18;
   if (unit.type === "fighter" || unit.type === "chopper") return 16;
   return 10;
@@ -196,7 +196,7 @@ function shouldRetreat(unit: Unit, mission: AiUnitMission | null, state: GameSta
   const hpRatio = unit.hp / Math.max(1, stats.maxHp);
   const localThreat = scoreEnemyThreatAtPosition(unit, unit.x, unit.y, state);
   const localSupport = scoreFriendlySupportAtPosition(unit, unit.x, unit.y, state);
-  const isHighValueUnit = ["carrier", "troop-transport", "bomber", "engineer", "special-ops", "submarine"].includes(unit.type);
+  const isHighValueUnit = ["carrier", "troop-transport", "bomber", "engineer", "special-ops", "submarine", "ssbn"].includes(unit.type);
 
   if (hpRatio <= 0.35) return true;
   if (stats.maxTurnsAwayFromBase && unit.turnsAwayFromBase >= stats.maxTurnsAwayFromBase - 1) return true;

@@ -994,7 +994,9 @@ export default function EmpireGame() {
         open={!!pendingUnitRename}
         title={
           pendingUnitRename?.unitType === "submarine"
-            ? "Commission New Submarine"
+            ? "Commission New SSN"
+            : pendingUnitRename?.unitType === "ssbn"
+              ? "Commission New SSBN"
             : pendingUnitRename?.unitType === "troop-transport"
               ? "Commission New Troop Transport"
             : pendingUnitRename?.unitType === "carrier"
@@ -1003,7 +1005,9 @@ export default function EmpireGame() {
         }
         description={
           pendingUnitRename?.unitType === "submarine"
-            ? "Your new submarine is ready. Confirm its name before it slips out on patrol."
+            ? "Your new fast attack submarine is ready. Confirm its name before it slips out on patrol."
+            : pendingUnitRename?.unitType === "ssbn"
+              ? "Your new missile submarine is ready. Confirm its name before it takes station."
             : pendingUnitRename?.unitType === "troop-transport"
               ? "Your new troop transport is ready. Confirm its name before it joins the convoy."
             : pendingUnitRename?.unitType === "carrier"

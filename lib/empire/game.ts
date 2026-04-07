@@ -92,6 +92,10 @@ function revealAround(mask: boolean[][], centerX: number, centerY: number, radiu
   }
 }
 
+export function isSubmarine(type: UnitType): boolean {
+  return type === "submarine" || type === "ssbn";
+}
+
 export function getDetectedEnemyUnitIdSet(state: GameState, side: Side) {
   return new Set(side === "player" ? state.playerDetectedUnitIds : state.aiDetectedUnitIds);
 }
@@ -99,7 +103,7 @@ export function getDetectedEnemyUnitIdSet(state: GameState, side: Side) {
 function canUnitDetectTarget(observer: Unit, target: Unit) {
   const observerStats = getUnitStats(observer);
   if (target.type === "special-ops") return Boolean(observerStats.canDetectSpecialOps);
-  if (target.type === "submarine") return Boolean(observer.type === "destroyer" && observer.sonarUpgraded);
+  if (isSubmarine(target.type)) return Boolean(observer.type === "destroyer" && observer.sonarUpgraded);
   return true;
 }
 
@@ -114,8 +118,8 @@ export function canUnitAttackTarget(attacker: Unit, defender: Unit) {
 
   if (defenderStats.cannotBeAttacked) return false;
   if (!attackerStats.canAttack || !canUnitAttackDomain(attacker, defenderStats.domain)) return false;
-  if (defender.type === "submarine") {
-    return Boolean((attacker.type === "destroyer" && attacker.sonarUpgraded) || attacker.type === "submarine");
+  if (isSubmarine(defender.type)) {
+    return Boolean((attacker.type === "destroyer" && attacker.sonarUpgraded) || isSubmarine(attacker.type));
   }
 
   return true;
@@ -167,6 +171,8 @@ function createUnit(id: number, owner: Side, type: UnitType, x: number, y: numbe
     sonarUpgraded: false,
     radarRelayUpgraded: false,
     bombsRemaining: definition.bombCapacity ?? null,
+    torpedoesRemaining: definition.torpedoCapacity ?? null,
+    cruiseMissilesRemaining: definition.cruiseMissileCapacity ?? null,
     droneTargetX: null,
     droneTargetY: null,
     carriedSpecialOps: null,
@@ -1450,7 +1456,7 @@ function resolveCombat(attacker: Unit, defender: Unit, options?: { defenderForti
     : 0;
   const effectiveDefenderArmor = Math.max(0, defenderStats.armor + (options?.defenderArmorBonus ?? 0) - attackerStats.piercing);
   const effectiveAttackerArmor = Math.max(0, attackerStats.armor - defenderStats.piercing);
-  const aswBonus = attacker.type === "destroyer" && attacker.sonarUpgraded && defender.type === "submarine" ? ASW_DESTROYER_SUB_ATTACK_BONUS : 0;
+  const aswBonus = attacker.type === "destroyer" && attacker.sonarUpgraded && isSubmarine(defender.type) ? ASW_DESTROYER_SUB_ATTACK_BONUS : 0;
   const attackerBaseAttack = attackerStats.atk + (defenderStats.domain === "air" ? attackerStats.antiAirBonus ?? 0 : 0) + aswBonus;
   const defenderBaseAttack = defenderStats.atk + (attackerStats.domain === "air" ? defenderStats.antiAirBonus ?? 0 : 0);
   let defenderDamage = attackerStats.canAttack

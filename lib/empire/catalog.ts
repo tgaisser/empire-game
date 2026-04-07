@@ -12,6 +12,7 @@ export const UNIT_TYPE_ORDER: UnitType[] = [
   "troop-transport",
   "carrier",
   "submarine",
+  "ssbn",
   "chopper",
   "fighter",
   "bomber",

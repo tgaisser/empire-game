@@ -147,14 +147,31 @@ export const UNIT_MANUAL_ENTRIES: Record<UnitType, ManualUnitEntry> = {
   },
   submarine: {
     unitType: "submarine",
-    summary: "Stealth naval hunter built to ambush high-value ships and insert covert teams.",
+    summary: "Fast attack submarine built to ambush high-value ships and insert covert teams.",
     role: ["Threaten carriers, contest sea lanes, and deliver Special Ops covertly."],
-    strengths: ["Conceals while stationary and requires sonar counterplay.", "High piercing makes it dangerous to armored ships."],
-    weaknesses: ["Limited target set.", "Destroyers with sonar are the dedicated counter."],
-    tips: ["Use submarines to impose fear on sea lanes even before they fire."],
+    strengths: ["Conceals while stationary and requires sonar counterplay.", "High piercing makes it dangerous to armored ships.", "Can insert Special Ops into coastal zones."],
+    weaknesses: ["Limited torpedo and missile supply.", "Destroyers with sonar are the dedicated counter."],
+    tips: ["Use SSNs as your primary anti-ship hunters and covert insertion platforms."],
     worksWellWith: [
-      { kind: "unit", id: "special-ops", label: "Special Ops", note: "Submarines can deliver covert teams into inaccessible coastal zones." },
-      { kind: "unit", id: "destroyer", label: "Destroyer", note: "Friendly destroyers help contest the sea lane while the submarine hunts." },
+      { kind: "unit", id: "special-ops", label: "Special Ops", note: "SSNs can deliver covert teams into inaccessible coastal zones." },
+      { kind: "unit", id: "destroyer", label: "Destroyer", note: "Friendly destroyers help contest the sea lane while the SSN hunts." },
+    ],
+    counteredBy: [
+      { kind: "unit", id: "destroyer", label: "Destroyer" },
+      { kind: "rule", id: "stealth-and-detection", label: "Stealth And Detection" },
+    ],
+    related: [{ kind: "domain", id: "sea", label: "Sea Doctrine" }],
+  },
+  ssbn: {
+    unitType: "ssbn",
+    summary: "Missile submarine carrying cruise missiles for deep land strikes.",
+    role: ["Strike high-value land targets from concealed positions at sea."],
+    strengths: ["Large cruise missile load for sustained land bombardment.", "Conceals while stationary like other submarines."],
+    weaknesses: ["Slow and expensive.", "Only one defensive torpedo — vulnerable if detected.", "Destroyers with sonar are the dedicated counter."],
+    tips: ["Keep SSBNs behind your fleet screen. Their value is in cruise missile strikes, not direct naval combat."],
+    worksWellWith: [
+      { kind: "unit", id: "destroyer", label: "Destroyer", note: "Destroyers screen SSBNs from enemy ASW." },
+      { kind: "unit", id: "submarine", label: "SSN", note: "SSNs hunt the escorts while the SSBN strikes from safety." },
     ],
     counteredBy: [
       { kind: "unit", id: "destroyer", label: "Destroyer" },

@@ -758,7 +758,7 @@ function UnitActionBadge({ unitType, faction }: { unitType: UnitType; faction: F
 
 function getActionUnitDomain(unitType: UnitType) {
   if (["chopper", "fighter", "bomber", "drone-swarm"].includes(unitType)) return "air" as const;
-  if (["destroyer", "troop-transport", "carrier", "submarine"].includes(unitType)) return "sea" as const;
+  if (["destroyer", "troop-transport", "carrier", "submarine", "ssbn"].includes(unitType)) return "sea" as const;
   return "land" as const;
 }
 

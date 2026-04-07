@@ -57,7 +57,7 @@ type CandidateBuild = {
 };
 
 const LAND_PRODUCTION_UNITS: UnitType[] = ["infantry", "scout", "tank", "engineer", "special-ops"];
-const SEA_PRODUCTION_UNITS: UnitType[] = ["destroyer", "troop-transport", "carrier", "submarine"];
+const SEA_PRODUCTION_UNITS: UnitType[] = ["destroyer", "troop-transport", "carrier", "submarine", "ssbn"];
 const AIR_PRODUCTION_UNITS: UnitType[] = ["chopper", "fighter", "bomber", "drone-swarm"];
 
 function countUnitsByType(units: Unit[]) {
@@ -368,7 +368,7 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       score += 14;
       reasons.push("enemy naval contacts are known");
     }
-    const knownEnemySubs = context.knownEnemyUnits.filter((u) => u.type === "submarine").length;
+    const knownEnemySubs = context.knownEnemyUnits.filter((u) => u.type === "submarine" || u.type === "ssbn").length;
     if (knownEnemySubs > 0) {
       score += 12;
       reasons.push("enemy submarines detected — ASW capability needed");
@@ -437,6 +437,21 @@ function scoreUnitForSite(context: AiContext, site: AiProductionSite, unitType: 
       reasons.push("friendly destroyers support coordinated sea pressure");
     }
     score -= aiTypeCount * 6;
+  } else if (unitType === "ssbn") {
+    score += 20;
+    if (context.state.gameType === "archipelago" || context.state.gameType === "ocean") {
+      score += 14;
+      reasons.push("map supports missile submarine operations");
+    }
+    if (context.aiCountsByType.ssbn === 0 && context.aiCountsByType.submarine > 0) {
+      score += 12;
+      reasons.push("adding cruise missile capability to the fleet");
+    }
+    if (enemySea > aiSea) {
+      score += 8;
+      reasons.push("enemy fleet presence justifies missile deterrent");
+    }
+    score -= aiTypeCount * 12;
   } else if (unitType === "chopper") {
     score += 32;
     if (enemyLand > 0) {

@@ -180,7 +180,7 @@ export function UnitTypeIcon({ unitType, className = "text-white" }: UnitTypeIco
     );
   }
 
-  if (unitType === "submarine") {
+  if (unitType === "submarine" || unitType === "ssbn") {
     return (
       <svg viewBox="0 0 129 80" className={`${base} h-[88%] w-[88%] overflow-visible`}>
         <g transform="translate(0,80) scale(0.05,-0.05)" fill="currentColor" stroke="none">

@@ -116,7 +116,7 @@ export function useEmpireGame() {
   function pickRandomUnusedName(
     sourceNames: string[],
     usedNames: Set<string>,
-    format: "destroyer" | "carrier" | "submarine" | "troop-transport",
+    format: "destroyer" | "carrier" | "submarine" | "ssbn" | "troop-transport",
     fallbackName: string
   ) {
     const availableNames = sourceNames.filter((name) =>
@@ -233,11 +233,11 @@ export function useEmpireGame() {
       const previousUnitIds = new Set(previousGame.units.map((unit) => unit.id));
       for (const unit of game.units) {
         if (previousUnitIds.has(unit.id)) continue;
-        if (unit.owner === "player" && !unit.name && ["destroyer", "carrier", "submarine", "troop-transport"].includes(unit.type)) {
+        if (unit.owner === "player" && !unit.name && ["destroyer", "carrier", "submarine", "ssbn", "troop-transport"].includes(unit.type)) {
           const sourceNames =
             unit.type === "carrier"
               ? carrierNames
-              : unit.type === "submarine"
+              : unit.type === "submarine" || unit.type === "ssbn"
                 ? submarineNames
                 : unit.type === "troop-transport"
                   ? troopTransportNames
@@ -251,7 +251,7 @@ export function useEmpireGame() {
           const fallbackName =
             unit.type === "carrier"
               ? "Enterprise"
-              : unit.type === "submarine"
+              : unit.type === "submarine" || unit.type === "ssbn"
                 ? "Tang"
                 : unit.type === "troop-transport"
                   ? "Bayfield"
@@ -265,9 +265,11 @@ export function useEmpireGame() {
                 ? "carrier"
                 : unit.type === "submarine"
                   ? "submarine"
-                  : unit.type === "troop-transport"
-                    ? "troop-transport"
-                    : "destroyer",
+                  : unit.type === "ssbn"
+                    ? "ssbn"
+                    : unit.type === "troop-transport"
+                      ? "troop-transport"
+                      : "destroyer",
               fallbackName
             ),
             unitType: unit.type,

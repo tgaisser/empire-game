@@ -32,6 +32,7 @@ export type UnitType =
   | "troop-transport"
   | "carrier"
   | "submarine"
+  | "ssbn"
   | "fighter"
   | "bomber"
   | "drone-swarm";
@@ -104,6 +105,8 @@ export type UnitDefinition = {
   canBeDetectedBySonarOnly?: boolean;
   canCallAirStrike?: boolean;
   transportCapacity?: number;
+  torpedoCapacity?: number;
+  cruiseMissileCapacity?: number;
 };
 
 export type TroopTransportCargo = {
@@ -157,6 +160,8 @@ export type Unit = {
   sonarUpgraded?: boolean;
   radarRelayUpgraded?: boolean;
   bombsRemaining?: number | null;
+  torpedoesRemaining?: number | null;
+  cruiseMissilesRemaining?: number | null;
   droneTargetX?: number | null;
   droneTargetY?: number | null;
   carriedSpecialOps?: {
