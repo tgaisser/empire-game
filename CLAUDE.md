@@ -14,6 +14,7 @@ npm run lint     # ESLint
 ```
 
 No test framework is configured. There are no tests.
+See [docs/codebase-reference.md](docs/codebase-reference.md) and [docs/feature-tracking.md](docs/feature-tracking.md) for full architectural breakdowns and manual QA checklists.
 
 ## Architecture
 

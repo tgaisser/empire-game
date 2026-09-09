@@ -57,6 +57,12 @@ Notes:
 
 ## Documentation Map
 
+- [docs/codebase-reference.md](docs/codebase-reference.md)  
+  Technical architecture, engine state flow, turn lifecycle, AI pipeline, rendering, and 80s MS-DOS heritage.
+
+- [docs/feature-tracking.md](docs/feature-tracking.md)  
+  Complete feature catalog (14 units, 7 improvements, 22 commands, UI modals) and manual QA verification checklist.
+
 - [docs/game-rules.md](docs/game-rules.md)  
   Gameplay rules, core systems, and the strategic model the implementation is trying to preserve.
 
